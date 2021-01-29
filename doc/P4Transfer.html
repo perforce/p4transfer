@@ -451,22 +451,32 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#_introduction">1. Introduction</a></li>
-<li><a href="#_implementation">2. Implementation</a></li>
-<li><a href="#_setup">3. Setup</a>
+<li><a href="#_p4transfer_vs_helix_native_dvcs_functions">2. P4Transfer vs Helix native DVCS functions</a>
 <ul class="sectlevel2">
-<li><a href="#_optional_parameters">3.1. Optional Parameters</a></li>
-<li><a href="#_configuration_options">3.2. Configuration Options</a>
+<li><a href="#_guidance_on_tool_differences">2.1. Guidance on tool differences</a></li>
+</ul>
+</li>
+<li><a href="#_implementation">3. Implementation</a></li>
+<li><a href="#_setup">4. Setup</a>
+<ul class="sectlevel2">
+<li><a href="#_optional_parameters">4.1. Optional Parameters</a></li>
+<li><a href="#_configuration_options">4.2. Configuration Options</a>
 <ul class="sectlevel3">
-<li><a href="#_changelist_comment_formatting">3.2.1. Changelist comment formatting</a></li>
-<li><a href="#_recording_a_change_list_mapping_file">3.2.2. Recording a change list mapping file</a></li>
+<li><a href="#_changelist_comment_formatting">4.2.1. Changelist comment formatting</a></li>
+<li><a href="#_recording_a_change_list_mapping_file">4.2.2. Recording a change list mapping file</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#_usage">4. Usage</a>
+<li><a href="#_usage">5. Usage</a>
 <ul class="sectlevel2">
-<li><a href="#_integration">4.1. Integration</a></li>
-<li><a href="#_setting_up_as_a_service_on_windows">4.2. Setting up as a service on Windows</a></li>
+<li><a href="#_integration">5.1. Integration</a></li>
+<li><a href="#_setting_up_as_a_service_on_windows">5.2. Setting up as a service on Windows</a></li>
+</ul>
+</li>
+<li><a href="#_support">6. Support</a>
+<ul class="sectlevel2">
+<li><a href="#_re_running_p4transfer_after_an_error">6.1. Re-running P4Transfer after an error</a></li>
 </ul>
 </li>
 </ul>
@@ -480,7 +490,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <p>The script <a href="../P4Transfer.py">P4Transfer.py</a> solves the problem: how to transfer changes between unrelated and unconnected Perforce Helix Core repositories.</p>
 </div>
 <div class="paragraph">
-<p>If you have a 2015.1 or greater Helix Core server then you can use the new <a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">P4DVCS</a> commands (<code>clone</code>/<code>fetch</code>/<code>push</code>). If you have an older version of Helix Core (or very large repository sizes to be transferred) then <code>P4Transfer.py</code> may be your best option!</p>
+<p>If you have a 2015.1 or greater Helix Core server then you can use the new <a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">P4DVCS</a> commands (<code>clone</code>/<code>fetch</code>/<code>push</code>). If you have an older version of Helix Core (or very large repository sizes to be transferred) then <code>P4Transfer.py</code> may be your best option! See next section for guidance.</p>
 </div>
 <div class="paragraph">
 <p>While best practice is usually to have only one Perforce Server, the reality is often that many different Perforce Servers are required. A typical example is the Perforce public depot, which sits outside the Perforce Network.</p>
@@ -491,7 +501,110 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_implementation">2. Implementation</h2>
+<h2 id="_p4transfer_vs_helix_native_dvcs_functions">2. P4Transfer vs Helix native DVCS functions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Both Helix native DVCS and P4Transfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> has additional functionality, such as creating a personal micro-repo for personal use without a continuously running ‘p4d’ process.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+When it is an option, using Helix native DVCS is preferred.  But if that can’t be used for some reason, P4Transfer can pretty much always be made to work.
+</td>
+</tr>
+</table>
+</div>
+<div class="sect2">
+<h3 id="_guidance_on_tool_differences">2.1. Guidance on tool differences</h3>
+<div class="paragraph">
+<p>Pros for native DVCS:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Helix native DVCS is a fully supported product feature.</p>
+</li>
+<li>
+<p>Helix native DVCS requires consistency among the Helix Core servers: Same case sensitivity setting, same Unicode mode, and same P4D version (with some exceptions).</p>
+</li>
+<li>
+<p>Helix native DVCS is easy to setup and use.</p>
+</li>
+<li>
+<p>Helix native DVCS has some limitations at large scale (depends on server RAM).</p>
+</li>
+<li>
+<p>Helix native DVCS is generally deemed to product the highest possible quality data on the target server, as it transfers raw journal data and archive content.</p>
+</li>
+<li>
+<p>Helix native DVCS is very fast.</p>
+</li>
+<li>
+<p>Helix native DVCS has no external dependencies.</p>
+</li>
+<li>
+<p>Helix native DVCS bypasses triggers.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>When P4Transfer might be a better option:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>If Helix native DVCS hits data snags, there may not be an easy way to work around them, unless a new P4D server release address them.</p>
+</li>
+<li>
+<p>Helix native DVCS must be explicitly enabled.  If not already enabled, it requires ‘super’ access on both Helix Core servers involved in the process.</p>
+</li>
+<li>
+<p>P4Transfer is community supported (and with paid Consulting engagements).</p>
+</li>
+<li>
+<p>P4Transfer can make timestamps more accurate if it has ‘admin’ level access, but does not require it.</p>
+</li>
+<li>
+<p>P4Transfer automates front-door workflows, i.e. it does would a human with a ‘p4’ command line client, fleet fingers and a lot of time could do.</p>
+</li>
+<li>
+<p>P4Transfer can work with mismatched server data sets (different case sensitivity, Unicode mode, or P4D settings) <strong>so long as</strong> the actual data to be migrated doesn’t cause issues.  (For example, if you try to copy paths that actually do have Korean glyphs in the path name to a non-Unicode server, that ain’t gonna work.).</p>
+</li>
+<li>
+<p>If P4Transfer does have issues with importing some data (like the above example with Unicode paths), you can manually work around those snags, and then pick up with the next changelist.  If there aren’t too many snags, this trial and error process is viable.</p>
+</li>
+<li>
+<p>P4Transfer is reasonably fast as a front-door mechanism.</p>
+</li>
+<li>
+<p>P4Transfer can be run as a service for continuous operation, and has successfully run for months or more.</p>
+</li>
+<li>
+<p>P4Transfer data quality is excellent in terms of detail (e.g. integration history, resolve options, etc.).  However, it is an emulation of history rather than a raw replay of  actually history in the native format as done by Helix native DVCS.  The nuance in history differences rarely has practical implications.</p>
+</li>
+<li>
+<p>P4Transfer requires more initial setup than Helix native DVCS.</p>
+</li>
+<li>
+<p>P4Transer requires Python (2.7 or 3.6+).</p>
+</li>
+<li>
+<p>P4Transfer can be interfered with by custom policy enforcement triggers on the target server.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_implementation">3. Implementation</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>The basic idea is to create a client workspace on each Perforce Server that maps the projects to be transferred. Both client workspaces must share the same root directory and client side mapping. For example:</p>
@@ -536,7 +649,7 @@ View:
 </div>
 </div>
 <div class="sect1">
-<h2 id="_setup">3. Setup</h2>
+<h2 id="_setup">4. Setup</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>You will need Python 2.7 or 3.6+ and P4Python 2017.2+ to make this script work.</p>
@@ -620,7 +733,7 @@ Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_optional_parameters">3.1. Optional Parameters</h3>
+<h3 id="_optional_parameters">4.1. Optional Parameters</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -636,7 +749,7 @@ Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_configuration_options">3.2. Configuration Options</h3>
+<h3 id="_configuration_options">4.2. Configuration Options</h3>
 <div class="paragraph">
 <p>The comments in the file are mostly self-explanatory. It is important to specify the main values for the <code>[source]</code> and <code>[target]</code> sections.</p>
 </div>
@@ -750,7 +863,7 @@ p4passwd =</code></pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_changelist_comment_formatting">3.2.1. Changelist comment formatting</h4>
+<h4 id="_changelist_comment_formatting">4.2.1. Changelist comment formatting</h4>
 <div class="paragraph">
 <p>In the <code>[general]</code> section, you can customize the <code>change_description_format</code> value to decide how transferred change descriptions are formatted.</p>
 </div>
@@ -800,7 +913,7 @@ Original change description</pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_recording_a_change_list_mapping_file">3.2.2. Recording a change list mapping file</h4>
+<h4 id="_recording_a_change_list_mapping_file">4.2.2. Recording a change list mapping file</h4>
 <div class="paragraph">
 <p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then P4Transfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
 </div>
@@ -831,19 +944,19 @@ src-server:1666,1235,12248</code></pre>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_usage">4. Usage</h2>
+<h2 id="_usage">5. Usage</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Note that since labeling itself is not versioned no labels or tags are transferred.</p>
 </div>
 <div class="sect2">
-<h3 id="_integration">4.1. Integration</h3>
+<h3 id="_integration">5.1. Integration</h3>
 <div class="paragraph">
 <p>Branching and integrating with is implemented, as long as both source and target are within the workspace view. Otherwise, the integrate action is downgraded to an add or edit.</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_setting_up_as_a_service_on_windows">4.2. Setting up as a service on Windows</h3>
+<h3 id="_setting_up_as_a_service_on_windows">5.2. Setting up as a service on Windows</h3>
 <div class="paragraph">
 <p>P4Transfer can be setup as a service on Windows using <code>srvinst.exe</code> and <code>srvanay.exe</code> to wrap the Python interpreter, or <a href="https://nssm.cc/">NSSM - The Non-Sucking Service Manager</a></p>
 </div>
@@ -853,11 +966,87 @@ src-server:1666,1235,12248</code></pre>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_support">6. Support</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Any errors in the script are highly likely to be due to some unusual integration history, which may have been
+done with an older version of the Perforce server.</p>
+</div>
+<div class="paragraph">
+<p>If you have an error when running the script, please use summarise_log.sh to create
+a summary log file to send. E.g.</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>summarise_log.sh log-P4Transfer-20141208094716.log &gt; sum.log</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If you get an error message in the log file such as:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>P4TLogicException: Replication failure: missing elements in target changelist: /work/p4transfer/main/applications/util/Utils.java</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>or</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>P4TLogicException: Replication failure: src/target content differences found: rev = 1 action = branch type = text depotFile = //depot/main/applications/util/Utils.java</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then please also send the following:</p>
+</div>
+<div class="paragraph">
+<p>A Revision Graph screen shot from the source server showing the specified file around the changelist which is being replicated. If
+an integration is involved then it is important to show the source of the integration.</p>
+</div>
+<div class="paragraph">
+<p>Filelog output for the file in the source Perforce repository, and filelog output for the source of the integrate being performed.
+e.g.</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>p4 -ztag filelog /work/p4transfer/main/applications/util/Utils.java@12412
+p4 -ztag filelog /work/p4transfer/dev/applications/util/Utils.java@12412</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>where 12412 is the changelist number being replicated when the problem occurred.</p>
+</div>
+<div class="sect2">
+<h3 id="_re_running_p4transfer_after_an_error">6.1. Re-running P4Transfer after an error</h3>
+<div class="paragraph">
+<p>When an error has been fixed, you can usually re-start P4Transfer from where it left off. If the error occurred when validating changelist
+say 4253 on the target (which was say 12412 on the source) but found to be incorrect, the process is:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>p4 -p target-p4:1666 -u transfer_user -c transfer_workspace obliterate //transfer_workspace/...@4253,4253</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>(re-run the above with the -y flag to actually perform the obliterate)</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Ensure that the counter specified in your config file is set to a value less than 4253 such as the changelist
+immediately prior to that changelist.
+Then re-run P4Transfer as previously.</p>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-01-29 18:40:37 UTC
+Last updated 2021-01-29 19:01:05 UTC
 </div>
 </div>
 </body>
