@@ -1,15 +1,13 @@
 # p4transfer
 Utility for transferring a subset of files (with complete history of all changelists) from one Helix Core repository to another, only requiring read access to the source repository.
 
-# README for P4Transfer.py
+The script `P4Transfer.py` is for use when transferring changes between two Perforce Servers (one way).
 
-The script `P4Transfer.py` is for use when transferring changes between 2 Perforce Servers (one way).
-
-See [P4Transfer.docx](P4Transfer.docx) for more details as to what it does and how to use it.
+See link:doc/P4Transfer.html[P4Transfer.html] for more details as to what it does and how to use it.
 
 It does not handle bi-directional transfers, and it expects the target server *path* to not be modified by anything other than P4Transfer.
 
-## P4Transfer and Helix native DVCS
+## P4Transfer and Helix native DVCS functions
 
 Both Helix native DVCS and P4Transfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.
  
