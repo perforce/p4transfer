@@ -1,0 +1,22 @@
+head     1.1;
+access   ;
+symbols  ;
+locks    ;comment  @@;
+
+
+1.1
+date     2014.12.17.13.33.32;  author p4;  state Exp;
+branches ;
+next     ;
+
+
+desc
+@@
+
+
+1.1
+log
+@@
+text
+@﻿/* Strings for Localization */
+"someMsg" = "Please translate";@

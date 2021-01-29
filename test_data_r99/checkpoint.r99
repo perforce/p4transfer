@@ -1,0 +1,13 @@
+@pv@ 0 @db.counters@ @change@ 1 
+@pv@ 0 @db.counters@ @journal@ 1 
+@pv@ 2 @db.user@ @bruno@ @bruno@@test_ws@ @@ 1498491032 1498502161 @bruno@ @@ 
+@pv@ 2 @db.rev@ @//depot/inside/file.txt@ 1 512 0 1 1498491072 00000000000000000000000000000000 @//depot/inside/file.txt@ @1.1@ 512 
+@pv@ 2 @db.rev@ @//depot/inside/file_with_size.txt@ 1 512 0 1 1498491072 00000000000000000000000000000000 @//depot/inside/file_with_size.txt@ @1.1@ 512 
+@pv@ 2 @db.rev@ @//depot/inside/zero_file.txt@ 1 512 0 1 1498491072 00000000000000000000000000000000 @//depot/inside/zero_file.txt@ @1.1@ 512 
+@pv@ 0 @db.revcx@ 1 @//depot/inside/file.txt@ 1 0 
+@pv@ 0 @db.revcx@ 1 @//depot/inside/file_with_size.txt@ 1 0 
+@pv@ 0 @db.revcx@ 1 @//depot/inside/zero_file.txt@ 1 0 
+@pv@ 0 @db.change@ 1 1 @test_ws@ @bruno@ 1498491072 1 @Initial files
+@ 
+@pv@ 0 @db.desc@ 1 @Initial files
+@ 
