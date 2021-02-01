@@ -99,7 +99,9 @@ The easiest way to install P4Python is probably using “pip” – https://pip.
 
     pip install p4python
 
-Alternatively, if you are on Unix then you can build P4Python using instructions in the following blog article: http://www.perforce.com/blog/140807/automation-continuous-delivery-vagrant-p4python. 
+TIP: If the above needs to build and fails, then this usually works for Python 3.6: `pip install p4python==2017.2.1615960`
+
+Alternatively, refer to https://www.perforce.com/manuals/p4python/Content/P4Python/python.installation.html[P4Python Docs]
 
 If you are on Windows, then look for an appropriate version on the Perforce ftp site (for your Python version), e.g. http://ftp.perforce.com/perforce/r20.1/bin.ntx64/
 
