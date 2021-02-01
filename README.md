@@ -12,7 +12,7 @@ This requires Python (2.7 or 3.6+) and P4Python (2017.2+). It runs on Linux/Mac/
 
 ## Documentation
 
-See [doc/P4Transfer.html](https://raw.github.com/perforce/p4transfer/main/doc/P4Transfer.html) for more details on how it works and how to use it. You can also download [P4Transfer.pdf](doc/P4Transfer.pdf)
+See [doc/P4Transfer.adoc](doc/P4Transfer.adoc) for more details on how it works and how to use it. You can also download [P4Transfer.pdf](doc/P4Transfer.pdf)
 
 This includes:
 
