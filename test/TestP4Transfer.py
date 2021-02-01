@@ -6,7 +6,6 @@ from __future__ import print_function
 import sys
 import time
 import P4
-import logutils
 import subprocess
 import inspect
 import platform
@@ -28,11 +27,15 @@ else:
     from ConfigParser import ConfigParser
     from StringIO import StringIO
 
+# Bring in module to be tested
+sys.path.append('..')
+import logutils
 import P4Transfer
 
 P4D = "p4d"     # This can be overridden via command line stuff
 P4USER = "testuser"
 P4CLIENT = "test_ws"
+TEST_ROOT = '_testrun_transfer'
 TRANSFER_CLIENT = "transfer"
 TRANSFER_CONFIG = "transfer.cfg"
 
@@ -174,7 +177,7 @@ class TestP4Transfer(unittest.TestCase):
 
     def setDirectories(self):
         self.startdir = os.getcwd()
-        self.transfer_root = os.path.join(self.startdir, 'transfer')
+        self.transfer_root = os.path.join(self.startdir, TEST_ROOT)
         self.cleanupTestTree()
 
         ensureDirectory(self.transfer_root)
@@ -221,7 +224,7 @@ class TestP4Transfer(unittest.TestCase):
         source_client._view = ['//depot/inside/... //%s/...' % TRANSFER_CLIENT]
         self.source.p4.save_client(source_client)
 
-        target_client = self.target.p4.fetch_client('transfer')
+        target_client = self.target.p4.fetch_client(TRANSFER_CLIENT)
         target_client._root = self.transfer_client_root
         target_client._lineend = 'unix'
         target_client._options = target_client._options.replace("noclobber", "clobber")
