@@ -459,11 +459,14 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_implementation">3. Implementation</a></li>
 <li><a href="#_setup">4. Setup</a>
 <ul class="sectlevel2">
-<li><a href="#_optional_parameters">4.1. Optional Parameters</a></li>
-<li><a href="#_configuration_options">4.2. Configuration Options</a>
+<li><a href="#_installing_p4transfer_py">4.1. Installing P4Transfer.py</a></li>
+<li><a href="#_getting_started">4.2. Getting started</a></li>
+<li><a href="#_script_parameters">4.3. Script parameters</a></li>
+<li><a href="#_optional_parameters">4.4. Optional Parameters</a></li>
+<li><a href="#_configuration_options">4.5. Configuration Options</a>
 <ul class="sectlevel3">
-<li><a href="#_changelist_comment_formatting">4.2.1. Changelist comment formatting</a></li>
-<li><a href="#_recording_a_change_list_mapping_file">4.2.2. Recording a change list mapping file</a></li>
+<li><a href="#_changelist_comment_formatting">4.5.1. Changelist comment formatting</a></li>
+<li><a href="#_recording_a_change_list_mapping_file">4.5.2. Recording a change list mapping file</a></li>
 </ul>
 </li>
 </ul>
@@ -680,6 +683,27 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <div class="paragraph">
 <p>If you are on Windows, then look for an appropriate version on the Perforce ftp site (for your Python version), e.g. <a href="http://ftp.perforce.com/perforce/r20.1/bin.ntx64/" class="bare">http://ftp.perforce.com/perforce/r20.1/bin.ntx64/</a></p>
 </div>
+<div class="sect2">
+<h3 id="_installing_p4transfer_py">4.1. Installing P4Transfer.py</h3>
+<div class="paragraph">
+<p>The easiest thing to do is to download this repo either by:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>running <code>git clone <a href="https://github.com/perforce/p4transfer.git" class="bare">https://github.com/perforce/p4transfer.git</a></code></p>
+</li>
+<li>
+<p>or by downloading <a href="https://github.com/perforce/p4transfer/archive/main.zip">the project zip file</a> and unzipping.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The minimum requirements are the modules <code>P4Transfer.py</code> and <code>logutils.py</code></p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_getting_started">4.2. Getting started</h3>
 <div class="paragraph">
 <p>Note that if running it on Windows, and especially if the source server has filenames containing say umlauts or other non-ASCII characters, then Python 2.7 is required currently due to the way Unicode is processed. Python 3.6+ on Mac/Unix should be fine with Unicode as long as you are using P4Python 2017.2+</p>
 </div>
@@ -691,7 +715,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>P4Transfer.py –sample-config &gt; transfer.cg</pre>
+<pre>python3 P4Transfer.py –sample-config &gt; transfer.cg</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -708,7 +732,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code>C:\work\&gt; python P4Transfer.py -c transfer.cfg -r
+<pre class="highlight"><code>C:\work\&gt; python3 P4Transfer.py -c transfer.cfg -r
 2014-07-01 15:32:34,356:P4Transfer:INFO: Transferring 0 changes
 2014-07-01 15:32:34,361:P4Transfer:INFO: Sleeping for 1 minutes</code></pre>
 </div>
@@ -716,6 +740,9 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <div class="paragraph">
 <p>If there are any changes missing, they will be applied consecutively.</p>
 </div>
+</div>
+<div class="sect2">
+<h3 id="_script_parameters">4.3. Script parameters</h3>
 <div class="paragraph">
 <p>P4Transfer has various options – these are documented via the <code>-h</code> or <code>--help</code> parameters.</p>
 </div>
@@ -744,8 +771,9 @@ optional arguments:
 Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code></pre>
 </div>
 </div>
+</div>
 <div class="sect2">
-<h3 id="_optional_parameters">4.1. Optional Parameters</h3>
+<h3 id="_optional_parameters">4.4. Optional Parameters</h3>
 <div class="ulist">
 <ul>
 <li>
@@ -761,7 +789,7 @@ Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_configuration_options">4.2. Configuration Options</h3>
+<h3 id="_configuration_options">4.5. Configuration Options</h3>
 <div class="paragraph">
 <p>The comments in the file are mostly self-explanatory. It is important to specify the main values for the <code>[source]</code> and <code>[target]</code> sections.</p>
 </div>
@@ -875,7 +903,7 @@ p4passwd =</code></pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_changelist_comment_formatting">4.2.1. Changelist comment formatting</h4>
+<h4 id="_changelist_comment_formatting">4.5.1. Changelist comment formatting</h4>
 <div class="paragraph">
 <p>In the <code>[general]</code> section, you can customize the <code>change_description_format</code> value to decide how transferred change descriptions are formatted.</p>
 </div>
@@ -925,7 +953,7 @@ Original change description</pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_recording_a_change_list_mapping_file">4.2.2. Recording a change list mapping file</h4>
+<h4 id="_recording_a_change_list_mapping_file">4.5.2. Recording a change list mapping file</h4>
 <div class="paragraph">
 <p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then P4Transfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
 </div>
@@ -1058,7 +1086,7 @@ Then re-run P4Transfer as previously.</p>
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-02-01 21:52:39 UTC
+Last updated 2021-02-01 22:02:04 UTC
 </div>
 </div>
 </body>
