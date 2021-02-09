@@ -35,7 +35,8 @@ Pros for native DVCS:
 * Helix native DVCS is a fully supported product feature.
 * Helix native DVCS requires consistency among the Helix Core servers: Same case sensitivity setting, same Unicode mode, and same P4D version (with some exceptions).
 * Helix native DVCS is easy to setup and use.
-* Helix native DVCS has some limitations at large scale (depends on server RAM).
+* Helix native DVCS requires particular configurables to be setup, and may be viewed as a security concern for the extraction of history (this can be controlled with pre-command triggers)
+* Helix native DVCS has some limitations at larger scales (depends on server RAM as it creates zip files) - won't scale to TB requiring to be transferred.
 * Helix native DVCS is generally deemed to product the highest possible quality data on the target server, as it transfers raw journal data and archive content.
 * Helix native DVCS is very fast.
 * Helix native DVCS has no external dependencies.
@@ -48,7 +49,7 @@ When P4Transfer might be a better option:
 * P4Transfer is community supported (and with paid Consulting engagements).
 * P4Transfer can make timestamps more accurate if it has ‘admin’ level access, but does not require it.
 * P4Transfer automates front-door workflows, i.e. it does would a human with a ‘p4’ command line client, fleet fingers and a lot of time could do.
-* P4Transfer can work with mismatched server data sets (different case sensitivity, Unicode mode, or P4D settings) *so long as* the actual data to be migrated doesn’t cause issues.  (For example, if you try to copy paths that actually do have Korean glyphs in the path name to a non-Unicode server, that ain’t gonna work.).
+* P4Transfer can work with mismatched server data sets (different case sensitivity, Unicode mode, or P4D settings) *so long as* the actual data to be migrated doesn’t cause issues.  (For example, if you try to copy paths that actually do have Korean glyphs in the path name to a non-Unicode server, that ain’t gonna work).
 * If P4Transfer does have issues with importing some data (like the above example with Unicode paths), you can manually work around those snags, and then pick up with the next changelist.  If there aren’t too many snags, this trial and error process is viable.
 * P4Transfer is reasonably fast as a front-door mechanism.
 * P4Transfer can be run as a service for continuous operation, and has successfully run for months or more.
@@ -68,6 +69,10 @@ Client: workspace_server1
 
 Root: /work/transfer
 
+Options: clobber # and other options as preferred
+
+LineEnd: unix
+
 View:
     //depot/myproject/dev/... //workspace_server1/myproject/...
     //depot/other/dev/... //workspace_server1/other/...
@@ -80,16 +85,26 @@ Client: workspace_server2
 
 Root: /work/transfer
 
+Options: clobber  # and other options as preferred
+
+LineEnd: unix
+
 View:
     //import/mycode/... //workspace_server2/myproject/...
     //import/stuff/... //workspace_server2/other/...
 ```
 
-While the depot paths can differ, the client paths (thus the right hand sides of the view mappings) and the root directory have to match between the source/target client workspaces.
+While the depot paths can differ, the client paths (thus the right hand sides of the view mappings) and the root directory have to match between the source/target client workspaces. This will be validated and an error generated if not.
+
+IMPORTANT: `Options` must include `clobber` instead of `noclobber`. The `LineEnd` field must be `unix`. These will be validated.
 
 P4Transfer works uni-directionally. The tool will inquire the changes for the workspace files and compare these to a counter.
 
 P4Transfer uses a single configuration file that contains the information of both servers as well as the current counter values. The tool maintains its state counter using a Perforce counter on the target server (thus requiring `review` privilege as well as `write` privilege – by default it assumes `super` user privilege is required since it updates changelist owners and date/time to the same as the source – this functionality is controlled by the config file).
+
+=== Classic/local target depots vs Streams targets
+
+The current version requires the Target of a transfer to be a local depot (so does not support streams depots). A new version is in development to support streams, with some restrictions (remember that humans should not be writing to the targets of a P4Transfer instance!)
 
 == Setup
 
@@ -99,7 +114,7 @@ The easiest way to install P4Python is probably using “pip” – https://pip.
 
     pip install p4python
 
-TIP: If the above needs to build and fails, then this usually works for Python 3.6: `pip install p4python==2017.2.1615960`
+TIP: If the above needs to build and fails, then this usually works for Python 3.6: `pip3 install p4python==2017.2.1615960`
 
 Alternatively, refer to https://www.perforce.com/manuals/p4python/Content/P4Python/python.installation.html[P4Python Docs]
 
