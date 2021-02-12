@@ -1624,7 +1624,8 @@ class P4Transfer(object):
 
     def validateClientWorkspaces(self):
         if not self.source.root == self.target.root:
-            raise P4TConfigException('source and target server workspace root directories must be the same')
+            raise P4TConfigException("source and target server workspace root directories must be the same: currently '%s' and '%s'" % (
+                self.source.root, self.target.root))
         src = set([m.replace("//%s/" % self.source.P4CLIENT, "") for m in self.source.clientmap.rhs()])
         targ = set([m.replace("//%s/" % self.target.P4CLIENT, "") for m in self.target.clientmap.rhs()])
         diffs = src.difference(targ)
