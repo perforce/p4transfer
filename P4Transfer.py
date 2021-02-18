@@ -89,10 +89,10 @@ if sys.hexversion < 0x02070000 or (0x0300000 <= sys.hexversion < 0x0303000):
 
 # Although this should work with Python 3, it doesn't currently handle Windows Perforce servers
 # with filenames containing charaters such as umlauts etc: åäö
-if python3:
-    from configparser import ConfigParser
-else:
-    from ConfigParser import ConfigParser
+
+# Import yaml which will roundtrip comments
+from ruamel.yaml import YAML
+yaml = YAML()
 
 import argparse
 import os.path
@@ -111,92 +111,122 @@ class P4TLogicException(Exception):
 class P4TConfigException(P4TException):
     pass
 
-CONFIG = 'transfer.cfg'
+CONFIG_FILE = 'transfer.yaml'
 GENERAL_SECTION = 'general'
 SOURCE_SECTION = 'source'
 TARGET_SECTION = 'target'
 LOGGER_NAME = "P4Transfer"
 
 # This is for writing to sample config file - OrderedDict used to preserve order of lines.
-DEFAULT_CONFIG = OrderedDict({
-    GENERAL_SECTION: OrderedDict([
-        ("# counter_name: Unique counter on target server to use for recording source changes processed. No spaces.", None),
-        ("#    Name sensibly if you have multiple instances transferring into the same target p4 repository.", None),
-        ("#    The counter value represents the last transferred change number - script will start from next change.", None),
-        ("#    If not set, or 0 then transfer will start from first change.", None),
-        ("counter_name", "p4transfer_counter"),
-        ("# instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.", None),
-        ("instance_name", "Perforce Transfer from XYZ"),
-        ("# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL", None),
-        ("mail_form_url", ""),
-        ("# The mail_* parameters must all be valid (non-blank) to receive email updates during processing. ", None),
-        ("# mail_to: One or more valid email addresses - comma separated for multiple values", None),
-        ("#     E.g. somebody@example.com,somebody-else@example.com", None),
-        ("mail_to", ""),
-        ("# mail_from: Email address of sender of emails, E.g. p4transfer@example.com", None),
-        ("mail_from", ""),
-        ("# mail_server: The SMTP server to connect to for email sending, E.g. smtpserver.example.com", None),
-        ("mail_server", ""),
-        ("# ===============================================================================", None),
-        ("# Note that for any of the following parameters identified as (Integer) you can specify a", None),
-        ("# valid python expression which evaluates to integer value, e.g.", None),
-        ("#     24 * 60", None),
-        ("#     7 * 24 * 60", None),
-        ("# -------------------------------------------------------------------------------", None),
-        ("# sleep_on_error_interval (Integer): How long (in minutes) to sleep when error is encountered in the script", None),
-        ("sleep_on_error_interval", "60"),
-        ("# poll_interval (Integer): How long (in minutes) to wait between polling source server for new changes", None),
-        ("poll_interval", "60"),
-        ("# change_batch_size (Integer): changelists are processed in batches of this size", None),
-        ("change_batch_size", "20000"),
-        ("# The following *_interval values result in reports, but only if mail_* values are specified", None),
-        ("# report_interval (Integer): Interval (in minutes) between regular update emails being sent", None),
-        ("report_interval", "30"),
-        ("# error_report_interval (Integer): Interval (in minutes) between error emails being sent e.g. connection error", None),
-        ("#     Usually some value less than report_interval. Useful if transfer being run with --repeat option.", None),
-        ("error_report_interval", "15"),
-        ("# summary_report_interval (Integer): Interval (in minutes) between summary emails being sent e.g. changes processed", None),
-        ("#     Typically some value such as 1 week (10080 = 7 * 24 * 60). Useful if transfer being run with --repeat option.", None),
-        ("summary_report_interval", "7 * 24 * 60"),
-        ("# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file. ", None),
-        ("#    Useful for keeping an eye on progress for large syncs over slow network links. ", None),
-        ("sync_progress_size_interval", "500 * 1000 * 1000"),
-        ("# change_description_format: The standard format for transferred changes. ", None),
-        ("#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed: ", None),
-        ("#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser ", None),
-        ("change_description_format", "$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange"),
-        ("# change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists. ", None),
-        ("#    If this is blank (DEFAULT) then no mapping file is created.", None),
-        ("#    If non-blank, then a file with this name in the target workspace is appended to", None),
-        ("#    and will be submitted after every sequence (batch_size) of changes is made.", None),
-        ("#    Default type of this file is text+CS32 to avoid storing too many revisions.", None),
-        ("#    File must be mapped into target client workspace.", None),
-        ("#    File can contain a sub-directory, e.g. change_map/change_map.csv", None),
-        ("change_map_file", ""),
-        ("# superuser: Set to n if not a superuser (so can't update change times - can just transfer them). ", None),
-        ("superuser", "y"),
-        ]),
-    SOURCE_SECTION: OrderedDict([
-        ("# P4PORT to connect to, e.g. some-server:1666", None),
-        ("p4port", ""),
-        ("# P4USER to use", None),
-        ("p4user", ""),
-        ("# P4CLIENT to use, e.g. p4-transfer-client", None),
-        ("p4client", ""),
-        ("# P4PASSWD for the user - valid password. If blank then no login performed.", None),
-        ("# Recommended to make sure user is in a group with a long password timeout!.", None),
-        ("p4passwd", "")]),
-    TARGET_SECTION: OrderedDict([
-        ("# P4PORT to connect to, e.g. some-server:1666", None),
-        ("p4port", ""),
-        ("# P4USER to use", None),
-        ("p4user", ""),
-        ("# P4CLIENT to use, e.g. p4-transfer-client", None),
-        ("p4client", ""),
-        ("# P4PASSWD for the user - valid password. If blank then no login performed.", None),
-        ("# Recommended to make sure user is in a group with a long password timeout!.", None),
-        ("p4passwd", "")]),
-    })
+DEFAULT_CONFIG = yaml.load("""
+# counter_name: Unique counter on target server to use for recording source changes processed. No spaces.
+#    Name sensibly if you have multiple instances transferring into the same target p4 repository.
+#    The counter value represents the last transferred change number - script will start from next change.
+#    If not set, or 0 then transfer will start from first change.
+counter_name: p4transfer_counter
+
+# instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
+instance_name: Perforce Transfer from XYZ"
+
+# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL"
+mail_form_url: 
+
+# The mail_* parameters must all be valid (non-blank) to receive email updates during processing.        
+# mail_to: One or more valid email addresses - comma separated for multiple values
+#     E.g. somebody@example.com,somebody-else@example.com
+mail_to:
+
+# mail_from: Email address of sender of emails, E.g. p4transfer@example.com
+mail_from:
+
+# mail_server: The SMTP server to connect to for email sending, E.g. smtpserver.example.com
+mail_server:
+
+# ===============================================================================
+# Note that for any of the following parameters identified as (Integer) you can specify a
+# valid python expression which evaluates to integer value, e.g.
+#     24 * 60
+#     7 * 24 * 60
+# -------------------------------------------------------------------------------
+# sleep_on_error_interval (Integer): How long (in minutes) to sleep when error is encountered in the script
+sleep_on_error_interval: 60
+
+# poll_interval (Integer): How long (in minutes) to wait between polling source server for new changes
+poll_interval: 60
+
+# change_batch_size (Integer): changelists are processed in batches of this size
+change_batch_size: 20000
+
+# The following *_interval values result in reports, but only if mail_* values are specified
+# report_interval (Integer): Interval (in minutes) between regular update emails being sent
+report_interval: 30
+
+# error_report_interval (Integer): Interval (in minutes) between error emails being sent e.g. connection error
+#     Usually some value less than report_interval. Useful if transfer being run with --repeat option.
+error_report_interval: 15
+
+# summary_report_interval (Integer): Interval (in minutes) between summary emails being sent e.g. changes processed
+#     Typically some value such as 1 week (10080 = 7 * 24 * 60). Useful if transfer being run with --repeat option.
+summary_report_interval: "7 * 24 * 60"
+
+# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file. 
+#    Useful for keeping an eye on progress for large syncs over slow network links. 
+sync_progress_size_interval: "500 * 1000 * 1000"
+
+# change_description_format: The standard format for transferred changes. 
+#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed: 
+#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser 
+change_description_format: "$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange"
+
+# change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists. 
+#    If this is blank (DEFAULT) then no mapping file is created.
+#    If non-blank, then a file with this name in the target workspace is appended to
+#    and will be submitted after every sequence (batch_size) of changes is made.
+#    Default type of this file is text+CS32 to avoid storing too many revisions.
+#    File must be mapped into target client workspace.
+#    File can contain a sub-directory, e.g. change_map/change_map.csv
+change_map_file: 
+
+# superuser: Set to n if not a superuser (so can't update change times - can just transfer them). 
+superuser: "y"
+
+source:
+    # P4PORT to connect to, e.g. some-server:1666
+    p4port:
+    # P4USER to use
+    p4user:
+    # P4CLIENT to use, e.g. p4-transfer-client
+    p4client:
+    # P4PASSWD for the user - valid password. If blank then no login performed.
+    # Recommended to make sure user is in a group with a long password timeout!.
+    p4passwd:
+
+target:
+    # P4PORT to connect to, e.g. some-server:1666
+    p4port:
+    # P4USER to use
+    p4user:
+    # P4CLIENT to use, e.g. p4-transfer-client
+    p4client:
+    # P4PASSWD for the user - valid password. If blank then no login performed.
+    # Recommended to make sure user is in a group with a long password timeout!
+    p4passwd:
+
+# workspace_root: Root directory to use for both client workspaces.
+#    This will be used to update the client workspace Root: field for both source/target workspaces
+#    They must be the same.
+workspace_root: /work/transfer
+
+# views: An array of source/target view mappings
+#    Each value is a string - normally quote. Standard p4 wildcards are valid.
+#    These values are used to construct the appropriate View: fields for source/target client workspaces
+views:
+  - src:  "//depot/source_path1/..."
+    targ: "//import/target_path1/..."
+  - src:  "//depot/source_path2/..."
+    targ: "//import/target_path2/..."
+
+""")
 
 class SourceTargetTextComparison(object):
     """Decide if source and target servers are similar OS so that text
@@ -344,16 +374,10 @@ def p4time(unixtime):
 
 def printSampleConfig():
     "Print defaults from above dictionary for saving as a base file"
-    config = ConfigParser(allow_no_value=True)
-    config.optionxform = str
-    for sec in DEFAULT_CONFIG.keys():
-        config.add_section(sec)
-        for k in DEFAULT_CONFIG[sec].keys():
-            config.set(sec, k, DEFAULT_CONFIG[sec][k])
     print("")
-    print("# Save this output to a file to e.g. transfer.cfg and edit it for your configuration")
+    print("# Save this output to a file to e.g. transfer.yaml and edit it for your configuration")
     print("")
-    config.write(sys.stdout)
+    yaml.dump(DEFAULT_CONFIG, sys.stdout)
     sys.stdout.flush()
 
 def fmtsize(num):
@@ -1442,7 +1466,7 @@ class P4Transfer(object):
             epilog="Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd"
         )
 
-        parser.add_argument('-c', '--config', default=CONFIG, help="Default is " + CONFIG)
+        parser.add_argument('-c', '--config', default=CONFIG_FILE, help="Default is " + CONFIG_FILE)
         parser.add_argument('-m', '--maximum', default=None, type=int, help="Maximum number of changes to transfer")
         parser.add_argument('-k', '--nokeywords', action='store_true', help="Do not expand keywords and remove +k from filetype")
         parser.add_argument('-r', '--repeat', action='store_true', help="Repeat transfer in a loop - for continuous transfer")
@@ -1464,7 +1488,10 @@ class P4Transfer(object):
     def getOption(self, section, option_name, default=None):
         result = default
         try:
-            result = self.parser.get(section, option_name)
+            if section == GENERAL_SECTION:
+                result = self.config[option_name]
+            else:
+                result = self.config[section][option_name]
         except:
             pass
         return result
@@ -1480,20 +1507,16 @@ class P4Transfer(object):
         return result
 
     def readConfig(self):
-        self.parser = ConfigParser()
-        self.options.parser = self.parser    # for later use
+        self.config = {}
         try:
             with open(self.options.config) as f:
-                if python3:
-                    self.parser.read_file(f)
-                else:
-                    self.parser.readfp(f)
+                self.config = yaml.load(f)
         except Exception as e:
-            raise P4TConfigException('Could not read %s: %s' % (self.options.config, str(e)))
+            raise P4TConfigException('Could not read config file %s: %s' % (self.options.config, str(e)))
 
         self.options.counter_name = self.getOption(GENERAL_SECTION, "counter_name")
         if not self.options.counter_name:
-            raise P4TConfigException("Option counter_name in the [general] section must be specified")
+            raise P4TConfigException("Option counter_name must be specified")
         self.options.instance_name = self.getOption(GENERAL_SECTION, "instance_name", self.options.counter_name)
         self.options.mail_form_url = self.getOption(GENERAL_SECTION, "mail_form_url")
         self.options.mail_to = self.getOption(GENERAL_SECTION, "mail_to")
@@ -1519,7 +1542,7 @@ class P4Transfer(object):
         self.readSection(self.target)
 
     def readSection(self, p4config):
-        if self.parser.has_section(p4config.section):
+        if p4config.section  in self.config:
             self.readOptions(p4config)
         else:
             raise P4TConfigException('Config file needs section %s' % p4config.section)
@@ -1531,8 +1554,9 @@ class P4Transfer(object):
         self.readOption('P4PASSWD', p4config, optional=True)
 
     def readOption(self, option, p4config, optional=False):
-        if self.parser.has_option(p4config.section, option):
-            p4config.__dict__[option] = self.parser.get(p4config.section, option)
+        lcOption = option.lower()
+        if lcOption in self.config[p4config.section]:
+            p4config.__dict__[option] = self.config[p4config.section][lcOption]
         elif not optional:
             raise P4TConfigException('Required option %s not found in section %s' % (option, p4config.section))
 

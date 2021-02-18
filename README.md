@@ -10,6 +10,12 @@ The script `P4Transfer.py` is for use when transferring changes between two Perf
 
 This requires Python (2.7 or 3.6+) and P4Python (2017.2+). It runs on Linux/Mac/Windows.
 
+Also for other modules:
+
+    pip install requirements.txt
+
+If you have problems with the above, check the doc below.
+
 ## Documentation
 
 See [doc/P4Transfer.adoc](doc/P4Transfer.adoc) for more details on how it works and how to use it. You can also download [P4Transfer.pdf](doc/P4Transfer.pdf)
