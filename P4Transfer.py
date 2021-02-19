@@ -649,19 +649,33 @@ class P4Base(object):
             self.p4.password = self.P4PASSWD
             self.p4.run_login()
 
+    def createClientWorkspace(self, sourceFlag):
+        "Create or adjust client workspace for source or target"
         clientspec = self.p4.fetch_client(self.p4.client)
-        logOnce(self.logger, "%s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
-        self.root = clientspec._root
-        self.clientspec = clientspec
-        self.p4.cwd = self.root
+        logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
+
+        self.root = self.options.workspace_root
+        clientspec._root = self.root
+        clientspec._view = []
+
+        for m in self.options.views:
+            srcPath = m['src'].replace('//', '')
+            if sourceFlag:
+                v = "%s //%s/%s" % (m['src'], self.p4.client, srcPath)
+            else:
+                v = "%s //%s/%s" % (m['targ'], self.p4.client, srcPath)
+            clientspec._view.append(v)
+
+        clientspec["Options"] = clientspec["Options"].replace("noclobber", "clobber")
+        clientspec["LineEnd"] = "unix"
         self.clientmap = P4.Map(clientspec._view)
 
-        # try:
-        #     protects = self.p4cmd("protects", "//%s/..." % clientspec._client)
-        # except P4.P4Exception as e:
-        #     # This is unlikely except for during testing so ignore it
-        #     if e.errors[0] != 'Protections table is empty.':
-        #         raise(e)
+        self.clientspec = clientspec
+        self.p4.save_client(clientspec)
+        logOnce(self.logger, "updated %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
+
+        self.p4.cwd = self.root
+
         ctr = P4.Map('//"'+clientspec._client+'/..."   "' + clientspec._root + '/..."')
         self.localmap = P4.Map.join(self.clientmap, ctr)
         self.depotmap = self.localmap.reverse()
@@ -1514,9 +1528,10 @@ class P4Transfer(object):
         except Exception as e:
             raise P4TConfigException('Could not read config file %s: %s' % (self.options.config, str(e)))
 
+        errors = []
         self.options.counter_name = self.getOption(GENERAL_SECTION, "counter_name")
         if not self.options.counter_name:
-            raise P4TConfigException("Option counter_name must be specified")
+            errors.append("Option counter_name must be specified")
         self.options.instance_name = self.getOption(GENERAL_SECTION, "instance_name", self.options.counter_name)
         self.options.mail_form_url = self.getOption(GENERAL_SECTION, "mail_form_url")
         self.options.mail_to = self.getOption(GENERAL_SECTION, "mail_to")
@@ -1534,6 +1549,14 @@ class P4Transfer(object):
                     "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange")
         self.options.change_map_file = self.getOption(GENERAL_SECTION, "change_map_file", "")
         self.options.superuser = self.getOption(GENERAL_SECTION, "superuser", "y")
+        self.options.views = self.getOption(GENERAL_SECTION, "views")
+        self.options.workspace_root = self.getOption(GENERAL_SECTION, "workspace_root")
+        if not self.options.views:
+            errors.append("Option views must not be blank")
+        if not self.options.workspace_root:
+            errors.append("Option workspace_root must not be blank")
+        if errors:
+            raise P4TConfigException("\n".join(errors))
 
         self.source = P4Source(SOURCE_SECTION, self.options)
         self.target = P4Target(TARGET_SECTION, self.options, self.source)
@@ -1564,6 +1587,8 @@ class P4Transfer(object):
         "Perform a replication loop"
         self.source.connect('source replicate')
         self.target.connect('target replicate')
+        self.source.createClientWorkspace(True)
+        self.target.createClientWorkspace(False)
         changes = self.source.missingChanges(self.target.getCounter())
         self.logger.info("Transferring %d changes" % len(changes))
         changesTransferred = 0
@@ -1665,6 +1690,8 @@ class P4Transfer(object):
         self.readConfig()
         self.source.connect('source replicate')
         self.target.connect('target replicate')
+        self.source.createClientWorkspace(True)
+        self.target.createClientWorkspace(False)
         self.logger.debug("connected to source and target")
         sourceTargetTextComparison.setup(self.source, self.target)
         self.validateClientWorkspaces()

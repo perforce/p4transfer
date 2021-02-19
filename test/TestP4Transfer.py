@@ -213,26 +213,36 @@ class TestP4Transfer(unittest.TestCase):
         if os.path.isdir(self.transfer_root):
             shutil.rmtree(self.transfer_root, False, onRmTreeError)
 
+    def getDefaultOptions(self):
+        config = {}
+        config['transfer_client'] = TRANSFER_CLIENT
+        config['workspace_root'] = self.transfer_client_root
+        config['views'] = [{'src': '//depot/inside/...',
+                            'targ': '//depot/import/...'}]
+        return config
+
     def setupTransfer(self):
         """Creates client workspaces on source and target and a config file"""
         msg = "Test: %s ======================" % inspect.stack()[1][3]
         self.logger.debug(msg)
-        source_client = self.source.p4.fetch_client(TRANSFER_CLIENT)
-        source_client._root = self.transfer_client_root
-        source_client._lineend = 'unix'
-        source_client._options = source_client._options.replace("noclobber", "clobber")
+        # source_client = self.source.p4.fetch_client(TRANSFER_CLIENT)
+        # source_client._root = self.transfer_client_root
+        # source_client._lineend = 'unix'
         # source_client._options = source_client._options.replace("noclobber", "clobber")
-        source_client._view = ['//depot/inside/... //%s/...' % TRANSFER_CLIENT]
-        self.source.p4.save_client(source_client)
+        # # source_client._options = source_client._options.replace("noclobber", "clobber")
+        # source_client._view = ['//depot/inside/... //%s/...' % TRANSFER_CLIENT]
+        # self.source.p4.save_client(source_client)
 
-        target_client = self.target.p4.fetch_client(TRANSFER_CLIENT)
-        target_client._root = self.transfer_client_root
-        target_client._lineend = 'unix'
-        target_client._options = target_client._options.replace("noclobber", "clobber")
+        # target_client = self.target.p4.fetch_client(TRANSFER_CLIENT)
+        # target_client._root = self.transfer_client_root
+        # target_client._lineend = 'unix'
         # target_client._options = target_client._options.replace("noclobber", "clobber")
-        target_client._view = ['//depot/import/... //%s/...' % TRANSFER_CLIENT]
-        self.target.p4.save_client(target_client)
-        self.createConfigFile()
+        # # target_client._options = target_client._options.replace("noclobber", "clobber")
+        # target_client._view = ['//depot/import/... //%s/...' % TRANSFER_CLIENT]
+        # self.target.p4.save_client(target_client)
+
+        config = self.getDefaultOptions()
+        self.createConfigFile(options=config)
 
     def createConfigFile(self, srcOptions=None, targOptions=None, options=None):
         "Creates config file with extras if appropriate"
@@ -267,7 +277,6 @@ class TestP4Transfer(unittest.TestCase):
             config[opt] = options[opt]
 
         # write the config file
-
         self.transfer_cfg = os.path.join(self.transfer_root, TRANSFER_CONFIG)
         with open(self.transfer_cfg, 'w') as f:
             yaml.dump(config, f)
@@ -414,24 +423,11 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(digest, "ce8bc0316bdd8ad1f716f48e5c968854")
 
     def testClientValidation(self):
-        "Make sure clients match the right hand side of their views and have appropriate configs set"
+        "Make sure specified client views are valid"
         msg = "Test: %s ======================" % inspect.stack()[0][3]
         self.logger.debug(msg)
-        source_name = "src-%s" % TRANSFER_CLIENT
-        source_client = self.source.p4.fetch_client(source_name)
-        source_client._root = self.transfer_client_root
-        source_client._view = ['//depot/inside/... //%s/source/...' % source_name]
-        self.source.p4.save_client(source_client)
 
-        target_name = "targ-%s" % TRANSFER_CLIENT
-        target_client = self.target.p4.fetch_client(target_name)
-        target_client._root = self.transfer_client_root
-        target_client._view = ['//depot/import/... //%s/target/...' % target_name]
-        self.target.p4.save_client(target_client)
-
-        srcOptions = {"p4client": source_name}
-        targOptions = {"p4client": target_name}
-        self.createConfigFile(srcOptions=srcOptions, targOptions=targOptions)
+        self.createConfigFile()
 
         msg = ""
         try:
@@ -440,69 +436,7 @@ class TestP4Transfer(unittest.TestCase):
             result = pt.setupReplicate()
         except Exception as e:
             msg = str(e)
-        self.assertRegex(msg, "workspace mappings have different right hand sides")
-
-        source_client = self.source.p4.fetch_client(source_name)
-        source_client._root = self.transfer_client_root
-        source_client._view = ['//depot/inside/... //%s/root/...' % source_name]
-        self.source.p4.save_client(source_client)
-
-        target_client = self.target.p4.fetch_client(target_name)
-        target_client._root = "%s-tmp" % self.transfer_client_root
-        target_client._view = ['//depot/import/... //%s/root/...' % target_name]
-        self.target.p4.save_client(target_client)
-
-        msg = ""
-        try:
-            base_args = ['-c', self.transfer_cfg, '-s']
-            pt = P4Transfer.P4Transfer(*base_args)
-            result = pt.setupReplicate()
-        except Exception as e:
-            msg = str(e)
-        self.assertRegex(msg, "server workspace root directories must be the same")
-
-        target_client = self.target.p4.fetch_client(target_name)
-        target_client._root = self.transfer_client_root
-        target_client._view = ['//depot/import/... //%s/root/...' % target_name]
-        self.target.p4.save_client(target_client)
-
-        msg = ""
-        try:
-            base_args = ['-c', self.transfer_cfg, '-s']
-            pt = P4Transfer.P4Transfer(*base_args)
-            result = pt.setupReplicate()
-        except Exception as e:
-            msg = str(e)
-        self.assertRegex(msg, "Source and target workspaces must have LineEnd set to 'unix'")
-
-        # Now fix line endings
-        source_client = self.source.p4.fetch_client(source_name)
-        source_client._lineend = 'unix'
-        self.source.p4.save_client(source_client)
-        target_client = self.target.p4.fetch_client(target_name)
-        target_client._lineend = 'unix'
-        self.target.p4.save_client(target_client)
-
-        msg = ""
-        try:
-            base_args = ['-c', self.transfer_cfg, '-s']
-            pt = P4Transfer.P4Transfer(*base_args)
-            result = pt.setupReplicate()
-        except Exception as e:
-            msg = str(e)
-        self.assertRegex(msg, "Source and target workspaces must have 'clobber' option set")
-
-        # Now fix line endings
-        source_client = self.source.p4.fetch_client(source_name)
-        source_client._options = source_client._options.replace("noclobber", "clobber")
-        self.source.p4.save_client(source_client)
-        target_client = self.target.p4.fetch_client(target_name)
-        target_client._options = target_client._options.replace("noclobber", "clobber")
-        self.target.p4.save_client(target_client)
-
-        msg = ""
-        pt = P4Transfer.P4Transfer(*base_args)
-        result = pt.setupReplicate()
+        self.assertRegex(msg, "Option views must not be blank")
 
         self.assertCounters(0, 0)
 
@@ -521,7 +455,8 @@ class TestP4Transfer(unittest.TestCase):
         changes = self.target.p4cmd('changes', '-l', '-m1')
         self.assertRegex(changes[0]['desc'], "%s\n\nTransferred from p4://rsh:.*@1\n$" % desc)
 
-        options = {"change_description_format": "Originally $sourceChange by $sourceUser"}
+        options = self.getDefaultOptions()
+        options["change_description_format"] = "Originally $sourceChange by $sourceUser"
         self.createConfigFile(options=options)
         self.source.p4cmd('edit', inside_file1)
         desc = 'inside_file1 edited'
@@ -531,7 +466,8 @@ class TestP4Transfer(unittest.TestCase):
         changes = self.target.p4cmd('changes', '-l', '-m1')
         self.assertRegex(changes[0]['desc'], "Originally 2 by %s" % P4USER)
 
-        options = {"change_description_format": "Was $sourceChange by $sourceUser $fred\n$sourceDescription"}
+        options = self.getDefaultOptions()
+        options["change_description_format"] = "Was $sourceChange by $sourceUser $fred\n$sourceDescription"
         self.createConfigFile(options=options)
         self.source.p4cmd('edit', inside_file1)
         desc = 'inside_file1 edited again'
@@ -559,7 +495,8 @@ class TestP4Transfer(unittest.TestCase):
         changes = self.source.p4cmd('changes', '-l', '-m1')
         self.assertEqual(changes[0]['change'], '10')
 
-        options = {"change_batch_size": "4"}
+        options = self.getDefaultOptions()
+        options["change_batch_size"] = "4"
         self.createConfigFile(options=options)
 
         self.run_P4Transfer()
@@ -582,7 +519,8 @@ class TestP4Transfer(unittest.TestCase):
         self.assertCounters(1, 1)
         changes = self.target.p4cmd('changes', '-l', '-m1')
 
-        options = {"change_map_file": "change_map.csv"}
+        options = self.getDefaultOptions()
+        options["change_map_file"] = "depot/inside/change_map.csv"
         change_map_file = '//depot/import/change_map.csv'
         self.createConfigFile(options=options)
 
@@ -632,7 +570,8 @@ class TestP4Transfer(unittest.TestCase):
         self.assertCounters(1, 1)
         changes = self.target.p4cmd('changes', '-l', '-m1')
 
-        options = {"change_map_file": "changes/change_map.csv"}
+        options = self.getDefaultOptions()
+        options["change_map_file"] = "depot/inside/changes/change_map.csv"
         change_map_file = '//depot/import/changes/change_map.csv'
         self.createConfigFile(options=options)
 
@@ -751,7 +690,8 @@ class TestP4Transfer(unittest.TestCase):
         p['Protections'].append("review user %s * //..." % username)
         self.target.p4.save_protect(p)
 
-        options = {"superuser": "n"}
+        options = self.getDefaultOptions()
+        options["superuser"] = "n"
         targOptions = {"p4user": username}
         self.createConfigFile(options=options, targOptions=targOptions)
 
@@ -1509,18 +1449,11 @@ class TestP4Transfer(unittest.TestCase):
         depot = self.target.p4.fetch_depot('target')
         self.target.p4.save_depot(depot)
 
+        # Temporarily create different source client
         source_client = self.source.p4.fetch_client(self.source.p4.client)
         source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % self.source.p4.client,
                                 '//depot/outside/... //%s/outside/...' % self.source.p4.client]
         self.source.p4.save_client(source_client)
-
-        source_client = self.source.p4.fetch_client(TRANSFER_CLIENT)
-        source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % TRANSFER_CLIENT]
-        self.source.p4.save_client(source_client)
-
-        target_client = self.target.p4.fetch_client(TRANSFER_CLIENT)
-        target_client._view = ['//target/inside/main/Dir/... //%s/main/Dir/...' % TRANSFER_CLIENT]
-        self.target.p4.save_client(target_client)
 
         inside = localDirectory(self.source.client_root, "main", "Dir")
         outside = localDirectory(self.source.client_root, "outside")
@@ -1550,6 +1483,11 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('delete', renamed_file1)
         self.source.p4cmd('delete', renamed_file2)
         self.source.p4cmd('submit', '-d', "deleting file")
+
+        config = self.getDefaultOptions()
+        config['views'] = [{'src': '//depot/inside/main/Dir/...',
+                            'targ': '//target/inside/main/Dir/...'}]
+        self.createConfigFile(options=config)
 
         self.run_P4Transfer()
         self.assertCounters(4, 3)
