@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 transfer/
 _testrun_transfer/
+log-*.log
