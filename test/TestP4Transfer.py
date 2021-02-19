@@ -773,7 +773,7 @@ class TestP4Transfer(unittest.TestCase):
         self.setupTransfer()
 
         inside = localDirectory(self.source.client_root, "inside")
-        fname = "Test-utf16-file"
+        fname = "data-file-utf16"
         rcs_fname = fname + ",v"
         inside_file1 = os.path.join(inside, fname)
 
@@ -823,7 +823,7 @@ class TestP4Transfer(unittest.TestCase):
         self.setupTransfer()
 
         inside = localDirectory(self.source.client_root, "inside")
-        fname = "Test-utf16-unsyncable"
+        fname = "data-file-utf16-unsyncable"
         rcs_fname = fname + ",v"
         inside_file1 = os.path.join(inside, fname)
 
