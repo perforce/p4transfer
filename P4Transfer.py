@@ -126,9 +126,9 @@ DEFAULT_CONFIG = yaml.load("""
 counter_name: p4transfer_counter
 
 # instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
-instance_name: Perforce Transfer from XYZ"
+instance_name: "Perforce Transfer from XYZ"
 
-# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL"
+# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
 mail_form_url: 
 
 # The mail_* parameters must all be valid (non-blank) to receive email updates during processing.        
@@ -185,6 +185,9 @@ change_description_format: "$sourceDescription\\n\\nTransferred from p4://$sourc
 #    Default type of this file is text+CS32 to avoid storing too many revisions.
 #    File must be mapped into target client workspace.
 #    File can contain a sub-directory, e.g. change_map/change_map.csv
+#    Note that due to the way client workspace views are created the local filename
+#    should include a valid source path including depot name, e.g. 
+#       //depot/export/... -> depot/export/change_map.csv
 change_map_file: 
 
 # superuser: Set to n if not a superuser (so can't update change times - can just transfer them). 
@@ -220,11 +223,15 @@ workspace_root: /work/transfer
 # views: An array of source/target view mappings
 #    Each value is a string - normally quote. Standard p4 wildcards are valid.
 #    These values are used to construct the appropriate View: fields for source/target client workspaces
+#    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
+#    entry - see last example below.
 views:
   - src:  "//depot/source_path1/..."
     targ: "//import/target_path1/..."
   - src:  "//depot/source_path2/..."
     targ: "//import/target_path2/..."
+  - src:  "-//depot/source_path2/exclude/*.tgz"
+    targ: "//import/target_path2/exclude/*.tgz"
 
 """)
 
@@ -653,6 +660,12 @@ class P4Base(object):
         "Create or adjust client workspace for source or target"
         clientspec = self.p4.fetch_client(self.p4.client)
         logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
+
+        # Check for streams depots as targets - then we require target streams to exist
+        # Too complicated to auto-create for now
+        depotTypes = {}
+        for d in self.p4.run_depots():
+            depotTypes[d['name']] = d['type']
 
         self.root = self.options.workspace_root
         clientspec._root = self.root

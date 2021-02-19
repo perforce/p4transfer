@@ -628,13 +628,9 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 
 Root: /work/transfer
 
-Options: clobber # and other options as preferred
-
-LineEnd: unix
-
 View:
-    //depot/myproject/dev/... //workspace_server1/myproject/...
-    //depot/other/dev/... //workspace_server1/other/...</code></pre>
+    //depot/myproject/dev/... //workspace_server1/depot/myproject/dev/...
+    //depot/other/dev/... //workspace_server1/depot/other/dev/...</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -646,29 +642,13 @@ View:
 
 Root: /work/transfer
 
-Options: clobber  # and other options as preferred
-
-LineEnd: unix
-
 View:
-    //import/mycode/... //workspace_server2/myproject/...
-    //import/stuff/... //workspace_server2/other/...</code></pre>
+    //import/mycode/... //workspace_server2/depot/myproject/dev/...
+    //import/stuff/... //workspace_server2/depot/other/dev/...</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>While the depot paths can differ, the client paths (thus the right hand sides of the view mappings) and the root directory have to match between the source/target client workspaces. This will be validated and an error generated if not.</p>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-important" title="Important"></i>
-</td>
-<td class="content">
-<code>Options</code> must include <code>clobber</code> instead of <code>noclobber</code>. The <code>LineEnd</code> field must be <code>unix</code>. These will be validated.
-</td>
-</tr>
-</table>
+<p>These client workspaces are created automatically from the <code>view</code> entries in the config file described below.</p>
 </div>
 <div class="paragraph">
 <p>P4Transfer works uni-directionally. The tool will inquire the changes for the workspace files and compare these to a counter.</p>
@@ -765,7 +745,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code>C:\work\&gt; python3 P4Transfer.py -c transfer.cfg -r
+<pre class="highlight"><code>C:\work\&gt; python3 P4Transfer.py -c transfer.yaml -r
 2014-07-01 15:32:34,356:P4Transfer:INFO: Transferring 0 changes
 2014-07-01 15:32:34,361:P4Transfer:INFO: Sleeping for 1 minutes</code></pre>
 </div>
@@ -790,7 +770,7 @@ P4Transfer
 optional arguments:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
-                        Default is transfer.cfg
+                        Default is transfer.yaml
   -m MAXIMUM, --maximum MAXIMUM
                         Maximum number of changes to transfer
   -k, --nokeywords      Do not expand keywords and remove +k from filetype
@@ -828,41 +808,40 @@ Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>P4Transfer.py --sample-config &gt; transfer.cfg</pre>
+<pre>P4Transfer.py --sample-config &gt; transfer.yaml</pre>
 </div>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>cat transfer.cfg</pre>
+<pre>cat transfer.yaml</pre>
 </div>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code># Save this output to a file to e.g. transfer.cfg and edit it for your configuration
+<pre class="highlight"><code># Save this output to a file to e.g. transfer.yaml and edit it for your configuration
 
-[general]
 # counter_name: Unique counter on target server to use for recording source changes processed. No spaces.
 #    Name sensibly if you have multiple instances transferring into the same target p4 repository.
 #    The counter value represents the last transferred change number - script will start from next change.
 #    If not set, or 0 then transfer will start from first change.
-counter_name = p4transfer_counter
+counter_name: p4transfer_counter
 
 # instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
-instance_name = Perforce Transfer from XYZ
+instance_name: Perforce Transfer from XYZ
 
-# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
-mail_form_url =
+# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL"
+mail_form_url:
 
 # The mail_* parameters must all be valid (non-blank) to receive email updates during processing.
 # mail_to: One or more valid email addresses - comma separated for multiple values
 #     E.g. somebody@example.com,somebody-else@example.com
-mail_to =
+mail_to:
 
 # mail_from: Email address of sender of emails, E.g. p4transfer@example.com
-mail_from =
+mail_from:
 
 # mail_server: The SMTP server to connect to for email sending, E.g. smtpserver.example.com
-mail_server =
+mail_server:
 
 # ===============================================================================
 # Note that for any of the following parameters identified as (Integer) you can specify a
@@ -871,34 +850,34 @@ mail_server =
 #     7 * 24 * 60
 # -------------------------------------------------------------------------------
 # sleep_on_error_interval (Integer): How long (in minutes) to sleep when error is encountered in the script
-sleep_on_error_interval = 60
+sleep_on_error_interval: 60
 
 # poll_interval (Integer): How long (in minutes) to wait between polling source server for new changes
-poll_interval = 60
+poll_interval: 60
 
 # change_batch_size (Integer): changelists are processed in batches of this size
-change_batch_size = 20000
+change_batch_size: 20000
 
 # The following *_interval values result in reports, but only if mail_* values are specified
 # report_interval (Integer): Interval (in minutes) between regular update emails being sent
-report_interval = 30
+report_interval: 30
 
 # error_report_interval (Integer): Interval (in minutes) between error emails being sent e.g. connection error
 #     Usually some value less than report_interval. Useful if transfer being run with --repeat option.
-error_report_interval = 15
+error_report_interval: 15
 
 # summary_report_interval (Integer): Interval (in minutes) between summary emails being sent e.g. changes processed
 #     Typically some value such as 1 week (10080 = 7 * 24 * 60). Useful if transfer being run with --repeat option.
-summary_report_interval = 7 * 24 * 60
+summary_report_interval: 7 * 24 * 60
 
 # sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file.
 #    Useful for keeping an eye on progress for large syncs over slow network links.
-sync_progress_size_interval = 500 * 1000 * 1000
+sync_progress_size_interval: 500 * 1000 * 1000
 
 # change_description_format: The standard format for transferred changes.
 #    Keywords prefixed with $. Use \n for newlines. Keywords allowed:
 #     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
-change_description_format = $sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange
+change_description_format: "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange"
 
 # change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists.
 #    If this is blank (DEFAULT) then no mapping file is created.
@@ -907,32 +886,53 @@ change_description_format = $sourceDescription\n\nTransferred from p4://$sourceP
 #    Default type of this file is text+CS32 to avoid storing too many revisions.
 #    File must be mapped into target client workspace.
 #    File can contain a sub-directory, e.g. change_map/change_map.csv
-change_map_file =
+#    Note that due to the way client workspace views are created the local filename
+#    should include a valid source path including depot name, e.g.
+#       //depot/export/... -&gt; depot/export/change_map.csv
+change_map_file:
 
 # superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
-superuser = y
+superuser: y
 
-[source]
-# P4PORT to connect to, e.g. some-server:1666
-p4port =
-# P4USER to use
-p4user =
-# P4CLIENT to use, e.g. p4-transfer-client
-p4client =
-# P4PASSWD for the user - valid password. If blank then no login performed.
-# Recommended to make sure user is in a group with a long password timeout!.
-p4passwd =
+source:
+    # P4PORT to connect to, e.g. some-server:1666
+  p4port:
+    # P4USER to use
+  p4user:
+    # P4CLIENT to use, e.g. p4-transfer-client
+  p4client:
+    # P4PASSWD for the user - valid password. If blank then no login performed.
+    # Recommended to make sure user is in a group with a long password timeout!.
+  p4passwd:
 
-[target]
-# P4PORT to connect to, e.g. some-server:1666
-p4port =
-# P4USER to use
-p4user =
-# P4CLIENT to use, e.g. p4-transfer-client
-p4client =
-# P4PASSWD for the user - valid password. If blank then no login performed.
-# Recommended to make sure user is in a group with a long password timeout!.
-p4passwd =</code></pre>
+target:
+    # P4PORT to connect to, e.g. some-server:1666
+  p4port:
+    # P4USER to use
+  p4user:
+    # P4CLIENT to use, e.g. p4-transfer-client
+  p4client:
+    # P4PASSWD for the user - valid password. If blank then no login performed.
+    # Recommended to make sure user is in a group with a long password timeout!
+  p4passwd:
+
+# workspace_root: Root directory to use for both client workspaces.
+#    This will be used to update the client workspace Root: field for both source/target workspaces
+#    They must be the same.
+workspace_root: /work/transfer
+
+# views: An array of source/target view mappings
+#    Each value is a string - normally quote. Standard p4 wildcards are valid.
+#    These values are used to construct the appropriate View: fields for source/target client workspaces
+#    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
+#    entry - see last example below.
+views:
+- src: //depot/source_path1/...
+  targ: //import/target_path1/...
+- src: //depot/source_path2/...
+  targ: //import/target_path2/...
+- src: -//depot/source_path2/exclude/*.tgz
+  targ: //import/target_path2/exclude/*.tgz</code></pre>
 </div>
 </div>
 <div class="sect3">
@@ -1119,7 +1119,7 @@ Then re-run P4Transfer as previously.</p>
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-02-09 17:04:23 UTC
+Last updated 2021-02-19 12:56:41 UTC
 </div>
 </div>
 </body>
