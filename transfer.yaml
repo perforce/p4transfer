@@ -85,6 +85,8 @@ source:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!.
   p4passwd:
+    # P4CHARSET to use, e.g. none, utf8, etc
+  p4charset:
 
 target:
     # P4PORT to connect to, e.g. some-server:1666
@@ -96,6 +98,8 @@ target:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!
   p4passwd:
+    # P4CHARSET to use, e.g. none, utf8, etc
+  p4charset:
 
 # workspace_root: Root directory to use for both client workspaces.
 #    This will be used to update the client workspace Root: field for both source/target workspaces

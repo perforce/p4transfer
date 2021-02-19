@@ -203,6 +203,8 @@ source:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!.
     p4passwd:
+    # P4CHARSET to use, e.g. none, utf8, etc
+    p4charset:
 
 target:
     # P4PORT to connect to, e.g. some-server:1666
@@ -214,6 +216,8 @@ target:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!
     p4passwd:
+    # P4CHARSET to use, e.g. none, utf8, etc
+    p4charset:
 
 # workspace_root: Root directory to use for both client workspaces.
 #    This will be used to update the client workspace Root: field for both source/target workspaces
@@ -622,6 +626,7 @@ class P4Base(object):
     section = None
     P4PORT = None
     P4CLIENT = None
+    P4CHARSET = None
     P4USER = None
     P4PASSWD = None
     counter = 0
@@ -636,17 +641,19 @@ class P4Base(object):
         self.client_logged = 0
 
     def __str__(self):
-        return '[section = {} P4PORT = {} P4CLIENT = {} P4USER = {} P4PASSWD = {}]'.format( \
+        return '[section = {} P4PORT = {} P4CLIENT = {} P4USER = {} P4PASSWD = {} P4CHARSET = {}]'.format( \
             self.section,
             self.P4PORT,
             self.P4CLIENT,
             self.P4USER,
             self.P4PASSWD,
+            self.P4CHARSET,
             )
 
     def connect(self, progname):
         self.p4 = P4.P4()
         self.p4.port = self.P4PORT
+        self.p4.charset = self.P4CHARSET
         self.p4.client = self.P4CLIENT
         self.p4.user = self.P4USER
         self.p4.prog = progname
@@ -670,7 +677,6 @@ class P4Base(object):
         self.root = self.options.workspace_root
         clientspec._root = self.root
         clientspec._view = []
-
         exclude = ''
         for m in self.options.views:
             lhs = m['src']
@@ -1593,6 +1599,7 @@ class P4Transfer(object):
         self.readOption('P4USER', p4config)
         self.readOption('P4PORT', p4config)
         self.readOption('P4PASSWD', p4config, optional=True)
+        self.readOption('P4CHARSET', p4config, optional=True)
 
     def readOption(self, option, p4config, optional=False):
         lcOption = option.lower()
