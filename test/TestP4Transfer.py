@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import sys
 import time
+from unittest.case import expectedFailure
 import P4
 import subprocess
 import inspect
@@ -29,7 +30,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 # Bring in module to be tested
-sys.path.append('..')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import logutils
 import P4Transfer
 
@@ -222,25 +223,9 @@ class TestP4Transfer(unittest.TestCase):
         return config
 
     def setupTransfer(self):
-        """Creates client workspaces on source and target and a config file"""
+        """Creates a config file with default mappings"""
         msg = "Test: %s ======================" % inspect.stack()[1][3]
         self.logger.debug(msg)
-        # source_client = self.source.p4.fetch_client(TRANSFER_CLIENT)
-        # source_client._root = self.transfer_client_root
-        # source_client._lineend = 'unix'
-        # source_client._options = source_client._options.replace("noclobber", "clobber")
-        # # source_client._options = source_client._options.replace("noclobber", "clobber")
-        # source_client._view = ['//depot/inside/... //%s/...' % TRANSFER_CLIENT]
-        # self.source.p4.save_client(source_client)
-
-        # target_client = self.target.p4.fetch_client(TRANSFER_CLIENT)
-        # target_client._root = self.transfer_client_root
-        # target_client._lineend = 'unix'
-        # target_client._options = target_client._options.replace("noclobber", "clobber")
-        # # target_client._options = target_client._options.replace("noclobber", "clobber")
-        # target_client._view = ['//depot/import/... //%s/...' % TRANSFER_CLIENT]
-        # self.target.p4.save_client(target_client)
-
         config = self.getDefaultOptions()
         self.createConfigFile(options=config)
 
@@ -2334,6 +2319,47 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(len(filelog.revisions[0].integrations), 2)
         self.assertEqual(filelog.revisions[0].integrations[0].how, "ignored")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
+
+    def testExclusionsInClientMap(self):
+        "Test exclusion lines in client views work"
+        self.setupTransfer()
+
+        config = self.getDefaultOptions()
+        config['views'] = [{'src': '//depot/inside/...',
+                            'targ': '//depot/import/...'},
+                            {'src': '-//depot/inside/sub/...',
+                            'targ': '//depot/import/sub/...'}]
+        self.createConfigFile(options=config)
+
+        inside = localDirectory(self.source.client_root, "inside")
+        subdir = localDirectory(self.source.client_root, "inside", "sub")
+
+        file1 = os.path.join(inside, 'file1')
+        file2 = os.path.join(subdir, 'file2')
+        create_file(file1, "Test content")
+        create_file(file2, "Test content")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', "Added files")
+
+        self.run_P4Transfer()
+        self.assertCounters(1, 1)
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(len(changes), 1, "Not exactly one change on target")
+        filelog = self.target.p4.run_filelog('//depot/import/...')
+        self.assertEqual(len(filelog), 1, "Not exactly one file on target")
+        self.assertEqual(filelog[0].revisions[0].action, "add")
+
+        expView = ['//depot/inside/... //%s/depot/inside/...' % TRANSFER_CLIENT,
+                   '-//depot/inside/sub/... //%s/depot/inside/sub/...' % TRANSFER_CLIENT]
+        client = self.source.p4.fetch_client(TRANSFER_CLIENT)
+        self.assertEqual(expView, client._view)
+
+        expView = ['//depot/import/... //%s/depot/inside/...' % TRANSFER_CLIENT,
+                   '-//depot/import/sub/... //%s/depot/inside/sub/...' % TRANSFER_CLIENT]
+        client = self.target.p4.fetch_client(TRANSFER_CLIENT)
+        self.assertEqual(expView, client._view)
+
 
     def testInsideOutside(self):
         "Test integrations between the inside<->outside where only one element is thus transferred"

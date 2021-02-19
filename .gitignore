@@ -3,3 +3,4 @@ __pycache__/
 transfer/
 _testrun_transfer/
 log-*.log
+.vscode/

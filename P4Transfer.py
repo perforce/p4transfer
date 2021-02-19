@@ -649,7 +649,7 @@ class P4Base(object):
             self.p4.password = self.P4PASSWD
             self.p4.run_login()
 
-    def createClientWorkspace(self, sourceFlag):
+    def createClientWorkspace(self, isSource):
         "Create or adjust client workspace for source or target"
         clientspec = self.p4.fetch_client(self.p4.client)
         logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
@@ -658,12 +658,17 @@ class P4Base(object):
         clientspec._root = self.root
         clientspec._view = []
 
+        exclude = ''
         for m in self.options.views:
-            srcPath = m['src'].replace('//', '')
-            if sourceFlag:
-                v = "%s //%s/%s" % (m['src'], self.p4.client, srcPath)
+            lhs = m['src']
+            if lhs[0] == '-':
+                exclude = '-'
+                lhs = lhs[1:]
+            srcPath = lhs.replace('//', '')
+            if isSource:
+                v = "%s%s //%s/%s" % (exclude, lhs, self.p4.client, srcPath)
             else:
-                v = "%s //%s/%s" % (m['targ'], self.p4.client, srcPath)
+                v = "%s%s //%s/%s" % (exclude, m['targ'], self.p4.client, srcPath)
             clientspec._view.append(v)
 
         clientspec["Options"] = clientspec["Options"].replace("noclobber", "clobber")
