@@ -445,7 +445,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <span id="author" class="author">Perforce Professional Services</span><br>
 <span id="email" class="email"><a href="mailto:consulting@perforce.com">consulting@perforce.com</a></span><br>
 <span id="revnumber">version v2021.1,</span>
-<span id="revdate">2021-01-29</span>
+<span id="revdate">2021-02-22</span>
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
@@ -484,6 +484,13 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_support">6. Support</a>
 <ul class="sectlevel2">
 <li><a href="#_re_running_p4transfer_after_an_error">6.1. Re-running P4Transfer after an error</a></li>
+</ul>
+</li>
+<li><a href="#_contributors_guide">7. Contributor&#8217;s Guide</a>
+<ul class="sectlevel2">
+<li><a href="#_test_dependencies">7.1. Test dependencies</a></li>
+<li><a href="#_running_a_single_test">7.2. Running a single test</a></li>
+<li><a href="#_running_all_tests">7.3. Running all tests</a></li>
 </ul>
 </li>
 </ul>
@@ -1115,11 +1122,84 @@ Then re-run P4Transfer as previously.</p>
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="_contributors_guide">7. Contributor&#8217;s Guide</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Pull Requests are welcome. Code changes should normally be accompanied by tests.</p>
+</div>
+<div class="paragraph">
+<p>See <a href="../test/TestP4Transfer.py">TestP4Transfer.py</a> for unit/integration tests.</p>
+</div>
+<div class="paragraph">
+<p>Most tests generate a new <code>p4d</code> repository with source/target servers and run test transfers.</p>
+</div>
+<div class="paragraph">
+<p>The use the <a href="http://blog.pallen.co.uk/?p=15">"rsh" hack</a> to avoid having to spawn p4d on a port.</p>
+</div>
+<div class="sect2">
+<h3 id="_test_dependencies">7.1. Test dependencies</h3>
+<div class="paragraph">
+<p>Tests assume there is a valid <code>p4d</code> in your current PATH.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_running_a_single_test">7.2. Running a single test</h3>
+<div class="paragraph">
+<p>Pick your single test class (e.g. <code>testAdd</code>):</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>python3 TestP4Transfer.py TestP4Transfer.testAdd</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>generate a single log file: <code>log-TestP4Transfer-*.log</code></p>
+</li>
+<li>
+<p>create a test sub-directory <code>_testrun_transfer</code> with the following structure:</p>
+<div class="literalblock">
+<div class="content">
+<pre>source/
+    server/         # P4ROOT and other files for server - uses rsh hack for p4d
+    client/         # Root of client used to checkin files
+    .p4config       # Defines P4PORT for source server
+target/             # Similar structure to source/
+transfer_client/    # The root of shared transfer client</pre>
+</div>
+</div>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>This test directory is created new for each test, and then left behind in case of test failures.
+If you want to manually do tests or view results, then <code>export P4CONFIG=.p4config</code>, and <code>cd</code> into
+the source/target directory to be able to run normal <code>p4</code> commands as appropriate.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_running_all_tests">7.3. Running all tests</h3>
+<div class="literalblock">
+<div class="content">
+<pre>python3 TestP4Transfer.py</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>It will generate many log files (<code>log-TestP4Transfer-*.log</code>) which can be examined in case of failure or removed.</p>
+</div>
+</div>
+</div>
+</div>
 </div>
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-02-19 12:56:41 UTC
+Last updated 2021-02-22 23:52:08 UTC
 </div>
 </div>
 </body>

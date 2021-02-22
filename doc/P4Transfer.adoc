@@ -1,7 +1,7 @@
 = P4Transfer - Helix Core Full History Migration Tool
 Perforce Professional Services <consulting@perforce.com>
 :revnumber: v2021.1
-:revdate: 2021-01-29
+:revdate: 2021-02-22
 :doctype: book
 :icons: font
 :toc:
@@ -413,3 +413,45 @@ say 4253 on the target (which was say 12412 on the source) but found to be incor
 Ensure that the counter specified in your config file is set to a value less than 4253 such as the changelist
 immediately prior to that changelist.
 Then re-run P4Transfer as previously.
+
+== Contributor's Guide
+
+Pull Requests are welcome. Code changes should normally be accompanied by tests.
+
+See link:../test/TestP4Transfer.py[TestP4Transfer.py] for unit/integration tests.
+
+Most tests generate a new `p4d` repository with source/target servers and run test transfers.
+
+The use the link:http://blog.pallen.co.uk/?p=15["rsh" hack] to avoid having to spawn p4d on a port.
+
+=== Test dependencies
+
+Tests assume there is a valid `p4d` in your current PATH.
+
+=== Running a single test
+
+Pick your single test class (e.g. `testAdd`):
+
+    python3 TestP4Transfer.py TestP4Transfer.testAdd
+
+This will:
+
+* generate a single log file: `log-TestP4Transfer-*.log`
+* create a test sub-directory `_testrun_transfer` with the following structure:
+
+    source/
+        server/         # P4ROOT and other files for server - uses rsh hack for p4d
+        client/         # Root of client used to checkin files
+        .p4config       # Defines P4PORT for source server
+    target/             # Similar structure to source/
+    transfer_client/    # The root of shared transfer client
+
+This test directory is created new for each test, and then left behind in case of test failures. 
+If you want to manually do tests or view results, then `export P4CONFIG=.p4config`, and `cd` into
+the source/target directory to be able to run normal `p4` commands as appropriate.
+
+=== Running all tests
+
+    python3 TestP4Transfer.py
+
+It will generate many log files (`log-TestP4Transfer-*.log`) which can be examined in case of failure or removed.
