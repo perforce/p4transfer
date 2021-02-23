@@ -4,7 +4,8 @@ name: Test P4Transfer
 
 on:
   push:
-    branches: [ $default-branch ]
+    paths:
+    - '**.py'
   pull_request:
     branches: [ $default-branch ]
 
