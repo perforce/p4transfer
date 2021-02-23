@@ -653,12 +653,13 @@ class P4Base(object):
     def connect(self, progname):
         self.p4 = P4.P4()
         self.p4.port = self.P4PORT
-        self.p4.charset = self.P4CHARSET
         self.p4.client = self.P4CLIENT
         self.p4.user = self.P4USER
         self.p4.prog = progname
         self.p4.exception_level = P4.P4.RAISE_ERROR
         self.p4.connect()
+        if not self.P4CHARSET == None:
+            self.p4.charset = self.P4CHARSET
         if not self.P4PASSWD == None:
             self.p4.password = self.P4PASSWD
             self.p4.run_login()
