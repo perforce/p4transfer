@@ -1,0 +1,45 @@
+# GitHub Workflow for CI
+
+name: Test P4Transfer
+
+on:
+  push:
+    branches: [ $default-branch ]
+  pull_request:
+    branches: [ $default-branch ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        # python -m pip install flake8 pytest
+        # Custom version of p4python
+        pip install p4python==2017.2.1615960 ruamel.yaml
+        # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        curl -L http://ftp.perforce.com/perforce/r20.1/bin.linux26x86_64/p4d -o $GITHUB_WORKSPACE/p4d
+        chmod +x $GITHUB_WORKSPACE/p4d
+        echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
+
+    # - name: Lint with flake8
+    #   run: |
+    #     # stop the build if there are Python syntax errors or undefined names
+    #     # flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+    #     # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+    #     # flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Run tests
+      run: |
+        cd test && python TestP4Transfer.py
