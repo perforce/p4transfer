@@ -3488,6 +3488,36 @@ class TestP4Transfer(unittest.TestCase):
 
         self.assertCounters(4, 4)
 
+    def testAddUnicodeEnabled(self):
+        "Testing basic add with unicode enabled on source and dest"
+
+        self.source.enableUnicode()
+        self.target.enableUnicode()
+
+        options = self.getDefaultOptions()
+        srcOptions = {"p4charset" : "utf8"}
+        targOptions = {"p4charset" : "utf8"}
+        self.createConfigFile(options=options, srcOptions=srcOptions, targOptions=targOptions)
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.run_P4Transfer()
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(len(changes), 1, "Target does not have exactly one change")
+        self.assertEqual(changes[0]['change'], "1")
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
+
+        self.assertCounters(1, 1)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--p4d', default=P4D)
