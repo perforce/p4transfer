@@ -35,3 +35,6 @@ Perforce does not officially support these projects, therefore all issues should
 
 ## Build/Usage
 See Documentation link above.
+
+## Contributer's Guide
+See Documentation link above.
