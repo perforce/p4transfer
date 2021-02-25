@@ -59,25 +59,43 @@
 
 from __future__ import print_function
 
-VERSION = """$Id: //guest/perforce_software/p4transfer/P4Transfer.py#112 $"""
-
-import sys, re, hashlib, stat
-from collections import OrderedDict
-import P4
+import sys
+import re
+import hashlib
+import stat
 import pprint
 from string import Template
+import argparse
+import os.path
+from datetime import datetime
+import logging
+import time
+
+import P4
+import logutils
+
+# Import yaml which will roundtrip comments
+from ruamel.yaml import YAML
+yaml = YAML()
+
+VERSION = """$Id: //guest/perforce_software/p4transfer/P4Transfer.py#112 $"""
+
 
 def logrepr(self):
     return pprint.pformat(self.__dict__, width=240)
 
-# Log messages just once per run
+
 alreadyLogged = {}
+
+
+# Log messages just once per run
 def logOnce(logger, *args):
     global alreadyLogged
     msg = ", ".join([str(x) for x in args])
-    if not msg in alreadyLogged:
+    if msg not in alreadyLogged:
         alreadyLogged[msg] = 1
         logger.debug(msg)
+
 
 P4.Revision.__repr__ = logrepr
 P4.Integration.__repr__ = logrepr
@@ -90,26 +108,18 @@ if sys.hexversion < 0x02070000 or (0x0300000 <= sys.hexversion < 0x0303000):
 # Although this should work with Python 3, it doesn't currently handle Windows Perforce servers
 # with filenames containing charaters such as umlauts etc: åäö
 
-# Import yaml which will roundtrip comments
-from ruamel.yaml import YAML
-yaml = YAML()
-
-import argparse
-import os.path
-from datetime import datetime
-import logging
-import time
-
-import logutils
 
 class P4TException(Exception):
     pass
 
+
 class P4TLogicException(Exception):
     pass
 
+
 class P4TConfigException(P4TException):
     pass
+
 
 CONFIG_FILE = 'transfer.yaml'
 GENERAL_SECTION = 'general'
@@ -117,7 +127,7 @@ SOURCE_SECTION = 'source'
 TARGET_SECTION = 'target'
 LOGGER_NAME = "P4Transfer"
 
-# This is for writing to sample config file - OrderedDict used to preserve order of lines.
+# This is for writing to sample config file
 DEFAULT_CONFIG = yaml.load("""
 # counter_name: Unique counter on target server to use for recording source changes processed. No spaces.
 #    Name sensibly if you have multiple instances transferring into the same target p4 repository.
@@ -129,9 +139,9 @@ counter_name: p4transfer_counter
 instance_name: "Perforce Transfer from XYZ"
 
 # For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
-mail_form_url: 
+mail_form_url:
 
-# The mail_* parameters must all be valid (non-blank) to receive email updates during processing.        
+# The mail_* parameters must all be valid (non-blank) to receive email updates during processing.
 # mail_to: One or more valid email addresses - comma separated for multiple values
 #     E.g. somebody@example.com,somebody-else@example.com
 mail_to:
@@ -169,16 +179,16 @@ error_report_interval: 15
 #     Typically some value such as 1 week (10080 = 7 * 24 * 60). Useful if transfer being run with --repeat option.
 summary_report_interval: "7 * 24 * 60"
 
-# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file. 
-#    Useful for keeping an eye on progress for large syncs over slow network links. 
+# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file.
+#    Useful for keeping an eye on progress for large syncs over slow network links.
 sync_progress_size_interval: "500 * 1000 * 1000"
 
-# change_description_format: The standard format for transferred changes. 
-#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed: 
-#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser 
+# change_description_format: The standard format for transferred changes.
+#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
+#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
 change_description_format: "$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange"
 
-# change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists. 
+# change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists.
 #    If this is blank (DEFAULT) then no mapping file is created.
 #    If non-blank, then a file with this name in the target workspace is appended to
 #    and will be submitted after every sequence (batch_size) of changes is made.
@@ -186,11 +196,11 @@ change_description_format: "$sourceDescription\\n\\nTransferred from p4://$sourc
 #    File must be mapped into target client workspace.
 #    File can contain a sub-directory, e.g. change_map/change_map.csv
 #    Note that due to the way client workspace views are created the local filename
-#    should include a valid source path including depot name, e.g. 
+#    should include a valid source path including depot name, e.g.
 #       //depot/export/... -> depot/export/change_map.csv
-change_map_file: 
+change_map_file:
 
-# superuser: Set to n if not a superuser (so can't update change times - can just transfer them). 
+# superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
 superuser: "y"
 
 source:
@@ -239,6 +249,7 @@ views:
 
 """)
 
+
 class SourceTargetTextComparison(object):
     """Decide if source and target servers are similar OS so that text
     files can be compared by size and digest (no line ending differences)"""
@@ -261,7 +272,9 @@ class SourceTargetTextComparison(object):
             return self.sourceVersion == self.targetVersion
         return False
 
+
 sourceTargetTextComparison = SourceTargetTextComparison()
+
 
 def isText(ftype):
     "If filetype is not text - binary or unicode"
@@ -269,8 +282,10 @@ def isText(ftype):
         return True
     return False
 
+
 def isKeyTextFile(ftype):
     return isText(ftype) and "k" in ftype
+
 
 def fileContentComparisonPossible(ftype):
     "Decides if it is possible to compare size/digest for text files"
@@ -279,6 +294,7 @@ def fileContentComparisonPossible(ftype):
     if "k" in ftype:
         return False
     return sourceTargetTextComparison.compatible()
+
 
 def readContents(fname):
     "Reads file contents appropriate according to type"
@@ -291,6 +307,7 @@ def readContents(fname):
         contents = fh.read()
     return contents
 
+
 def writeContents(fname, contents):
     flags = "wb"
     ensureDirectory(os.path.dirname(fname))
@@ -299,16 +316,19 @@ def writeContents(fname, contents):
     with open(fname, flags) as fh:
         try:
             fh.write(contents)
-        except TypeError as e:
+        except TypeError:
             fh.write(contents.encode())
+
 
 def ensureDirectory(directory):
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
+
 def makeWritable(fpath):
     "Make file writable"
     os.chmod(fpath, stat.S_IWRITE + stat.S_IREAD)
+
 
 def getLocalDigest(fname, blocksize=2**20):
     "Return MD5 digest of file on disk"
@@ -326,8 +346,10 @@ def getLocalDigest(fname, blocksize=2**20):
             m.update(buf)
     return m.hexdigest()
 
+
 # All possible p4 keywords (or at least their prefix - there are various $Date* ones
-re_rcs_keywords = re.compile("\$Id|\$Header|\$Date|\$Change|\$File|\$Revision|\$Author")
+re_rcs_keywords = re.compile(r"\$Id|\$Header|\$Date|\$Change|\$File|\$Revision|\$Author")
+
 
 def getKTextDigest(fname):
     "Special calculation for ktext files - ignores lines with keywords in them"
@@ -354,6 +376,7 @@ def getKTextDigest(fname):
             fileSize += len(line)
     return fileSize, m.hexdigest()
 
+
 def diskFileContentModified(file):
     fileSize = 0
     digest = ""
@@ -379,9 +402,11 @@ def diskFileContentModified(file):
         fileSize, digest = getKTextDigest(file.fixedLocalFile)
     return (fileSize, digest.lower()) != (int(file.fileSize), file.digest.lower())
 
+
 def p4time(unixtime):
     "Convert time to Perforce format time"
     return time.strftime("%Y/%m/%d:%H:%M:%S", time.localtime(unixtime))
+
 
 def printSampleConfig():
     "Print defaults from above dictionary for saving as a base file"
@@ -391,11 +416,13 @@ def printSampleConfig():
     yaml.dump(DEFAULT_CONFIG, sys.stdout)
     sys.stdout.flush()
 
+
 def fmtsize(num):
     for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
         if num < 1024.0:
             return "%3.1f %s" % (num, x)
         num /= 1024.0
+
 
 class ChangeRevision:
     "Represents a change - created from P4API supplied information and thus encoding"
@@ -425,7 +452,7 @@ class ChangeRevision:
     def updateDigest(self):
         "Update values for ktext files if required - assumes file on disk"
         if not isKeyTextFile(self.type) or not self.fixedLocalFile:
-            return # Leave values as default
+            return  # Leave values as default
         if self.action not in ['delete', 'move/delete']:
             self.fileSize, self.digest = getKTextDigest(self.fixedLocalFile)
 
@@ -547,6 +574,7 @@ class ChangeRevision:
                 return False
         return True
 
+
 class ChangelistComparer(object):
     "Compare two lists of filerevisions"
 
@@ -576,6 +604,7 @@ class ChangelistComparer(object):
                 "\n    ".join([str(r) for r in diffs]),
                 "\n    ".join([str(targlookup[r.localFile]) for r in diffs])))
         return (True, "")
+
 
 class ReportProgress(object):
     "Report overall progress"
@@ -614,11 +643,12 @@ class ReportProgress(object):
             self.previousSizeSynced = self.sizeSynced
             syncPercent = 100 * float(self.filesSynced) / float(self.filesToSync)
             sizePercent = 100 * float(self.sizeSynced) / float(self.sizeToSync)
-            self.logger.info("Synced %d/%d changes, files %d/%d (%2.1f %%), size %s/%s (%2.1f %%)" % ( \
+            self.logger.info("Synced %d/%d changes, files %d/%d (%2.1f %%), size %s/%s (%2.1f %%)" % (
                     self.changesSynced, self.changesToSync,
                     self.filesSynced, self.filesToSync, syncPercent,
                     fmtsize(self.sizeSynced), fmtsize(self.sizeToSync),
                     sizePercent))
+
 
 class P4Base(object):
     "Processes a config"
@@ -641,7 +671,7 @@ class P4Base(object):
         self.client_logged = 0
 
     def __str__(self):
-        return '[section = {} P4PORT = {} P4CLIENT = {} P4USER = {} P4PASSWD = {} P4CHARSET = {}]'.format( \
+        return '[section = {} P4PORT = {} P4CLIENT = {} P4USER = {} P4PASSWD = {} P4CHARSET = {}]'.format(
             self.section,
             self.P4PORT,
             self.P4CLIENT,
@@ -658,9 +688,9 @@ class P4Base(object):
         self.p4.prog = progname
         self.p4.exception_level = P4.P4.RAISE_ERROR
         self.p4.connect()
-        if not self.P4CHARSET == None:
+        if self.P4CHARSET is not None:
             self.p4.charset = self.P4CHARSET
-        if not self.P4PASSWD == None:
+        if self.P4PASSWD is not None:
             self.p4.password = self.P4PASSWD
             self.p4.run_login()
 
@@ -724,11 +754,13 @@ class P4Base(object):
     def resetWorkspace(self):
         self.p4cmd('sync', '//%s/...#none' % self.p4.P4CLIENT)
 
+
 class TrackedAdd(object):
     """Record class used in MoveTracker"""
     def __init__(self, chRev, deleteDepotFile):
         self.chRev = chRev
         self.deleteDepotFile = deleteDepotFile
+
 
 class MoveTracker(object):
     """Tracks move/add and move/delete and handles orphans where
@@ -764,6 +796,7 @@ class MoveTracker(object):
             self.deletes[k].action = 'delete'
         results.extend([self.deletes[k] for k in self.deletes])
         return results
+
 
 class P4Source(P4Base):
     "Functionality for reading from source Perforce repository"
@@ -877,9 +910,10 @@ class P4Source(P4Base):
                         filerevs.append(chRev)
                 else:
                     self.logger.error(u"Failed to retrieve filelog for {}#{}".format(flog.depotFile,
-                                        flog.rev))
+                                      flog.rev))
         filerevs.extend(movetracker.getMoves())
         return filerevs
+
 
 class P4Target(P4Base):
     "Functionality for transferring changes to target Perforce repository"
@@ -892,14 +926,14 @@ class P4Target(P4Base):
         self.re_cant_integ_without_d = re.compile("can't delete from .* without -d or -Ds flag")
         self.re_cant_integ_without_i = re.compile(r" can't integrate .* without -i flag")
         self.re_cant_branch_without_Dt = re.compile(r" can't branch from .* without -d or -Dt flag")
-        self.re_resolve_skipped = re.compile(" \- resolve skipped.")
-        self.re_resolve_tampered = re.compile(" tampered with before resolve - edit or revert")
+        self.re_resolve_skipped = re.compile(r" \- resolve skipped.")
+        self.re_resolve_tampered = re.compile(r" tampered with before resolve - edit or revert")
         self.re_edit_of_deleted_file = re.compile(r"warning: edit of deleted file")
-        self.re_all_revisions_already_integrated = re.compile(" all revision\(s\) already integrated")
-        self.re_file_not_on_client = re.compile("\- file\(s\) not on client")
-        self.re_no_such_file = re.compile("\- no such file\(s\)")
-        self.re_move_delete_needs_move_add = re.compile("move/delete\(s\) must be integrated along with matching move/add\(s\)")
-        self.re_file_remapped = re.compile(" \(remapped from ")
+        self.re_all_revisions_already_integrated = re.compile(r" all revision\(s\) already integrated")
+        self.re_file_not_on_client = re.compile(r"\- file\(s\) not on client")
+        self.re_no_such_file = re.compile(r"\- no such file\(s\)")
+        self.re_move_delete_needs_move_add = re.compile(r"move/delete\(s\) must be integrated along with matching move/add\(s\)")
+        self.re_file_remapped = re.compile(r" \(remapped from ")
         self.filesToIgnore = []
 
     def formatChangeDescription(self, **kwargs):
@@ -984,7 +1018,8 @@ class P4Target(P4Base):
         openedFiles = self.p4cmd('opened')
         if len(openedFiles) > 0:
             self.fixFileTypes(filerevs, openedFiles)
-            description = self.formatChangeDescription(sourceDescription=change['desc'],
+            description = self.formatChangeDescription(
+                sourceDescription=change['desc'],
                 sourceChange=change['change'], sourcePort=sourcePort,
                 sourceUser=change['user'])
 
@@ -1063,7 +1098,6 @@ class P4Target(P4Base):
     def syncf(self, localFile):
         self.p4cmd('sync', '-f', localFile)
 
-
     def moveAdd(self, file):
         "Either paired with a move/delete or an orphaned move/add"
         self.logger.debug('processing:0100 move/add')
@@ -1096,7 +1130,7 @@ class P4Target(P4Base):
 
     def reverifyRevisions(self, result):
         revisionsToVerify = ["{file}#{rev},{rev}".format(file=x['refreshFile'], rev=x['refreshRev'])
-                                for x in result if 'refreshFile' in x]
+                             for x in result if 'refreshFile' in x]
         if revisionsToVerify:
             self.p4cmd('verify', '-qv', revisionsToVerify)
 
@@ -1106,9 +1140,9 @@ class P4Target(P4Base):
                 fileType = self.removeKeyword(openFile["type"])
                 self.p4cmd('reopen', '-t', fileType, openFile["depotFile"])
                 self.logger.debug("targ: Changed type from {} to {} for {}".
-                                format(openFile["type"], fileType, openFile["depotFile"]))
+                                  format(openFile["type"], fileType, openFile["depotFile"]))
 
-    KTEXT = re.compile("(.*)\+([^k]*)k([^k]*)")
+    KTEXT = re.compile(r"(.*)\+([^k]*)k([^k]*)")
 
     def hasKeyword(self, fileType):
         return(fileType in ["ktext", "kxtext"] or self.KTEXT.match(fileType))
@@ -1171,7 +1205,7 @@ class P4Target(P4Base):
                     self.p4cmd('undo', "%s#%d" % (file.localFile, file._integrations[ind].erev + 1))
                 else:
                     self.logger.debug('processing:0220 integrate')
-                    if dirty or ind > 0 :
+                    if dirty or ind > 0:
                         flags = ['-t']
                     else:
                         flags = ['-t', '-v']
@@ -1188,8 +1222,8 @@ class P4Target(P4Base):
                         self.p4cmd('edit', file.localFile)
                         edited = True
                     # Only if last integration to be processed for this rev and it is an add
-                    if added or (ind == 0 and outputDict and outputDict['action'] == 'branch' and \
-                            self.integrateContentsChanged(file)):
+                    if added or (ind == 0 and outputDict and outputDict['action'] == 'branch' and
+                                 self.integrateContentsChanged(file)):
                         if not edited:
                             self.p4cmd('edit', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
@@ -1462,12 +1496,11 @@ class P4Target(P4Base):
         fpath = os.path.join(self.root, self.options.change_map_file)
         chg['Description'] = "Updated change_map_file"
         output = self.p4.save_change(chg)[0]
-        m = re.search("Change (\d+) created", output)
+        m = re.search("Change ([0-9]+) created", output)
         if not m:
             raise P4TException("Failed to create changelist")
         chgno = m.group(1)
         self.p4cmd('reopen', '-c', chgno, fpath)[0]
-
 
     def updateChangeMap(self, sourceP4Port, sourceChangeNo, targetChangeNo):
         "Store values"
@@ -1488,6 +1521,7 @@ class P4Target(P4Base):
         chgno = output['change']
         self.p4cmd('submit', '-c', chgno)
 
+
 def valid_datetime_type(arg_datetime_str):
     """custom argparse type for user datetime values given from the command line"""
     try:
@@ -1495,6 +1529,7 @@ def valid_datetime_type(arg_datetime_str):
     except ValueError:
         msg = "Given Datetime ({0}) not valid! Expected format, 'YYYY/MM/DD HH:mm'!".format(arg_datetime_str)
         raise argparse.ArgumentTypeError(msg)
+
 
 class P4Transfer(object):
     "Main transfer class"
@@ -1513,16 +1548,16 @@ class P4Transfer(object):
         parser.add_argument('--sample-config', action='store_true', help="Print an example config file and exit")
         parser.add_argument('-i', '--ignore', action='store_true', help="Treat integrations as adds and edits")
         parser.add_argument('--end-datetime', type=valid_datetime_type, default=None,
-            help="Time to stop transfers, format: 'YYYY/MM/DD HH:mm'")
+                            help="Time to stop transfers, format: 'YYYY/MM/DD HH:mm'")
         self.options = parser.parse_args(list(args))
         self.options.sync_progress_size_interval = None
 
         if self.options.sample_config:
             printSampleConfig()
             return
-            
+
         self.logger = logutils.getLogger(LOGGER_NAME)
-        self.previous_target_change_counter = 0 # Current value
+        self.previous_target_change_counter = 0     # Current value
 
     def getOption(self, section, option_name, default=None):
         result = default
@@ -1531,7 +1566,7 @@ class P4Transfer(object):
                 result = self.config[option_name]
             else:
                 result = self.config[section][option_name]
-        except:
+        except Exception:
             pass
         return result
 
@@ -1541,7 +1576,7 @@ class P4Transfer(object):
         if strval:
             try:
                 result = int(eval(strval))
-            except:
+            except Exception:
                 pass
         return result
 
@@ -1568,10 +1603,11 @@ class P4Transfer(object):
         self.options.report_interval = self.getIntOption(GENERAL_SECTION, "report_interval", 30)
         self.options.error_report_interval = self.getIntOption(GENERAL_SECTION, "error_report_interval", 30)
         self.options.summary_report_interval = self.getIntOption(GENERAL_SECTION, "summary_report_interval", 10080)
-        self.options.sync_progress_size_interval = self.getIntOption(GENERAL_SECTION,
-                    "sync_progress_size_interval")
-        self.options.change_description_format = self.getOption(GENERAL_SECTION, "change_description_format",
-                    "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange")
+        self.options.sync_progress_size_interval = self.getIntOption(
+            GENERAL_SECTION, "sync_progress_size_interval")
+        self.options.change_description_format = self.getOption(
+            GENERAL_SECTION, "change_description_format",
+            "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange")
         self.options.change_map_file = self.getOption(GENERAL_SECTION, "change_map_file", "")
         self.options.superuser = self.getOption(GENERAL_SECTION, "superuser", "y")
         self.options.views = self.getOption(GENERAL_SECTION, "views")
@@ -1590,7 +1626,7 @@ class P4Transfer(object):
         self.readSection(self.target)
 
     def readSection(self, p4config):
-        if p4config.section  in self.config:
+        if p4config.section in self.config:
             self.readOptions(p4config)
         else:
             raise P4TConfigException('Config file needs section %s' % p4config.section)
@@ -1689,8 +1725,8 @@ class P4Transfer(object):
             total_file_sizes += int(sizes[0]['fileSize'])
         lines.append([])
         lines.append(['Totals', '', str(total_changes), str(total_rev_count), str(total_file_sizes), fmtsize(total_file_sizes)])
-        report = "Changes transferred since %s\n%s" % (time_str,
-                "\n".join(["\t".join(line) for line in lines]))
+        report = "Changes transferred since %s\n%s" % (
+            time_str, "\n".join(["\t".join(line) for line in lines]))
         self.logger.debug("Transfer summary report:\n%s" % report)
         self.logger.info("Sending Transfer summary report")
         self.logger.notify("Transfer summary report", report, include_output=False)
@@ -1744,7 +1780,7 @@ class P4Transfer(object):
             return False
         present = datetime.now()
         return present > self.options.end_datetime
-        
+
     def replicate(self):
         """Central method that performs the replication between server1 and server2"""
         if self.options.sample_config:
@@ -1761,17 +1797,18 @@ class P4Transfer(object):
         change_last_summary_sent = 0
         self.logger.debug("Time last summary sent: %s" % p4time(time_last_summary_sent))
         time_last_error_occurred = 0
-        error_encountered = False # Flag to indicate error encountered which may require reporting
+        error_encountered = False   # Flag to indicate error encountered which may require reporting
         error_notified = False
         finished = False
         num_changes = 0
         while not finished:
             try:
                 self.readConfig()       # Read every time to allow user to change them
-                self.logger.setReportingOptions(instance_name=self.options.instance_name,
-                                mail_form_url=self.options.mail_form_url, mail_to=self.options.mail_to,
-                                mail_from=self.options.mail_from, mail_server=self.options.mail_server,
-                                report_interval=self.options.report_interval)
+                self.logger.setReportingOptions(
+                    instance_name=self.options.instance_name,
+                    mail_form_url=self.options.mail_form_url, mail_to=self.options.mail_to,
+                    mail_from=self.options.mail_from, mail_server=self.options.mail_server,
+                    report_interval=self.options.report_interval)
                 logOnce(self.logger, self.source.options)
                 logOnce(self.logger, self.target.options)
                 self.source.disconnect()
@@ -1826,6 +1863,7 @@ class P4Transfer(object):
         self.logger.notify("Changes transferred", "Completed successfully")
         logging.shutdown()
         return 0
+
 
 if __name__ == '__main__':
     result = 0

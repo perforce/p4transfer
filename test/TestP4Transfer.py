@@ -5,17 +5,27 @@ from __future__ import print_function
 
 import sys
 import time
-from unittest.case import expectedFailure
 import P4
 import subprocess
 import inspect
 import platform
 from textwrap import dedent
-import unittest, os, shutil, stat, re
-from subprocess import Popen, PIPE
+import unittest
+import os
+import shutil
+import stat
+import re
 import glob
 import argparse
 import datetime
+from ruamel.yaml import YAML
+
+# Bring in module to be tested
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import logutils         # noqa: E402
+import P4Transfer       # noqa: E402
+
+yaml = YAML()
 
 python3 = sys.version_info[0] >= 3
 if sys.hexversion < 0x02070000 or (0x0300000 < sys.hexversion < 0x0303000):
@@ -25,14 +35,6 @@ if python3:
     from io import StringIO
 else:
     from StringIO import StringIO
-
-from ruamel.yaml import YAML
-yaml = YAML()
-
-# Bring in module to be tested
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-import logutils
-import P4Transfer
 
 P4D = "p4d"     # This can be overridden via command line stuff
 P4USER = "testuser"
@@ -47,19 +49,23 @@ INTEG_ENGINE = 3
 saved_stdoutput = StringIO()
 test_logger = None
 
+
 def onRmTreeError(function, path, exc_info):
     os.chmod(path, stat.S_IWRITE)
     os.remove(path)
 
+
 def ensureDirectory(directory):
     if not os.path.isdir(directory):
         os.makedirs(directory)
+
 
 def localDirectory(root, *dirs):
     "Create and ensure it exists"
     dir_path = os.path.join(root, *dirs)
     ensureDirectory(dir_path)
     return dir_path
+
 
 def create_file(file_name, contents):
     "Create file with specified contents"
@@ -69,12 +75,14 @@ def create_file(file_name, contents):
     with open(file_name, 'wb') as f:
         f.write(contents)
 
+
 def append_to_file(file_name, contents):
     "Append contents to file"
     if python3:
         contents = bytes(contents.encode())
     with open(file_name, 'ab+') as f:
         f.write(contents)
+
 
 def getP4ConfigFilename():
     "Returns os specific filename"
@@ -83,6 +91,7 @@ def getP4ConfigFilename():
     if os.name == "nt":
         return "p4config.txt"
     return ".p4config"
+
 
 class P4Server:
     def __init__(self, root, logger):
@@ -103,10 +112,10 @@ class P4Server:
         self.p4.client = P4CLIENT
         self.p4.connect()
 
-        self.p4cmd('depots') # triggers creation of the user
+        self.p4cmd('depots')  # triggers creation of the user
         self.p4cmd('configure', 'set', 'dm.integ.engine=%d' % INTEG_ENGINE)
 
-        self.p4.disconnect() # required to pick up the configure changes
+        self.p4.disconnect()  # required to pick up the configure changes
         self.p4.connect()
 
         self.client_name = P4CLIENT
@@ -122,12 +131,37 @@ class P4Server:
     def createTransferClient(self, name, root):
         pass
 
+    def run_cmd(self, cmd, dir=".", get_output=True, timeout=35, stop_on_error=True):
+        "Run cmd logging input and output"
+        output = ""
+        try:
+            self.logger.debug("Running: %s" % cmd)
+            if get_output:
+                p = subprocess.Popen(cmd, cwd=dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
+                output, _ = p.communicate(timeout=timeout)
+                # rc = p.returncode
+                self.logger.debug("Output:\n%s" % output)
+            else:
+                result = subprocess.check_call(cmd, stderr=subprocess.STDOUT, shell=True, timeout=timeout)
+                self.logger.debug('Result: %d' % result)
+        except subprocess.CalledProcessError as e:
+            self.logger.debug("Output: %s" % e.output)
+            if stop_on_error:
+                msg = 'Failed run_cmd: %d %s' % (e.returncode, str(e))
+                self.logger.debug(msg)
+                raise e
+        except Exception as e:
+            self.logger.debug("Output: %s" % output)
+            if stop_on_error:
+                msg = 'Failed run_cmd: %s' % str(e)
+                self.logger.debug(msg)
+                raise e
+        return output
+
     def enableUnicode(self):
-        cmd = [self.p4d, "-r", self.server_root, "-L", "log", "-vserver=3", "-xi"]
-        f = Popen(cmd, stdout=PIPE).stdout
-        for s in f.readlines():
-            pass
-        f.close()
+        cmd = '%s -r "%s" -L log -vserver=3 -xi' % (self.p4d, self.server_root)
+        output = self.run_cmd(cmd, dir=self.server_root, get_output=True, stop_on_error=True)
+        self.logger.debug(output)
 
     def getCounter(self):
         "Returns value of counter as integer"
@@ -144,6 +178,7 @@ class P4Server:
         output = self.p4.run(args)
         self.logger.debug('testp4r:', output)
         return output
+
 
 class TestP4Transfer(unittest.TestCase):
 
@@ -175,7 +210,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.shutDown()
         self.target.shutDown()
         time.sleep(0.1)
-        #self.cleanupTestTree()
+        # self.cleanupTestTree()
 
     def setDirectories(self):
         self.startdir = os.getcwd()
@@ -286,7 +321,7 @@ class TestP4Transfer(unittest.TestCase):
         create_file(jnl_fix, jnl_rec)
         cmd = '%s -r "%s" -jr "%s"' % (self.source.p4d, self.source.server_root, jnl_fix)
         self.logger.debug("Cmd: %s" % cmd)
-        output = subprocess.check_output(cmd, shell=True)
+        subprocess.check_output(cmd, shell=True)
 
     def dumpDBFiles(self, tables):
         "Extract journal records"
@@ -350,10 +385,10 @@ class TestP4Transfer(unittest.TestCase):
         desc = 'file edited'
         self.source.p4cmd('submit', '-d', desc)
 
-        result = pt.replicate()
+        pt.replicate()
         self.assertCounters(1, 1)
 
-        result = pt.replicate()
+        pt.replicate()
         self.assertCounters(2, 2)
 
     def testKTextDigests(self):
@@ -418,7 +453,7 @@ class TestP4Transfer(unittest.TestCase):
         try:
             base_args = ['-c', self.transfer_cfg, '-s']
             pt = P4Transfer.P4Transfer(*base_args)
-            result = pt.setupReplicate()
+            pt.setupReplicate()
         except Exception as e:
             msg = str(e)
         self.assertRegex(msg, "Option views must not be blank")
@@ -472,7 +507,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', inside_file1)
         self.source.p4cmd('submit', '-d', 'file added')
 
-        for i in range(1, 10):
+        for _ in range(1, 10):
             self.source.p4cmd('edit', inside_file1)
             append_to_file(inside_file1, "more")
             self.source.p4cmd('submit', '-d', 'edited')
@@ -502,7 +537,6 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', 'file added')
         self.run_P4Transfer()
         self.assertCounters(1, 1)
-        changes = self.target.p4cmd('changes', '-l', '-m1')
 
         options = self.getDefaultOptions()
         options["change_map_file"] = "depot/inside/change_map.csv"
@@ -553,7 +587,6 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', 'file added')
         self.run_P4Transfer()
         self.assertCounters(1, 1)
-        changes = self.target.p4cmd('changes', '-l', '-m1')
 
         options = self.getDefaultOptions()
         options["change_map_file"] = "depot/inside/changes/change_map.csv"
@@ -664,7 +697,6 @@ class TestP4Transfer(unittest.TestCase):
 
         self.assertCounters(1, 1)
 
-
     def testNonSuperUser(self):
         "Basic file add"
         self.setupTransfer()
@@ -698,7 +730,6 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
 
         self.assertCounters(1, 1)
-
 
     def testSymlinks(self):
         "Various symlink actions"
@@ -802,7 +833,6 @@ class TestP4Transfer(unittest.TestCase):
         self.run_P4Transfer()
         self.assertCounters(1, 1)
 
-
     def testUTF16Unsyncable(self):
         "UTF 16 file which can't be synced"
         self.setupTransfer()
@@ -838,9 +868,8 @@ class TestP4Transfer(unittest.TestCase):
         self.run_P4Transfer()
         self.assertCounters(3, 3)
 
-
-    @unittest.skipIf(python3 and (platform.system().lower() == "windows"), 
-             "Unicode not supported in Python3 on Windows yet - works on Mac/Unix...")
+    @unittest.skipIf(python3 and (platform.system().lower() == "windows"),
+                     "Unicode not supported in Python3 on Windows yet - works on Mac/Unix...")
     def testUnicode(self):
         "Adding of files with Unicode filenames"
         self.setupTransfer()
@@ -1037,7 +1066,7 @@ class TestP4Transfer(unittest.TestCase):
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
         self.assertTrue(filelog[0].revisions[0].type in ['ktext', 'text+k'])
         verifyResult = self.target.p4.run_verify('-q', '//depot/import/inside_file2')
-        self.assertEqual(len(verifyResult), 0) # just to see that ktext gets transferred properly
+        self.assertEqual(len(verifyResult), 0)  # just to see that ktext gets transferred properly
 
         content = self.target.p4.run_print('//depot/import/inside_file2')[1]
         if python3:
@@ -1099,7 +1128,6 @@ class TestP4Transfer(unittest.TestCase):
         """Test for Move where deleted file has an obliterated version"""
         self.setupTransfer()
         inside = localDirectory(self.source.client_root, "inside")
-        outside = localDirectory(self.source.client_root, "outside")
 
         original_file = os.path.join(inside, 'original', 'original_file')
         renamed_file = os.path.join(inside, 'new', 'new_file')
@@ -1120,7 +1148,6 @@ class TestP4Transfer(unittest.TestCase):
         """Test for Move where source file has been obliterated"""
         self.setupTransfer()
         inside = localDirectory(self.source.client_root, "inside")
-        outside = localDirectory(self.source.client_root, "outside")
 
         original_file = os.path.join(inside, 'original', 'original_file')
         renamed_file = os.path.join(inside, 'new', 'new_file')
@@ -1141,7 +1168,6 @@ class TestP4Transfer(unittest.TestCase):
         """Test for Move"""
         self.setupTransfer()
         inside = localDirectory(self.source.client_root, "inside")
-        outside = localDirectory(self.source.client_root, "outside")
 
         original_file = os.path.join(inside, 'original', 'original_file')
         renamed_file = os.path.join(inside, 'new', 'new_file')
@@ -1280,7 +1306,6 @@ class TestP4Transfer(unittest.TestCase):
         self.target.p4cmd("configure", "set", "dm.integ.engine=2")
         self.source.p4cmd("configure", "set", "dm.integ.engine=2")
         inside = localDirectory(self.source.client_root, "inside")
-        outside = localDirectory(self.source.client_root, "outside")
 
         original_file = os.path.join(inside, 'dir', 'build-tc.sh')
         renamed_file = os.path.join(inside, 'dir', 'build.sh')
@@ -1311,7 +1336,6 @@ class TestP4Transfer(unittest.TestCase):
         """Test for Move and then a file being moved back, also move inside<->outside"""
         self.setupTransfer()
         inside = localDirectory(self.source.client_root, "inside")
-        outside = localDirectory(self.source.client_root, "outside")
 
         original_file = os.path.join(inside, 'main', 'original', 'file1')
         renamed_file = os.path.join(inside, 'main', 'renamed', 'file1')
@@ -1368,11 +1392,11 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd("move", file1, file2)
         try:
             self.source.p4cmd("resolve")
-        except:
+        except Exception:
             pass
         try:
             self.source.p4cmd("submit", '-d', "renaming old version of original file")
-        except:
+        except Exception:
             pass
 
         self.source.p4cmd("sync")
@@ -1406,11 +1430,11 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd("move", file1, file2)
         try:
             self.source.p4cmd("resolve")
-        except:
+        except Exception:
             pass
         try:
             self.source.p4cmd("submit", '-d', "renaming old version of original file")
-        except:
+        except Exception:
             pass
 
         self.source.p4cmd("sync")
@@ -1437,7 +1461,7 @@ class TestP4Transfer(unittest.TestCase):
         # Temporarily create different source client
         source_client = self.source.p4.fetch_client(self.source.p4.client)
         source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % self.source.p4.client,
-                                '//depot/outside/... //%s/outside/...' % self.source.p4.client]
+                               '//depot/outside/... //%s/outside/...' % self.source.p4.client]
         self.source.p4.save_client(source_client)
 
         inside = localDirectory(self.source.client_root, "main", "Dir")
@@ -1554,7 +1578,6 @@ class TestP4Transfer(unittest.TestCase):
 
         self.run_P4Transfer()
         self.assertCounters(5, 5)
-
 
     def testSimpleIntegrate(self):
         "Simple integration options - inside client workspace view"
@@ -1703,7 +1726,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "Edit source again")
 
         self.source.p4cmd('integrate', inside_file1, inside_file2)
-        self.source.p4.run_resolve('-ay') # ignore
+        self.source.p4.run_resolve('-ay')  # ignore
         self.source.p4cmd('submit', '-d', "Ignored change in inside_file1")
 
         sourceCounter += 2
@@ -1721,7 +1744,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('delete', inside_file1)
         self.source.p4cmd('submit', '-d', "Delete file 1")
 
-        self.source.p4.run_merge(inside_file1, inside_file2) # to trigger resolve
+        self.source.p4.run_merge(inside_file1, inside_file2)  # to trigger resolve
         self.source.p4.run_resolve('-at')
         self.source.p4cmd('submit', '-d', "Propagated delete")
 
@@ -2077,6 +2100,7 @@ class TestP4Transfer(unittest.TestCase):
         class EditResolve(P4.Resolver):
             def __init__(self, content):
                 self.content = content
+
             def resolve(self, mergeData):
                 create_file(mergeData.result_path, self.content)
                 return 'ae'
@@ -2173,9 +2197,9 @@ class TestP4Transfer(unittest.TestCase):
 
         recs = self.dumpDBFiles("db.rev,db.revcx,db.revhx")
         self.logger.debug(recs)
-        # '@pv@ 9 @db.rev@ @//depot/inside/inside_file1@ 1 0 0 1 1420649505 1420649505 581AB2D89F05C294D4FE69C623BDEF83 13 0 0 @//depot/inside/inside_file1@ @1.1@ 0 ',
+        # '@pv@ 9 @db.rev@ @//depot/inside/inside_file1@ 1 0 0 1 1420649505 1420649505 581AB2D8...69C623BDEF83 13 0 0 @//depot/inside/inside_file1@ @1.1@ 0 ',
         # @pv@ 0 @db.revcx@ 1 @//depot/inside/inside_file1@ 1 0 ',
-        # '@pv@ 9 @db.revhx@ @//depot/inside/inside_file1@ 1 0 0 1 1420649505 1420649505 581AB2D89F05C294D4FE69C623BDEF83 13 0 0 @//depot/inside/inside_file1@ @1.1@ 0 '
+        # '@pv@ 9 @db.revhx@ @//depot/inside/inside_file1@ 1 0 0 1 1420649505 1420649505 581AB2D8...69C623BDEF83 13 0 0 @//depot/inside/inside_file1@ @1.1@ 0 '
         recs[0] = recs[0].replace("@ 1 0 0 1 ", "@ 1 0 5 1 ")
         recs[1] = recs[1].replace("@ 1 0", "@ 1 5")
         recs[2] = recs[2].replace("@ 1 0 0 1 ", "@ 1 0 5 1 ")
@@ -2307,7 +2331,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-as')
 
         self.source.p4cmd('integrate', "%s#3,3" % inside_file1, inside_file2)
-        self.source.p4cmd('resolve', '-ay') # Ignore
+        self.source.p4cmd('resolve', '-ay')   # Ignore
 
         self.source.p4cmd('submit', '-d', 'integrated twice separately into file2')
 
@@ -2326,9 +2350,9 @@ class TestP4Transfer(unittest.TestCase):
 
         config = self.getDefaultOptions()
         config['views'] = [{'src': '//depot/inside/...',
-                            'targ': '//depot/import/...'},
-                            {'src': '-//depot/inside/sub/...',
-                            'targ': '//depot/import/sub/...'}]
+                           'targ': '//depot/import/...'},
+                           {'src': '-//depot/inside/sub/...',
+                           'targ': '//depot/import/sub/...'}]
         self.createConfigFile(options=config)
 
         inside = localDirectory(self.source.client_root, "inside")
@@ -2359,7 +2383,6 @@ class TestP4Transfer(unittest.TestCase):
                    '-//depot/import/sub/... //%s/depot/inside/sub/...' % TRANSFER_CLIENT]
         client = self.target.p4.fetch_client(TRANSFER_CLIENT)
         self.assertEqual(expView, client._view)
-
 
     def testInsideOutside(self):
         "Test integrations between the inside<->outside where only one element is thus transferred"
@@ -2392,7 +2415,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "Outside outside_file edited")
 
         self.run_P4Transfer()
-        self.assertCounters(2, 1) # counters will not move, no change within the client workspace's scope
+        self.assertCounters(2, 1)   # counters will not move, no change within the client workspace's scope
 
         self.source.p4cmd('integrate', outside_file, inside_file2)
         self.source.p4.run_resolve('-at')
@@ -2719,7 +2742,6 @@ class TestP4Transfer(unittest.TestCase):
         inside = localDirectory(self.source.client_root, "inside")
         inside_file1 = os.path.join(inside, "inside_file1")
         inside_file2 = os.path.join(inside, "inside_file2")
-        inside_file3 = os.path.join(inside, "inside_file3")
         create_file(inside_file1, "Test content")
         self.source.p4cmd('add', inside_file1)
         self.source.p4cmd('submit', '-d', 'inside_file1 added')
@@ -3053,7 +3075,7 @@ class TestP4Transfer(unittest.TestCase):
             self.logger.info(str(e))
             err = self.source.p4.errors[0]
             if re.search("Submit failed -- fix problems above then", err):
-                m = re.search("p4 submit -c (\d+)", err)
+                m = re.search(r"p4 submit -c (\d+)", err)
                 if m:
                     self.source.p4cmd('submit', '-c', m.group(1))
 
@@ -3160,12 +3182,12 @@ class TestP4Transfer(unittest.TestCase):
         recs = self.dumpDBFiles("db.rev")
         self.logger.debug(recs)
         # @pv@ 9 @db.rev@ @//depot/inside/inside_file2@ 3 0 2 5 1430226630 0 00000000000000000000000000000000 -1 0 0 @//depot/inside/inside_file2@ @1.5@ 0
-        # @pv@ 9 @db.rev@ @//depot/inside/inside_file2@ 2 0 1 4 1430226630 1430226630 8BFA8E0684108F419933A5995264D150 12 0 0 @//depot/inside/inside_file2@ @1.4@ 0
+        # @pv@ 9 @db.rev@ @//depot/inside/inside_file2@ 2 0 1 4 1430226630 1430226630 8BFA8E068410...5264D150 12 0 0 @//depot/inside/inside_file2@ @1.4@ 0
         newrecs = []
         for rec in recs:
             if "@db.rev@ @//depot/inside/inside_file2@ 3" in rec:
-                rec = rec.replace("@ 3 0 2 5", "@ 2 0 2 4") # chg 5->4,
-                rec = rec.replace("@1.5@", "@1.4@")         # lbrRev
+                rec = rec.replace("@ 3 0 2 5", "@ 2 0 2 4")     # chg 5->4,
+                rec = rec.replace("@1.5@", "@1.4@")             # lbrRev
                 rec = rec.replace("@pv@", "@rv@")
                 newrecs.append(rec)
         self.logger.debug("Newrecs:", "\n".join(newrecs))
@@ -3213,9 +3235,9 @@ class TestP4Transfer(unittest.TestCase):
 
         recs = self.dumpDBFiles("db.rev,db.revcx,db.revhx")
         self.logger.debug(recs)
-        # @pv@ 9 @db.rev@ @//depot/inside/inside_file2@ 2 0 1 4 1423760150 1423760150 1141C16D0D877BE066BA151F6054F1D8 28 0 0 @//depot/inside/inside_file2@ @1.4@ 0
+        # @pv@ 9 @db.rev@ @//depot/inside/inside_file2@ 2 0 1 4 1423760150 1423760150 1141C16D0...BA151F6054F1D8 28 0 0 @//depot/inside/inside_file2@ @1.4@ 0
         # @pv@ 0 @db.revcx@ 4 @//depot/inside/inside_file2@ 2 1
-        # @pv@ 9 @db.revhx@ @//depot/inside/inside_file2@ 2 0 1 4 1423760150 1423760150 1141C16D0D877BE066BA151F6054F1D8 28 0 0 @//depot/inside/inside_file2@ @1.4@ 0
+        # @pv@ 9 @db.revhx@ @//depot/inside/inside_file2@ 2 0 1 4 1423760150 1423760150 1141C16D0...BA151F6054F1D8 28 0 0 @//depot/inside/inside_file2@ @1.4@ 0
         # Change action record from 1 (edit) to 4 (integ)
         newrecs = []
         for rec in recs:
@@ -3495,8 +3517,8 @@ class TestP4Transfer(unittest.TestCase):
         self.target.enableUnicode()
 
         options = self.getDefaultOptions()
-        srcOptions = {"p4charset" : "utf8"}
-        targOptions = {"p4charset" : "utf8"}
+        srcOptions = {"p4charset": "utf8"}
+        targOptions = {"p4charset": "utf8"}
         self.createConfigFile(options=options, srcOptions=srcOptions, targOptions=targOptions)
 
         inside = localDirectory(self.source.client_root, "inside")
@@ -3517,6 +3539,7 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
 
         self.assertCounters(1, 1)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
