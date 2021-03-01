@@ -442,8 +442,8 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(fileSize, 10)
         self.assertEqual(digest, "ce8bc0316bdd8ad1f716f48e5c968854")
 
-    def testClientValidation(self):
-        "Make sure specified client views are valid"
+    def testConfigValidation(self):
+        "Make sure specified config options such as client views are valid"
         msg = "Test: %s ======================" % inspect.stack()[0][3]
         self.logger.debug(msg)
 
@@ -457,7 +457,7 @@ class TestP4Transfer(unittest.TestCase):
         except Exception as e:
             msg = str(e)
         self.assertRegex(msg, "One of options views/stream_views must be specified")
-
+        self.assertRegex(msg, "Option workspace_root must not be blank")
         self.assertCounters(0, 0)
 
     def testChangeFormatting(self):

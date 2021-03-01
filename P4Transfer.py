@@ -251,7 +251,8 @@ views:
 # transfer_target_stream: The name of a a special target stream to use - IT SHOULD NOT CONTAIN FILES.
 #    This will be setup as a mainline stream, with no sharing and with import+ mappings
 #    It is in standard stream name format, e.g. //<depot>/<name> or //<depot>/<mid>/<name>
-transfer_target_stream: //targ_streams/transfer_target
+#    e.g. transfer_target_stream: //targ_streams/transfer_target
+transfer_target_stream:
 
 # stream_views: An array of source/target stream view mappings.
 #    You are not allowed to specify both 'views' and 'stream_views'!!
@@ -1664,6 +1665,8 @@ class P4Transfer(object):
             errors.append("One of options views/stream_views must be specified")
         if not self.options.workspace_root:
             errors.append("Option workspace_root must not be blank")
+        if self.options.stream_views and not self.options.transfer_target_stream:
+            errors.append("Option transfer_target_stream must be specified if streams are being used")
         if errors:
             raise P4TConfigException("\n".join(errors))
 
