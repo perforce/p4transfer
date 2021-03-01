@@ -254,22 +254,23 @@ views:
 #    e.g. transfer_target_stream: //targ_streams/transfer_target
 transfer_target_stream:
 
-# stream_views: An array of source/target stream view mappings.
+# stream_views: An array of source/target stream view mappings and other record fields.
 #    You are not allowed to specify both 'views' and 'stream_views'!!
-#    Each value is a string which specifies python regex wildcards to match stream names.
-#    Use regex group matching as shown below to convert (.*) to \1 (first match) in target.
+#    Each src/targ value is a string with '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
+#    Make sure the number of wildcards matches between source and target.
 #    Please note that target depots must exist.
 #    Target streams will be created as required using the specified type/parent fields.
 #    Field 'type:' has allowed values: mainline, development, release
+#    Field 'parent:' should specify a suitable parent for development or release streams.
 stream_views:
   - src:  "//streams_src/main"
     targ: "//streams_targ/main"
     type: mainline
     parent: ""
-  - src:  r"//streams_src2/release/(.*)"
-    targ: r"//streams_targ2/release/\1"
+  - src:  "//streams_src2/release*"
+    targ: "//streams_targ2/rel*"
     type: mainline
-    parent: "//streams_targ2/main/main"
+    parent: "//streams_targ2/main"
 
 """)
 
@@ -685,6 +686,7 @@ class P4Base(object):
     P4PASSWD = None
     counter = 0
     clientLogged = 0
+    matchingStreams = []
 
     def __init__(self, section, options, p4id):
         self.section = section
@@ -718,7 +720,29 @@ class P4Base(object):
             self.p4.password = self.P4PASSWD
             self.p4.run_login()
 
-    def createClientWorkspace(self, isSource):
+    def matchingSourceStreams(self, view):
+        "Search for any streams matching the source view expanding p4 wildcards *"
+        streams = self.p4.run_streams(view['src'])  # Valid with wildcards
+        if not streams:
+            raise P4TConfigException("No source streams found matching: '%s'" % view['src'])
+        return [x['Stream'] for x in streams]
+
+    def matchSourceTargetStreams(self, views):
+        "Search for any target streams matching the source view - only valid if called on p4 source"
+        self.matchingStreams = []
+        for v in views:
+            if "*" not in v['src']:
+                self.matchingStreams.append((v['src'], v['targ']))
+                continue
+            srcStreams = self.matchingSourceStreams(v)
+            reSrc = v['src'].replace(r"*", r"(.*)")
+            reTarg = v['targ'].replace(r"*", r"\1")
+            for s in srcStreams:
+                targ = re.sub(reSrc, reTarg, s)
+                self.matchingStreams.append((s, targ))
+        return self.matchingStreams
+
+    def createClientWorkspace(self, isSource, matchingStreams=None):
         "Create or adjust client workspace for source or target"
         clientspec = self.p4.fetch_client(self.p4.client)
         logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
@@ -731,42 +755,47 @@ class P4Base(object):
         # We create/update our special target stream, and also create any required target streams that don't exist
         if self.options.stream_views:
             if isSource:
-                for m in self.options.stream_views:
-                    srcPath = m['src'].replace('//', '')
-                    v = "%s/... //%s/%s/..." % (m['src'], self.p4.client, srcPath)
-                    clientspec._view.append(v)
+                self.matchSourceTargetStreams(self.options.stream_views)
+                if self.matchingStreams is None:
+                    raise P4TConfigException("No matching src/target streams found: %s" % str(self.options.stream_views))
+                for s in self.matchingStreams:
+                    src = s[0]
+                    srcPath = src.replace('//', '')
+                    line = "%s/... //%s/%s/..." % (src, self.p4.client, srcPath)
+                    clientspec._view.append(line)
             else:
                 transferStream = self.p4.fetch_stream(self.options.transfer_target_stream)
                 transferStream["Type"] = "mainline"
                 transferStream["Paths"] = []
-                for m in self.options.stream_views:
-                    srcPath = m['src'].replace('//', '')
-                    v = "import+ %s/... %s/..." % (srcPath, m['targ'])
-                    transferStream["Paths"].append(v)
-                    targStream = self.p4.fetch_stream('-t', m['type'], m['targ'])
-                    targStream['Type'] = m['type']
-                    if m['parent']:
-                        targStream['Parent'] = m['parent']
-                    self.p4.save_stream(targStream)
+                for v in self.options.stream_views:
+                    for s in matchingStreams:   # Array of tuples passed in
+                        src = s[0]
+                        targ = s[1]
+                        srcPath = src.replace('//', '')
+                        line = "import+ %s/... %s/..." % (srcPath, targ)
+                        transferStream["Paths"].append(line)
+                        targStream = self.p4.fetch_stream('-t', v['type'], targ)
+                        targStream['Type'] = v['type']
+                        if v['parent']:
+                            targStream['Parent'] = v['parent']
+                        self.p4.save_stream(targStream)
                 self.p4.save_stream(transferStream)
                 clientspec['Stream'] = self.options.transfer_target_stream
-        else:
+        else:   # Ordinary workspace views which allow exclusions
             exclude = ''
-            for m in self.options.views:
-                lhs = m['src']
+            for v in self.options.views:
+                lhs = v['src']
                 if lhs[0] == '-':
                     exclude = '-'
                     lhs = lhs[1:]
                 srcPath = lhs.replace('//', '')
                 if isSource:
-                    v = "%s%s //%s/%s" % (exclude, lhs, self.p4.client, srcPath)
+                    line = "%s%s //%s/%s" % (exclude, lhs, self.p4.client, srcPath)
                 else:
-                    v = "%s%s //%s/%s" % (exclude, m['targ'], self.p4.client, srcPath)
-                clientspec._view.append(v)
-
+                    line = "%s%s //%s/%s" % (exclude, v['targ'], self.p4.client, srcPath)
+                clientspec._view.append(line)
 
         self.clientmap = P4.Map(clientspec._view)
-
         self.clientspec = clientspec
         self.p4.save_client(clientspec)
         logOnce(self.logger, "updated %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
@@ -1701,7 +1730,7 @@ class P4Transfer(object):
         self.source.connect('source replicate')
         self.target.connect('target replicate')
         self.source.createClientWorkspace(True)
-        self.target.createClientWorkspace(False)
+        self.target.createClientWorkspace(False, self.source.matchingStreams)
         changes = self.source.missingChanges(self.target.getCounter())
         self.logger.info("Transferring %d changes" % len(changes))
         changesTransferred = 0
@@ -1804,7 +1833,7 @@ class P4Transfer(object):
         self.source.connect('source replicate')
         self.target.connect('target replicate')
         self.source.createClientWorkspace(True)
-        self.target.createClientWorkspace(False)
+        self.target.createClientWorkspace(False, self.source.matchingStreams)
         self.logger.debug("connected to source and target")
         sourceTargetTextComparison.setup(self.source, self.target)
         self.validateClientWorkspaces()
