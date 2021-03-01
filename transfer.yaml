@@ -108,6 +108,7 @@ workspace_root: /work/transfer
 
 # views: An array of source/target view mappings
 #    Each value is a string - normally quote. Standard p4 wildcards are valid.
+#    YOU ARE NOT ALLOWED TO SPECIFY BOTH 'views' and 'stream_views'!!
 #    These values are used to construct the appropriate View: fields for source/target client workspaces
 #    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
 #    entry - see last example below.
@@ -119,3 +120,24 @@ views:
 - src: -//depot/source_path2/exclude/*.tgz
   targ: //import/target_path2/exclude/*.tgz
 
+# transfer_target_stream: The name of a a special target stream to use - IT SHOULD NOT CONTAIN FILES.
+#    This will be setup as a mainline stream, with no sharing and with import+ mappings
+#    It is in standard stream name format, e.g. //<depot>/<name> or //<depot>/<mid>/<name>
+transfer_target_stream: //targ_streams/transfer_target
+
+# stream_views: An array of source/target stream view mappings.
+#    YOU ARE NOT ALLOWED TO SPECIFY BOTH 'views' and 'stream_views'!!
+#    Each value is a string which specifies python regex wildcards to match stream names.
+#    Use regex group matching as shown below to convert (.*) to \1 (first match) in target.
+#    Please note that target depots must exist.
+#    Target streams will be created as required using the specified type/parent fields.
+#    Field 'type:' has allowed values: mainline, development, release
+stream_views:
+  - src:  "//streams_src/main"
+    targ: "//streams_targ/main"
+    type: mainline
+    parent: ""
+  - src:  "//streams_src2/release/(.*)"
+    targ: "//streams_targ2/release/\1"
+    type: mainline
+    parent: "//streams_targ2/main/main"

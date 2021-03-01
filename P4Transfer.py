@@ -128,7 +128,7 @@ TARGET_SECTION = 'target'
 LOGGER_NAME = "P4Transfer"
 
 # This is for writing to sample config file
-DEFAULT_CONFIG = yaml.load("""
+DEFAULT_CONFIG = yaml.load(r"""
 # counter_name: Unique counter on target server to use for recording source changes processed. No spaces.
 #    Name sensibly if you have multiple instances transferring into the same target p4 repository.
 #    The counter value represents the last transferred change number - script will start from next change.
@@ -235,6 +235,7 @@ target:
 workspace_root: /work/transfer
 
 # views: An array of source/target view mappings
+#    You are not allowed to specify both 'views' and 'stream_views'!!
 #    Each value is a string - normally quote. Standard p4 wildcards are valid.
 #    These values are used to construct the appropriate View: fields for source/target client workspaces
 #    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
@@ -246,6 +247,28 @@ views:
     targ: "//import/target_path2/..."
   - src:  "-//depot/source_path2/exclude/*.tgz"
     targ: "//import/target_path2/exclude/*.tgz"
+
+# transfer_target_stream: The name of a a special target stream to use - IT SHOULD NOT CONTAIN FILES.
+#    This will be setup as a mainline stream, with no sharing and with import+ mappings
+#    It is in standard stream name format, e.g. //<depot>/<name> or //<depot>/<mid>/<name>
+transfer_target_stream: //targ_streams/transfer_target
+
+# stream_views: An array of source/target stream view mappings.
+#    You are not allowed to specify both 'views' and 'stream_views'!!
+#    Each value is a string which specifies python regex wildcards to match stream names.
+#    Use regex group matching as shown below to convert (.*) to \1 (first match) in target.
+#    Please note that target depots must exist.
+#    Target streams will be created as required using the specified type/parent fields.
+#    Field 'type:' has allowed values: mainline, development, release
+stream_views:
+  - src:  "//streams_src/main"
+    targ: "//streams_targ/main"
+    type: mainline
+    parent: ""
+  - src:  r"//streams_src2/release/(.*)"
+    targ: r"//streams_targ2/release/\1"
+    type: mainline
+    parent: "//streams_targ2/main/main"
 
 """)
 
@@ -699,35 +722,58 @@ class P4Base(object):
         clientspec = self.p4.fetch_client(self.p4.client)
         logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
 
-        # Check for streams depots as targets - then we require target streams to exist
-        # Too complicated to auto-create for now
-        depotTypes = {}
-        for d in self.p4.run_depots():
-            depotTypes[d['name']] = d['type']
-
         self.root = self.options.workspace_root
         clientspec._root = self.root
-        clientspec._view = []
-        exclude = ''
-        for m in self.options.views:
-            lhs = m['src']
-            if lhs[0] == '-':
-                exclude = '-'
-                lhs = lhs[1:]
-            srcPath = lhs.replace('//', '')
-            if isSource:
-                v = "%s%s //%s/%s" % (exclude, lhs, self.p4.client, srcPath)
-            else:
-                v = "%s%s //%s/%s" % (exclude, m['targ'], self.p4.client, srcPath)
-            clientspec._view.append(v)
-
         clientspec["Options"] = clientspec["Options"].replace("noclobber", "clobber")
         clientspec["LineEnd"] = "unix"
+        clientspec._view = []
+        # We create/update our special target stream, and also create any required target streams that don't exist
+        if self.options.stream_views:
+            if isSource:
+                for m in self.options.stream_views:
+                    srcPath = m['src'].replace('//', '')
+                    v = "%s/... //%s/%s/..." % (m['src'], self.p4.client, srcPath)
+                    clientspec._view.append(v)
+            else:
+                transferStream = self.p4.fetch_stream(self.options.transfer_target_stream)
+                transferStream["Type"] = "mainline"
+                transferStream["Paths"] = []
+                for m in self.options.stream_views:
+                    srcPath = m['src'].replace('//', '')
+                    v = "import+ %s/... %s/..." % (srcPath, m['targ'])
+                    transferStream["Paths"].append(v)
+                    targStream = self.p4.fetch_stream('-t', m['type'], m['targ'])
+                    targStream['Type'] = m['type']
+                    if m['parent']:
+                        targStream['Parent'] = m['parent']
+                    self.p4.save_stream(targStream)
+                self.p4.save_stream(transferStream)
+                clientspec['Stream'] = self.options.transfer_target_stream
+        else:
+            exclude = ''
+            for m in self.options.views:
+                lhs = m['src']
+                if lhs[0] == '-':
+                    exclude = '-'
+                    lhs = lhs[1:]
+                srcPath = lhs.replace('//', '')
+                if isSource:
+                    v = "%s%s //%s/%s" % (exclude, lhs, self.p4.client, srcPath)
+                else:
+                    v = "%s%s //%s/%s" % (exclude, m['targ'], self.p4.client, srcPath)
+                clientspec._view.append(v)
+
+
         self.clientmap = P4.Map(clientspec._view)
 
         self.clientspec = clientspec
         self.p4.save_client(clientspec)
         logOnce(self.logger, "updated %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
+
+        # In a streams target we re-read the client view
+        if self.options.stream_views and not isSource:
+            clientspec = self.p4.fetch_client(self.p4.client)
+            self.clientmap = P4.Map(clientspec._view)
 
         self.p4.cwd = self.root
 
@@ -1611,9 +1657,11 @@ class P4Transfer(object):
         self.options.change_map_file = self.getOption(GENERAL_SECTION, "change_map_file", "")
         self.options.superuser = self.getOption(GENERAL_SECTION, "superuser", "y")
         self.options.views = self.getOption(GENERAL_SECTION, "views")
+        self.options.transfer_target_stream = self.getOption(GENERAL_SECTION, "transfer_target_stream")
+        self.options.stream_views = self.getOption(GENERAL_SECTION, "stream_views")
         self.options.workspace_root = self.getOption(GENERAL_SECTION, "workspace_root")
-        if not self.options.views:
-            errors.append("Option views must not be blank")
+        if not self.options.views and not self.options.stream_views:
+            errors.append("One of options views/stream_views must be specified")
         if not self.options.workspace_root:
             errors.append("Option workspace_root must not be blank")
         if errors:
@@ -1740,7 +1788,7 @@ class P4Transfer(object):
         src = set([m.replace("//%s/" % self.source.P4CLIENT, "") for m in self.source.clientmap.rhs()])
         targ = set([m.replace("//%s/" % self.target.P4CLIENT, "") for m in self.target.clientmap.rhs()])
         diffs = src.difference(targ)
-        if diffs:
+        if diffs and not self.options.stream_views:
             raise P4TConfigException("Configuration failure: workspace mappings have different right hand sides: %s" % ", ".join([str(r) for r in diffs]))
         if self.source.clientspec["LineEnd"] != "unix" or self.target.clientspec["LineEnd"] != "unix":
             raise P4TConfigException("Source and target workspaces must have LineEnd set to 'unix'")

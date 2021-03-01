@@ -456,7 +456,7 @@ class TestP4Transfer(unittest.TestCase):
             pt.setupReplicate()
         except Exception as e:
             msg = str(e)
-        self.assertRegex(msg, "Option views must not be blank")
+        self.assertRegex(msg, "One of options views/stream_views must be specified")
 
         self.assertCounters(0, 0)
 
@@ -3540,6 +3540,58 @@ class TestP4Transfer(unittest.TestCase):
 
         self.assertCounters(1, 1)
 
+    def testStreamsBasic(self):
+        "Test basic source/target being a stream"
+        self.setupTransfer()
+
+        d = self.source.p4.fetch_depot('src_streams')
+        d['Type'] = 'stream'
+        self.source.p4.save_depot(d)
+        s = self.source.p4.fetch_stream('-t', 'mainline', '//src_streams/main')
+        self.source.p4.save_stream(s)
+
+        d = self.target.p4.fetch_depot('targ_streams')
+        d['Type'] = 'stream'
+        self.target.p4.save_depot(d)
+
+        # s = self.target.p4.fetch_stream('-t', 'mainline', '//targ_streams/main')
+        # self.target.p4.save_stream(s)
+
+        config = self.getDefaultOptions()
+        config['views'] = []
+        config['transfer_target_stream'] = '//targ_streams/transfer_target_stream'
+        config['stream_views'] = [{'src': '//src_streams/main',
+                                  'targ': '//targ_streams/main',
+                                  'type': 'mainline',
+                                  'parent': ''}]
+        self.createConfigFile(options=config)
+
+        c = self.source.p4.fetch_client(self.source.client_name)
+        c['Stream'] = '//src_streams/main'
+        self.source.p4.save_client(c)
+        
+        inside = localDirectory(self.source.client_root, "inside")
+
+        file1 = os.path.join(inside, 'file1')
+        create_file(file1, "Test content")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', "Added files")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 5)   # Normally (1,1) - Extras change due to stream creation
+
+        changes = self.target.p4cmd('changes', '//targ_streams/...')
+        self.assertEqual(len(changes), 1, "Not exactly one change on target")
+        filelog = self.target.p4.run_filelog('//targ_streams/main/...')
+        self.assertEqual(len(filelog), 1, "Not exactly one file on target")
+        self.assertEqual(filelog[0].revisions[0].action, "add")
+
+        expView = ['//src_streams/main/... //%s/src_streams/main/...' % TRANSFER_CLIENT]
+        client = self.source.p4.fetch_client(TRANSFER_CLIENT)
+        self.assertEqual(expView, client._view)
+
+        client = self.target.p4.fetch_client(TRANSFER_CLIENT)
+        self.assertEqual('//targ_streams/transfer_target_stream', client._stream)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
