@@ -458,7 +458,63 @@ class TestP4Transfer(unittest.TestCase):
             msg = str(e)
         self.assertRegex(msg, "One of options views/stream_views must be specified")
         self.assertRegex(msg, "Option workspace_root must not be blank")
-        self.assertCounters(0, 0)
+
+        # Other streams related validation
+        config = self.getDefaultOptions()
+        config['views'] = []
+        config['stream_views'] = [{'src': '//src_streams/rel*',
+                                   'targ': '//targ_streams/rel*',
+                                   'type': 'release',
+                                   'parent': '//targ_streams/main'}]
+        self.createConfigFile(options=config)
+
+        msg = ""
+        try:
+            base_args = ['-c', self.transfer_cfg, '-s']
+            pt = P4Transfer.P4Transfer(*base_args)
+            pt.setupReplicate()
+        except Exception as e:
+            msg = str(e)
+        self.assertRegex(msg, "Option transfer_target_stream must be specified if streams are being used")
+
+        # Other streams related validation
+        config = self.getDefaultOptions()
+        config['views'] = []
+        config['transfer_target_stream'] = ['//targ_streams/transfer_target_stream']
+        config['stream_views'] = [{'fred': 'joe'}]
+        self.createConfigFile(options=config)
+
+        msg = ""
+        try:
+            base_args = ['-c', self.transfer_cfg, '-s']
+            pt = P4Transfer.P4Transfer(*base_args)
+            pt.setupReplicate()
+        except Exception as e:
+            msg = str(e)
+        self.assertRegex(msg, "Missing required field 'src'")
+        self.assertRegex(msg, "Missing required field 'targ'")
+        self.assertRegex(msg, "Missing required field 'type'")
+        self.assertRegex(msg, "Missing required field 'parent'")
+
+        # Other streams related validation
+        config = self.getDefaultOptions()
+        config['views'] = []
+        config['transfer_target_stream'] = ['//targ_streams/transfer_target_stream']
+        config['stream_views'] = [{'src': '//src_streams/*rel*',
+                                   'targ': '//targ_streams/rel*',
+                                   'type': 'new',
+                                   'parent': '//targ_streams/main'}]
+        self.createConfigFile(options=config)
+
+        msg = ""
+        try:
+            base_args = ['-c', self.transfer_cfg, '-s']
+            pt = P4Transfer.P4Transfer(*base_args)
+            pt.setupReplicate()
+        except Exception as e:
+            msg = str(e)
+        self.assertRegex(msg, "Wildcards need to match")
+        self.assertRegex(msg, "Stream type 'new' is not one of allowed values")
 
     def testChangeFormatting(self):
         "Formatting options for change descriptions"
@@ -3561,15 +3617,15 @@ class TestP4Transfer(unittest.TestCase):
         config['views'] = []
         config['transfer_target_stream'] = '//targ_streams/transfer_target_stream'
         config['stream_views'] = [{'src': '//src_streams/main',
-                                  'targ': '//targ_streams/main',
-                                  'type': 'mainline',
-                                  'parent': ''}]
+                                   'targ': '//targ_streams/main',
+                                   'type': 'mainline',
+                                   'parent': ''}]
         self.createConfigFile(options=config)
 
         c = self.source.p4.fetch_client(self.source.client_name)
         c['Stream'] = '//src_streams/main'
         self.source.p4.save_client(c)
-        
+
         inside = localDirectory(self.source.client_root, "inside")
 
         file1 = os.path.join(inside, 'file1')
@@ -3614,15 +3670,15 @@ class TestP4Transfer(unittest.TestCase):
         config['views'] = []
         config['transfer_target_stream'] = '//targ_streams/transfer_target_stream'
         config['stream_views'] = [{'src': '//src_streams/rel*',
-                                  'targ': '//targ_streams/rel*',
-                                  'type': 'release',
-                                  'parent': '//targ_streams/main'}]
+                                   'targ': '//targ_streams/rel*',
+                                   'type': 'release',
+                                   'parent': '//targ_streams/main'}]
         self.createConfigFile(options=config)
 
         c = self.source.p4.fetch_client(self.source.client_name)
         c['Stream'] = '//src_streams/main'
         self.source.p4.save_client(c)
-        
+
         inside = localDirectory(self.source.client_root, "inside")
 
         file1 = os.path.join(inside, 'file1')
@@ -3660,15 +3716,15 @@ class TestP4Transfer(unittest.TestCase):
 
         # Double wildcards
         config['stream_views'] = [{'src': '//src_*/rel*',
-                                  'targ': '//targ_*/rel*',
-                                  'type': 'release',
-                                  'parent': '//targ_streams/main'}]
+                                   'targ': '//targ_*/rel*',
+                                   'type': 'release',
+                                   'parent': '//targ_streams/main'}]
         self.createConfigFile(options=config)
 
         c = self.source.p4.fetch_client(self.source.client_name)
         c['Stream'] = '//src_streams/rel1'
         self.source.p4.save_client(c)
-        
+
         file1 = os.path.join(inside, 'file2')
         create_file(file1, "Test content")
         self.source.p4cmd('add', file1)
@@ -3685,6 +3741,7 @@ class TestP4Transfer(unittest.TestCase):
         filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
         self.assertEqual(1, len(filelog))
         self.assertEqual("add", filelog[0].revisions[0].action)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

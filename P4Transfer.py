@@ -1836,11 +1836,37 @@ class P4Transfer(object):
         if re.search("noclobber", self.source.clientspec["Options"]) or re.search("noclobber", self.target.clientspec["Options"]):
             raise P4TConfigException("Source and target workspaces must have 'clobber' option set")
 
+    def validateConfig(self):
+        "Performs appropriate validation of config values - primarily streams"
+        if self.options.stream_views and not self.options.transfer_target_stream:
+            raise P4TConfigException("Option transfer_target_stream is required when stream views are specified")
+        if not self.options.stream_views:
+            return
+        fields = ['src', 'targ', 'type', 'parent']
+        reqdFields = ['src', 'targ', 'type']
+        types = ['mainline', 'development', 'release']
+        errors = []
+        for v in self.options.stream_views:
+            for f in fields:
+                if f not in v:
+                    errors.append("Missing required field '%s' in '%s'" % (f, str(v)))
+            for f in reqdFields:
+                if f in v and not v[f]:
+                    errors.append("Required field '%s' must be specified '%s'" % (f, str(v)))
+            if 'src' in v and 'targ' in v and v['src'].count("*") != v['targ'].count("*"):
+                errors.append("Wildcards need to match src:'%s' targ:'%s'" % (v['src'], v['targ']))
+            if 'type' in v and v['type'] not in types:
+                errors.append("Stream type '%s' is not one of allowed values '%s'" % (
+                              v['type'], " ".join(types)))
+        if errors:
+            raise P4TConfigException("\n".join(errors))
+
     def setupReplicate(self):
-        "Read config file and setup"
+        "Read config file and setup - raises exceptions if invalid"
         self.readConfig()
         self.source.connect('source replicate')
         self.target.connect('target replicate')
+        self.validateConfig()
         self.source.createClientWorkspace(True)
         self.target.createClientWorkspace(False, self.source.matchingStreams)
         self.logger.debug("connected to source and target")
