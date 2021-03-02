@@ -13,7 +13,7 @@ instance_name: Perforce Transfer from XYZ
 # For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
 mail_form_url:
 
-# The mail_* parameters must all be valid (non-blank) to receive email updates during processing.        
+# The mail_* parameters must all be valid (non-blank) to receive email updates during processing.
 # mail_to: One or more valid email addresses - comma separated for multiple values
 #     E.g. somebody@example.com,somebody-else@example.com
 mail_to:
@@ -51,16 +51,16 @@ error_report_interval: 15
 #     Typically some value such as 1 week (10080 = 7 * 24 * 60). Useful if transfer being run with --repeat option.
 summary_report_interval: 7 * 24 * 60
 
-# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file. 
-#    Useful for keeping an eye on progress for large syncs over slow network links. 
+# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file.
+#    Useful for keeping an eye on progress for large syncs over slow network links.
 sync_progress_size_interval: 500 * 1000 * 1000
 
-# change_description_format: The standard format for transferred changes. 
-#    Keywords prefixed with $. Use \n for newlines. Keywords allowed: 
-#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser 
-change_description_format: "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange"
+# change_description_format: The standard format for transferred changes.
+#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
+#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
+change_description_format: $sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange
 
-# change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists. 
+# change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists.
 #    If this is blank (DEFAULT) then no mapping file is created.
 #    If non-blank, then a file with this name in the target workspace is appended to
 #    and will be submitted after every sequence (batch_size) of changes is made.
@@ -68,11 +68,11 @@ change_description_format: "$sourceDescription\n\nTransferred from p4://$sourceP
 #    File must be mapped into target client workspace.
 #    File can contain a sub-directory, e.g. change_map/change_map.csv
 #    Note that due to the way client workspace views are created the local filename
-#    should include a valid source path including depot name, e.g. 
+#    should include a valid source path including depot name, e.g.
 #       //depot/export/... -> depot/export/change_map.csv
 change_map_file:
 
-# superuser: Set to n if not a superuser (so can't update change times - can just transfer them). 
+# superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
 superuser: y
 
 source:
@@ -107,8 +107,8 @@ target:
 workspace_root: /work/transfer
 
 # views: An array of source/target view mappings
+#    You are not allowed to specify both 'views' and 'stream_views'!!
 #    Each value is a string - normally quote. Standard p4 wildcards are valid.
-#    YOU ARE NOT ALLOWED TO SPECIFY BOTH 'views' and 'stream_views'!!
 #    These values are used to construct the appropriate View: fields for source/target client workspaces
 #    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
 #    entry - see last example below.
@@ -120,26 +120,31 @@ views:
 - src: -//depot/source_path2/exclude/*.tgz
   targ: //import/target_path2/exclude/*.tgz
 
-# transfer_target_stream: The name of a special target stream to use - IT SHOULD NOT CONTAIN FILES.
+# transfer_target_stream: The name of a special target stream to use - IT SHOULD NOT CONTAIN FILES!!
 #    This will be setup as a mainline stream, with no sharing and with import+ mappings
 #    It is in standard stream name format, e.g. //<depot>/<name> or //<depot>/<mid>/<name>
+#    e.g. transfer_target_stream: //targ_streams/transfer_target
 transfer_target_stream:
 
-# stream_views: An array of source/target stream view mappings.
-#    YOU ARE NOT ALLOWED TO SPECIFY BOTH 'views' and 'stream_views'!!
+# stream_views: An array of source/target stream view mappings and other record fields.
 #    You are not allowed to specify both 'views' and 'stream_views'!!
-#    Each value is a string which '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
-#    Make sure the number of wildcards matches between source and target
+#    Each src/targ value is a string with '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
+#    Multiple wildcards are allowed, but make sure the number of wildcards matches between source and target.
 #    Please note that target depots must exist.
 #    Target streams will be created as required using the specified type/parent fields.
 #    Field 'type:' has allowed values: mainline, development, release
-#    Field 'parent:' should specify a suitable parent for development or release streams.
+#    Field 'parent:' should specify a suitable parent if you are creating development or release streams.
 stream_views:
-  - src:  "//streams_src/main"
-    targ: "//streams_targ/main"
-    type: mainline
-    parent: ""
-  - src:  "//streams_src2/release*"
-    targ: "//streams_targ2/rel*"
-    type: mainline
-    parent: "//streams_targ2/main"
+- src: //streams_src/main
+  targ: //streams_targ/main
+  type: mainline
+  parent: ''
+- src: //streams_src2/release*
+  targ: //streams_targ2/rel*
+  type: mainline
+  parent: //streams_targ2/main
+- src: //src3_streams/*rel*
+  targ: //targ3_streams/*release*
+  type: mainline
+  parent: //targ3_streams/main
+

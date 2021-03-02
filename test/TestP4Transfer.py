@@ -3658,6 +3658,33 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(len(filelog), 1, "Not exactly one file on target")
         self.assertEqual(filelog[0].revisions[0].action, "add")
 
+        # Double wildcards
+        config['stream_views'] = [{'src': '//src_*/rel*',
+                                  'targ': '//targ_*/rel*',
+                                  'type': 'release',
+                                  'parent': '//targ_streams/main'}]
+        self.createConfigFile(options=config)
+
+        c = self.source.p4.fetch_client(self.source.client_name)
+        c['Stream'] = '//src_streams/rel1'
+        self.source.p4.save_client(c)
+        
+        file1 = os.path.join(inside, 'file2')
+        create_file(file1, "Test content")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', "Added file2")
+
+        self.run_P4Transfer()
+
+        changes = self.target.p4cmd('changes', '//targ_streams/...')
+        self.assertEqual(3, len(changes))
+        filelog = self.target.p4.run_filelog('//targ_streams/rel1/...')
+        self.assertEqual(2, len(filelog))
+        self.assertEqual("add", filelog[0].revisions[0].action)
+        self.assertEqual("add", filelog[1].revisions[0].action)
+        filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
+        self.assertEqual(1, len(filelog))
+        self.assertEqual("add", filelog[0].revisions[0].action)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

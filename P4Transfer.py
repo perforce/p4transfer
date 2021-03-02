@@ -248,7 +248,7 @@ views:
   - src:  "-//depot/source_path2/exclude/*.tgz"
     targ: "//import/target_path2/exclude/*.tgz"
 
-# transfer_target_stream: The name of a a special target stream to use - IT SHOULD NOT CONTAIN FILES.
+# transfer_target_stream: The name of a special target stream to use - IT SHOULD NOT CONTAIN FILES!!
 #    This will be setup as a mainline stream, with no sharing and with import+ mappings
 #    It is in standard stream name format, e.g. //<depot>/<name> or //<depot>/<mid>/<name>
 #    e.g. transfer_target_stream: //targ_streams/transfer_target
@@ -257,11 +257,11 @@ transfer_target_stream:
 # stream_views: An array of source/target stream view mappings and other record fields.
 #    You are not allowed to specify both 'views' and 'stream_views'!!
 #    Each src/targ value is a string with '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
-#    Make sure the number of wildcards matches between source and target.
+#    Multiple wildcards are allowed, but make sure the number of wildcards matches between source and target.
 #    Please note that target depots must exist.
 #    Target streams will be created as required using the specified type/parent fields.
 #    Field 'type:' has allowed values: mainline, development, release
-#    Field 'parent:' should specify a suitable parent for development or release streams.
+#    Field 'parent:' should specify a suitable parent if you are creating development or release streams.
 stream_views:
   - src:  "//streams_src/main"
     targ: "//streams_targ/main"
@@ -271,6 +271,10 @@ stream_views:
     targ: "//streams_targ2/rel*"
     type: mainline
     parent: "//streams_targ2/main"
+  - src:  "//src3_streams/*rel*"
+    targ: "//targ3_streams/*release*"
+    type: mainline
+    parent: "//targ3_streams/main"
 
 """)
 
@@ -736,7 +740,12 @@ class P4Base(object):
                 continue
             srcStreams = self.matchingSourceStreams(v)
             reSrc = v['src'].replace(r"*", r"(.*)")
-            reTarg = v['targ'].replace(r"*", r"\1")
+            numStars = v['src'].count("*")
+            reTarg = v['targ'].replace(r"*", r"\1", 1)
+            i = 2
+            while i <= numStars:
+                reTarg = reTarg.replace(r"*", r"\%d" % i, 1)
+                i += 1
             for s in srcStreams:
                 targ = re.sub(reSrc, reTarg, s)
                 self.matchingStreams.append((s, targ))
