@@ -155,8 +155,9 @@ mail_server:
 # ===============================================================================
 # Note that for any of the following parameters identified as (Integer) you can specify a
 # valid python expression which evaluates to integer value, e.g.
-#     24 * 60
-#     7 * 24 * 60
+#     "24 * 60"
+#     "7 * 24 * 60"
+# Such values should be quoted (in order to be treated as strings)
 # -------------------------------------------------------------------------------
 # sleep_on_error_interval (Integer): How long (in minutes) to sleep when error is encountered in the script
 sleep_on_error_interval: 60
@@ -235,7 +236,7 @@ target:
 workspace_root: /work/transfer
 
 # views: An array of source/target view mappings
-#    You are not allowed to specify both 'views' and 'stream_views'!!
+#    You are not allowed to specify both 'views' and 'stream_views' - leave one or other blank!!
 #    Each value is a string - normally quote. Standard p4 wildcards are valid.
 #    These values are used to construct the appropriate View: fields for source/target client workspaces
 #    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
@@ -255,7 +256,7 @@ views:
 transfer_target_stream:
 
 # stream_views: An array of source/target stream view mappings and other record fields.
-#    You are not allowed to specify both 'views' and 'stream_views'!!
+#    You are not allowed to specify both 'views' and 'stream_views' - leave one or other blank
 #    Each src/targ value is a string with '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
 #    Multiple wildcards are allowed, but make sure the number of wildcards matches between source and target.
 #    Please note that target depots must exist.

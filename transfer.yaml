@@ -27,8 +27,9 @@ mail_server:
 # ===============================================================================
 # Note that for any of the following parameters identified as (Integer) you can specify a
 # valid python expression which evaluates to integer value, e.g.
-#     24 * 60
-#     7 * 24 * 60
+#     "24 * 60"
+#     "7 * 24 * 60"
+# Such values must be quoted (in order to be treated as strings)
 # -------------------------------------------------------------------------------
 # sleep_on_error_interval (Integer): How long (in minutes) to sleep when error is encountered in the script
 sleep_on_error_interval: 60

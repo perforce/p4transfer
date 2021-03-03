@@ -666,7 +666,26 @@ View:
 <div class="sect2">
 <h3 id="_classiclocal_target_depots_vs_streams_targets">3.1. Classic/local target depots vs Streams targets</h3>
 <div class="paragraph">
-<p>The current version requires the Target of a transfer to be a local depot (so does not support streams depots). A new version is in development to support streams, with some restrictions (remember that humans should not be writing to the targets of a P4Transfer instance!)</p>
+<p>It is now possible to migrate streams to streams. This is done by creating a source workspace which can read any specified stream (it is just a normal workspace since syncing from any stream is possible). The target workspace is a special stream workspace which is a mainline with no <code>share &#8230;&#8203;</code> line in it, but which uses <code>import+</code> to write to all the desired target streams.</p>
+</div>
+<div class="paragraph">
+<p>Notes/restrictions on streams:
+* Currently supports streams&#8594;streams only (not classic to streams)
+* Takes whole streams rather than allowing filtering of source streams
+* Will auto-create target streams if necessary when you use wildcard matching ('<strong>') in source/target stream names,
+e.g. allowing you to take all <code>//streams_depot/release</strong></code> streams across easily.</p>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+remember that humans should not be writing to the targets of a P4Transfer instance (streams or otherwise)!
+</td>
+</tr>
+</table>
 </div>
 </div>
 </div>
@@ -825,7 +844,7 @@ Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code># Save this output to a file to e.g. transfer.yaml and edit it for your configuration
+<pre class="highlight"><code class="language-yaml" data-lang="yaml"># Save this output to a file to e.g. transfer.yaml and edit it for your configuration
 
 # counter_name: Unique counter on target server to use for recording source changes processed. No spaces.
 #    Name sensibly if you have multiple instances transferring into the same target p4 repository.
@@ -836,7 +855,7 @@ counter_name: p4transfer_counter
 # instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
 instance_name: Perforce Transfer from XYZ
 
-# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL"
+# For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
 mail_form_url:
 
 # The mail_* parameters must all be valid (non-blank) to receive email updates during processing.
@@ -853,8 +872,9 @@ mail_server:
 # ===============================================================================
 # Note that for any of the following parameters identified as (Integer) you can specify a
 # valid python expression which evaluates to integer value, e.g.
-#     24 * 60
-#     7 * 24 * 60
+#     "24 * 60"
+#     "7 * 24 * 60"
+# Such values must be quoted (in order to be treated as strings)
 # -------------------------------------------------------------------------------
 # sleep_on_error_interval (Integer): How long (in minutes) to sleep when error is encountered in the script
 sleep_on_error_interval: 60
@@ -882,9 +902,9 @@ summary_report_interval: 7 * 24 * 60
 sync_progress_size_interval: 500 * 1000 * 1000
 
 # change_description_format: The standard format for transferred changes.
-#    Keywords prefixed with $. Use \n for newlines. Keywords allowed:
+#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
 #     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
-change_description_format: "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange"
+change_description_format: $sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange
 
 # change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists.
 #    If this is blank (DEFAULT) then no mapping file is created.
@@ -911,6 +931,8 @@ source:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!.
   p4passwd:
+    # P4CHARSET to use, e.g. none, utf8, etc
+  p4charset:
 
 target:
     # P4PORT to connect to, e.g. some-server:1666
@@ -922,6 +944,8 @@ target:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!
   p4passwd:
+    # P4CHARSET to use, e.g. none, utf8, etc
+  p4charset:
 
 # workspace_root: Root directory to use for both client workspaces.
 #    This will be used to update the client workspace Root: field for both source/target workspaces
@@ -929,6 +953,7 @@ target:
 workspace_root: /work/transfer
 
 # views: An array of source/target view mappings
+#    You are not allowed to specify both 'views' and 'stream_views'!!
 #    Each value is a string - normally quote. Standard p4 wildcards are valid.
 #    These values are used to construct the appropriate View: fields for source/target client workspaces
 #    It is allowed to have exclusion mappings - by specifying the '-' as first character in 'src'
@@ -939,7 +964,35 @@ views:
 - src: //depot/source_path2/...
   targ: //import/target_path2/...
 - src: -//depot/source_path2/exclude/*.tgz
-  targ: //import/target_path2/exclude/*.tgz</code></pre>
+  targ: //import/target_path2/exclude/*.tgz
+
+# transfer_target_stream: The name of a special target stream to use - IT SHOULD NOT CONTAIN FILES!!
+#    This will be setup as a mainline stream, with no sharing and with import+ mappings
+#    It is in standard stream name format, e.g. //&lt;depot&gt;/&lt;name&gt; or //&lt;depot&gt;/&lt;mid&gt;/&lt;name&gt;
+#    e.g. transfer_target_stream: //targ_streams/transfer_target
+transfer_target_stream:
+
+# stream_views: An array of source/target stream view mappings and other record fields.
+#    You are not allowed to specify both 'views' and 'stream_views'!!
+#    Each src/targ value is a string with '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
+#    Multiple wildcards are allowed, but make sure the number of wildcards matches between source and target.
+#    Please note that target depots must exist.
+#    Target streams will be created as required using the specified type/parent fields.
+#    Field 'type:' has allowed values: mainline, development, release
+#    Field 'parent:' should specify a suitable parent if you are creating development or release streams.
+stream_views:
+- src: //streams_src/main
+  targ: //streams_targ/main
+  type: mainline
+  parent: ''
+- src: //streams_src2/release*
+  targ: //streams_targ2/rel*
+  type: mainline
+  parent: //streams_targ2/main
+- src: //src3_streams/*rel*
+  targ: //targ3_streams/*release*
+  type: mainline
+  parent: //targ3_streams/main</code></pre>
 </div>
 </div>
 <div class="sect3">
@@ -1199,7 +1252,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-02-22 23:52:08 UTC
+Last updated 2021-03-03 08:43:52 UTC
 </div>
 </div>
 </body>
