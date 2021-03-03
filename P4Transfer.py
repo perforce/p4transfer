@@ -45,7 +45,7 @@ DESCRIPTION:
 
     The script requires a config file, by default transfer.yaml,
     that provides the Perforce connection information for both servers.
-    
+
     An initial example can be generated, e.g.
 
         P4Transfer.py --sample-config > transfer.yaml
@@ -1640,7 +1640,7 @@ class P4Transfer(object):
                             help="Validate config file and setup source/target workspaces but don't transfer anything")
         parser.add_argument('-m', '--maximum', default=None, type=int, help="Maximum number of changes to transfer")
         parser.add_argument('-k', '--nokeywords', action='store_true', help="Do not expand keywords and remove +k from filetype")
-        parser.add_argument('-r', '--repeat', action='store_true', 
+        parser.add_argument('-r', '--repeat', action='store_true',
                             help="Repeat transfer in a loop - for continuous transfer as background task")
         parser.add_argument('-s', '--stoponerror', action='store_true', help="Stop on any error even if --repeat has been specified")
         parser.add_argument('--sample-config', action='store_true', help="Print an example config file and exit")
@@ -1673,7 +1673,7 @@ class P4Transfer(object):
         result = default
         val = self.getOption(section, option_name, default)
         if isinstance(val, int):
-           return val
+            return val
         if val:
             try:
                 result = int(eval(val))
