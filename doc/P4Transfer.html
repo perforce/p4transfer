@@ -467,10 +467,11 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_getting_started">4.2. Getting started</a></li>
 <li><a href="#_script_parameters">4.3. Script parameters</a></li>
 <li><a href="#_optional_parameters">4.4. Optional Parameters</a></li>
-<li><a href="#_configuration_options">4.5. Configuration Options</a>
+<li><a href="#_long_running_jobs">4.5. Long running jobs</a></li>
+<li><a href="#_configuration_options">4.6. Configuration Options</a>
 <ul class="sectlevel3">
-<li><a href="#_changelist_comment_formatting">4.5.1. Changelist comment formatting</a></li>
-<li><a href="#_recording_a_change_list_mapping_file">4.5.2. Recording a change list mapping file</a></li>
+<li><a href="#_changelist_comment_formatting">4.6.1. Changelist comment formatting</a></li>
+<li><a href="#_recording_a_change_list_mapping_file">4.6.2. Recording a change list mapping file</a></li>
 </ul>
 </li>
 </ul>
@@ -669,11 +670,21 @@ View:
 <p>It is now possible to migrate streams to streams. This is done by creating a source workspace which can read any specified stream (it is just a normal workspace since syncing from any stream is possible). The target workspace is a special stream workspace which is a mainline with no <code>share &#8230;&#8203;</code> line in it, but which uses <code>import+</code> to write to all the desired target streams.</p>
 </div>
 <div class="paragraph">
-<p>Notes/restrictions on streams:
-* Currently supports streams&#8594;streams only (not classic to streams)
-* Takes whole streams rather than allowing filtering of source streams
-* Will auto-create target streams if necessary when you use wildcard matching ('<strong>') in source/target stream names,
-e.g. allowing you to take all <code>//streams_depot/release</strong></code> streams across easily.</p>
+<p>Notes/restrictions on streams:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Currently supports streams&#8594;streams only (not classic to streams)</p>
+</li>
+<li>
+<p>Takes whole streams rather than allowing filtering of source streams</p>
+</li>
+<li>
+<p>Will auto-create target streams if necessary when you use wildcard matching ('*') in source/target stream names,
+e.g. allowing you to take all <code>//streams_depot/release*</code> streams across easily.</p>
+</li>
+</ul>
 </div>
 <div class="admonitionblock important">
 <table>
@@ -682,7 +693,7 @@ e.g. allowing you to take all <code>//streams_depot/release</strong></code> stre
 <i class="fa icon-important" title="Important"></i>
 </td>
 <td class="content">
-remember that humans should not be writing to the targets of a P4Transfer instance (streams or otherwise)!
+Remember that humans should not be writing to the targets of a P4Transfer instance (streams or otherwise) - or the script may fail in strange ways!
 </td>
 </tr>
 </table>
@@ -787,27 +798,54 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code>$ python3 P4Transfer.py -h
-usage: P4Transfer.py [-h] [-c CONFIG] [-m MAXIMUM] [-k] [-r] [-s] [--sample-config] [-i]
-                     [--end-datetime END_DATETIME]
+<pre class="highlight"><code>usage: P4Transfer.py [-h] [-c CONFIG] [-n] [-m MAXIMUM] [-k] [-r] [-s]
+                     [--sample-config] [-i] [--end-datetime END_DATETIME]
 
-P4Transfer
+NAME:
+    P4Transfer.py
+
+DESCRIPTION:
+    This python script (2.7/3.6+ compatible) will transfer Perforce changelists with all contents
+    between independent servers when no remote depots are possible, and P4 DVCS commands
+    (such as p4 clone/fetch/zip/unzip) are not an option.
+
+    This script transfers changes in one direction - from a source server to a target server.
+
+    Usage:
+
+        python3 P4Transfer.py -h
+
+    The script requires a config file, by default transfer.yaml,
+    that provides the Perforce connection information for both servers.
+
+    An initial example can be generated, e.g.
+
+        P4Transfer.py --sample-config &gt; transfer.yaml
+
+    For full documentation/usage, see project doc:
+
+        https://github.com/perforce/p4transfer/blob/main/doc/P4Transfer.adoc
 
 optional arguments:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
                         Default is transfer.yaml
+  -n, --notransfer      Validate config file and setup source/target
+                        workspaces but don't transfer anything
   -m MAXIMUM, --maximum MAXIMUM
                         Maximum number of changes to transfer
   -k, --nokeywords      Do not expand keywords and remove +k from filetype
-  -r, --repeat          Repeat transfer in a loop - for continuous transfer
+  -r, --repeat          Repeat transfer in a loop - for continuous transfer as
+                        background task
   -s, --stoponerror     Stop on any error even if --repeat has been specified
   --sample-config       Print an example config file and exit
   -i, --ignore          Treat integrations as adds and edits
   --end-datetime END_DATETIME
-                        Time to stop transfers, format: 'YYYY/MM/DD HH:mm'
+                        Time to stop transfers, format: 'YYYY/MM/DD HH:mm' -
+                        useful for automation runs during quiet periods e.g.
+                        run overnight but stop first thing in the morning
 
-Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code></pre>
+Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code></pre>
 </div>
 </div>
 </div>
@@ -816,19 +854,47 @@ Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 <div class="ulist">
 <ul>
 <li>
+<p><code>--notransfer</code> - useful to validate your config file and that you can connect to source/target p4d servers, and report on how many changes might be transferred.</p>
+</li>
+<li>
 <p><code>--maximum</code> - useful to perform a test transfer of a single changelist when you get started (although remember this might be a changelist with a lot of files!)</p>
 </li>
 <li>
-<p><code>--keywords</code> - useful to avoid issues with expanding of keywords on a different server - this makes it hard to compare source/target results.</p>
+<p><code>--keywords</code> - useful to avoid issues with expanding of keywords on a different server. Keywords make it hard to compare source/target results, and make transfers slower due to extra work required.</p>
 </li>
 <li>
-<p><code>--end-datetime</code> - useful to schedule a run of P4Transfer and have it stop at the desired time (e.g. run overnight and stop when users start in the morning). Useful for long running transfers (can be many days)</p>
+<p><code>--end-datetime</code> - useful to schedule a run of P4Transfer and have it stop at the desired time (e.g. run overnight and stop when users start work in the morning). Useful for scheduling long running transfers (can be many days) in quiet periods (e.g. together with Linux <code>at</code> command)</p>
 </li>
 </ul>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_configuration_options">4.5. Configuration Options</h3>
+<h3 id="_long_running_jobs">4.5. Long running jobs</h3>
+<div class="paragraph">
+<p>On Linux, recommend you execute it as a background process, and then monitor the output:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>nohup python3 P4Transfer.py -c transfer.yaml -r &gt; out1 &amp;</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This will run in the background, and poll for new changes (according to <code>poll_interval</code> in the config file.)</p>
+</div>
+<div class="paragraph">
+<p>You can look at the output file for progress, e.g. (avoiding long lines of text which can be output)</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>tail -f out1 | cut -c -140</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Note that if you edit the configuration file, it will be re-read the next time the script wakes up and polls for input. So you do not need to stop and restart the job.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configuration_options">4.6. Configuration Options</h3>
 <div class="paragraph">
 <p>The comments in the file are mostly self-explanatory. It is important to specify the main values for the <code>[source]</code> and <code>[target]</code> sections.</p>
 </div>
@@ -996,7 +1062,7 @@ stream_views:
 </div>
 </div>
 <div class="sect3">
-<h4 id="_changelist_comment_formatting">4.5.1. Changelist comment formatting</h4>
+<h4 id="_changelist_comment_formatting">4.6.1. Changelist comment formatting</h4>
 <div class="paragraph">
 <p>In the <code>[general]</code> section, you can customize the <code>change_description_format</code> value to decide how transferred change descriptions are formatted.</p>
 </div>
@@ -1046,7 +1112,7 @@ Original change description</pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_recording_a_change_list_mapping_file">4.5.2. Recording a change list mapping file</h4>
+<h4 id="_recording_a_change_list_mapping_file">4.6.2. Recording a change list mapping file</h4>
 <div class="paragraph">
 <p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then P4Transfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
 </div>
@@ -1252,7 +1318,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-03-03 08:43:52 UTC
+Last updated 2021-03-03 12:57:25 UTC
 </div>
 </div>
 </body>

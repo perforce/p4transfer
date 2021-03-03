@@ -1,0 +1,48 @@
+usage: P4Transfer.py [-h] [-c CONFIG] [-n] [-m MAXIMUM] [-k] [-r] [-s]
+                     [--sample-config] [-i] [--end-datetime END_DATETIME]
+
+NAME:
+    P4Transfer.py
+
+DESCRIPTION:
+    This python script (2.7/3.6+ compatible) will transfer Perforce changelists with all contents
+    between independent servers when no remote depots are possible, and P4 DVCS commands
+    (such as p4 clone/fetch/zip/unzip) are not an option.
+
+    This script transfers changes in one direction - from a source server to a target server.
+
+    Usage:
+
+        python3 P4Transfer.py -h
+
+    The script requires a config file, by default transfer.yaml,
+    that provides the Perforce connection information for both servers.
+
+    An initial example can be generated, e.g.
+
+        P4Transfer.py --sample-config > transfer.yaml
+
+    For full documentation/usage, see project doc:
+
+        https://github.com/perforce/p4transfer/blob/main/doc/P4Transfer.adoc
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Default is transfer.yaml
+  -n, --notransfer      Validate config file and setup source/target
+                        workspaces but don't transfer anything
+  -m MAXIMUM, --maximum MAXIMUM
+                        Maximum number of changes to transfer
+  -k, --nokeywords      Do not expand keywords and remove +k from filetype
+  -r, --repeat          Repeat transfer in a loop - for continuous transfer as
+                        background task
+  -s, --stoponerror     Stop on any error even if --repeat has been specified
+  --sample-config       Print an example config file and exit
+  -i, --ignore          Treat integrations as adds and edits
+  --end-datetime END_DATETIME
+                        Time to stop transfers, format: 'YYYY/MM/DD HH:mm' -
+                        useful for automation runs during quiet periods e.g.
+                        run overnight but stop first thing in the morning
+
+Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd

@@ -97,12 +97,13 @@ P4Transfer uses a single configuration file that contains the information of bot
 It is now possible to migrate streams to streams. This is done by creating a source workspace which can read any specified stream (it is just a normal workspace since syncing from any stream is possible). The target workspace is a special stream workspace which is a mainline with no `share ...` line in it, but which uses `import+` to write to all the desired target streams.
 
 Notes/restrictions on streams:
+
 * Currently supports streams->streams only (not classic to streams)
 * Takes whole streams rather than allowing filtering of source streams
-* Will auto-create target streams if necessary when you use wildcard matching ('*') in source/target stream names, 
+* Will auto-create target streams if necessary when you use wildcard matching ('\*') in source/target stream names, 
 e.g. allowing you to take all `//streams_depot/release*` streams across easily.
 
-IMPORTANT: remember that humans should not be writing to the targets of a P4Transfer instance (streams or otherwise)!
+IMPORTANT: Remember that humans should not be writing to the targets of a P4Transfer instance (streams or otherwise) - or the script may fail in strange ways!
 
 == Setup
 
@@ -158,34 +159,29 @@ If there are any changes missing, they will be applied consecutively.
 P4Transfer has various options – these are documented via the `-h` or `--help` parameters.
 
 ```
-$ python3 P4Transfer.py -h
-usage: P4Transfer.py [-h] [-c CONFIG] [-m MAXIMUM] [-k] [-r] [-s] [--sample-config] [-i]
-                     [--end-datetime END_DATETIME]
-
-P4Transfer
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -c CONFIG, --config CONFIG
-                        Default is transfer.yaml
-  -m MAXIMUM, --maximum MAXIMUM
-                        Maximum number of changes to transfer
-  -k, --nokeywords      Do not expand keywords and remove +k from filetype
-  -r, --repeat          Repeat transfer in a loop - for continuous transfer
-  -s, --stoponerror     Stop on any error even if --repeat has been specified
-  --sample-config       Print an example config file and exit
-  -i, --ignore          Treat integrations as adds and edits
-  --end-datetime END_DATETIME
-                        Time to stop transfers, format: 'YYYY/MM/DD HH:mm'
-
-Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd
+include::help.txt[]
 ```
 
 === Optional Parameters
 
+* `--notransfer` - useful to validate your config file and that you can connect to source/target p4d servers, and report on how many changes might be transferred.
 * `--maximum` - useful to perform a test transfer of a single changelist when you get started (although remember this might be a changelist with a lot of files!)
-* `--keywords` - useful to avoid issues with expanding of keywords on a different server - this makes it hard to compare source/target results.
-* `--end-datetime` - useful to schedule a run of P4Transfer and have it stop at the desired time (e.g. run overnight and stop when users start in the morning). Useful for long running transfers (can be many days)
+* `--keywords` - useful to avoid issues with expanding of keywords on a different server. Keywords make it hard to compare source/target results, and make transfers slower due to extra work required.
+* `--end-datetime` - useful to schedule a run of P4Transfer and have it stop at the desired time (e.g. run overnight and stop when users start work in the morning). Useful for scheduling long running transfers (can be many days) in quiet periods (e.g. together with Linux `at` command)
+
+=== Long running jobs
+
+On Linux, recommend you execute it as a background process, and then monitor the output:
+
+    nohup python3 P4Transfer.py -c transfer.yaml -r > out1 &
+
+This will run in the background, and poll for new changes (according to `poll_interval` in the config file.)
+
+You can look at the output file for progress, e.g. (avoiding long lines of text which can be output)
+
+    tail -f out1 | cut -c -140
+
+Note that if you edit the configuration file, it will be re-read the next time the script wakes up and polls for input. So you do not need to stop and restart the job.
 
 === Configuration Options
 
