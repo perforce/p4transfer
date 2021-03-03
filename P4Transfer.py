@@ -1657,10 +1657,12 @@ class P4Transfer(object):
 
     def getIntOption(self, section, option_name, default=None):
         result = default
-        strval = self.getOption(section, option_name, default)
-        if strval:
+        val = self.getOption(section, option_name, default)
+        if isinstance(val, int):
+           return val
+        if val:
             try:
-                result = int(eval(strval))
+                result = int(eval(val))
             except Exception:
                 pass
         return result

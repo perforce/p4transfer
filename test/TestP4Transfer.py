@@ -459,6 +459,18 @@ class TestP4Transfer(unittest.TestCase):
         self.assertRegex(msg, "One of options views/stream_views must be specified")
         self.assertRegex(msg, "Option workspace_root must not be blank")
 
+        # Integer config related options
+        config = self.getDefaultOptions()
+        config['poll_interval'] = 5
+        config['report_interval'] = "10 * 5"
+        self.createConfigFile(options=config)
+
+        base_args = ['-c', self.transfer_cfg, '-s']
+        pt = P4Transfer.P4Transfer(*base_args)
+        pt.setupReplicate()
+        self.assertEqual(5, pt.options.poll_interval)
+        self.assertEqual(50, pt.options.report_interval)
+
         # Other streams related validation
         config = self.getDefaultOptions()
         config['views'] = []
