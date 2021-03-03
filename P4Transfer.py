@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Copyright (c) 2011-2014 Sven Erik Knop/Robert Cowham, Perforce Software Ltd
-#
+# Copyright (c) 2011-2021 Sven Erik Knop/Robert Cowham, Perforce Software Ltd
 # ========================================
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -29,33 +27,34 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# User contributed content on the Perforce Public Depot is not supported by Perforce,
-# although it may be supported by its author. This applies to all contributions
-# even those submitted by Perforce employees.
-# ========================================
-# P4Transfer.py
-#
-# This python script will transfer Perforce changelists with all contents
-# between independent servers when no remote depots are possible.
-#
-# This script transfers changes in one direction - from a source server to a target server.
-# There is an alternative called PerforceExchange.py which transfers changes
-# in both directions.
-#
-# Usage:
-#   python2 P4Transfer.py [options]
-#
-# The -h/--help option describes all options.
-#
-# The script requires a config file, normally called transfer.cfg,
-# that provides the Perforce connection information for both servers.
-# The config file has three sections: [general], [source] and [target].
-# See DEFAULT_CONFIG for details. An initial example can be generated, e.g.
-#
-#   P4Transfer.py --sample-config > transfer.cfg
-#
-# The script also needs a directory in which it can place the mapped files.
-# This directory has to be the root of both servers' workspaces (this will be verified).
+
+"""
+NAME:
+    P4Transfer.py
+
+DESCRIPTION:
+    This python script (2.7/3.6+ compatible) will transfer Perforce changelists with all contents
+    between independent servers when no remote depots are possible, and P4 DVCS commands
+    (such as p4 clone/fetch/zip/unzip) are not an option.
+
+    This script transfers changes in one direction - from a source server to a target server.
+
+    Usage:
+
+        python3 P4Transfer.py -h
+
+    The script requires a config file, by default transfer.yaml,
+    that provides the Perforce connection information for both servers.
+    
+    An initial example can be generated, e.g.
+
+        P4Transfer.py --sample-config > transfer.yaml
+
+    For full documentation/usage, see project doc:
+
+        https://github.com/perforce/p4transfer/blob/main/doc/P4Transfer.adoc
+
+"""
 
 from __future__ import print_function
 
@@ -66,11 +65,13 @@ import stat
 import pprint
 from string import Template
 import argparse
+import textwrap
 import os.path
 from datetime import datetime
 import logging
 import time
 
+# Non-standard modules
 import P4
 import logutils
 
@@ -78,7 +79,7 @@ import logutils
 from ruamel.yaml import YAML
 yaml = YAML()
 
-VERSION = """$Id: //guest/perforce_software/p4transfer/P4Transfer.py#112 $"""
+VERSION = """$Id$"""
 
 
 def logrepr(self):
@@ -1621,20 +1622,26 @@ class P4Transfer(object):
     "Main transfer class"
 
     def __init__(self, *args):
+        desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
-            description="P4Transfer",
-            epilog="Copyright (C) 2012-14 Sven Erik Knop/Robert Cowham, Perforce Software Ltd"
+            description=desc,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog="Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd"
         )
 
         parser.add_argument('-c', '--config', default=CONFIG_FILE, help="Default is " + CONFIG_FILE)
+        parser.add_argument('-n', '--notransfer', action='store_true',
+                            help="Validate config file and setup source/target workspaces but don't transfer anything")
         parser.add_argument('-m', '--maximum', default=None, type=int, help="Maximum number of changes to transfer")
         parser.add_argument('-k', '--nokeywords', action='store_true', help="Do not expand keywords and remove +k from filetype")
-        parser.add_argument('-r', '--repeat', action='store_true', help="Repeat transfer in a loop - for continuous transfer")
+        parser.add_argument('-r', '--repeat', action='store_true', 
+                            help="Repeat transfer in a loop - for continuous transfer as background task")
         parser.add_argument('-s', '--stoponerror', action='store_true', help="Stop on any error even if --repeat has been specified")
         parser.add_argument('--sample-config', action='store_true', help="Print an example config file and exit")
         parser.add_argument('-i', '--ignore', action='store_true', help="Treat integrations as adds and edits")
         parser.add_argument('--end-datetime', type=valid_datetime_type, default=None,
-                            help="Time to stop transfers, format: 'YYYY/MM/DD HH:mm'")
+                            help="Time to stop transfers, format: 'YYYY/MM/DD HH:mm' - useful"
+                            " for automation runs during quiet periods e.g. run overnight but stop first thing in the morning")
         self.options = parser.parse_args(list(args))
         self.options.sync_progress_size_interval = None
 
@@ -1744,6 +1751,9 @@ class P4Transfer(object):
         self.source.createClientWorkspace(True)
         self.target.createClientWorkspace(False, self.source.matchingStreams)
         changes = self.source.missingChanges(self.target.getCounter())
+        if self.options.notransfer:
+            self.logger.info("Would transfer %d changes - stopping due to --notransfer" % len(changes))
+            return 0
         self.logger.info("Transferring %d changes" % len(changes))
         changesTransferred = 0
         if len(changes) > 0:
@@ -1932,6 +1942,8 @@ class P4Transfer(object):
                 self.source.disconnect()
                 self.target.disconnect()
                 num_changes = self.replicate_changes()
+                if self.options.notransfer:
+                    finished = True
                 if num_changes > 0:
                     self.logger.info("Transferred %d changes successfully" % num_changes)
                 if change_last_summary_sent == 0:
