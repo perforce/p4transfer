@@ -3622,9 +3622,6 @@ class TestP4Transfer(unittest.TestCase):
         d['Type'] = 'stream'
         self.target.p4.save_depot(d)
 
-        # s = self.target.p4.fetch_stream('-t', 'mainline', '//targ_streams/main')
-        # self.target.p4.save_stream(s)
-
         config = self.getDefaultOptions()
         config['views'] = []
         config['transfer_target_stream'] = '//targ_streams/transfer_target_stream'
@@ -3646,7 +3643,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "Added files")
 
         self.run_P4Transfer()
-        self.assertCounters(2, 5)   # Normally (1,1) - Extras change due to stream creation
+        self.assertCounters(2, 2)   # Normally (1,1) - Extras change due to stream creation
 
         changes = self.target.p4cmd('changes', '//targ_streams/...')
         self.assertEqual(len(changes), 1, "Not exactly one change on target")
@@ -3660,6 +3657,10 @@ class TestP4Transfer(unittest.TestCase):
 
         client = self.target.p4.fetch_client(TRANSFER_CLIENT)
         self.assertEqual('//targ_streams/transfer_target_stream', client._stream)
+
+        # Run again and expect no extra stream changes to be created
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
 
     def testStreamsMultiple(self):
         "Test source/target being streams with multiples"

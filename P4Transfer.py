@@ -776,6 +776,7 @@ class P4Base(object):
                     clientspec._view.append(line)
             else:
                 transferStream = self.p4.fetch_stream(self.options.transfer_target_stream)
+                origStream = dict(transferStream)
                 transferStream["Type"] = "mainline"
                 transferStream["Paths"] = []
                 for v in self.options.stream_views:
@@ -786,11 +787,16 @@ class P4Base(object):
                         line = "import+ %s/... %s/..." % (srcPath, targ)
                         transferStream["Paths"].append(line)
                         targStream = self.p4.fetch_stream('-t', v['type'], targ)
+                        origTargStream = dict(targStream)
                         targStream['Type'] = v['type']
                         if v['parent']:
                             targStream['Parent'] = v['parent']
-                        self.p4.save_stream(targStream)
-                self.p4.save_stream(transferStream)
+                        if origTargStream['Type'] != targStream['Type'] and \
+                           origTargStream['Parent'] != targStream['Parent']:
+                            self.p4.save_stream(targStream)
+                if origStream["Type"] != transferStream["Type"] and \
+                   origStream["Paths"] != transferStream["Paths"]:
+                    self.p4.save_stream(transferStream)
                 clientspec['Stream'] = self.options.transfer_target_stream
         else:   # Ordinary workspace views which allow exclusions
             exclude = ''
