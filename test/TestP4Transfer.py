@@ -3643,7 +3643,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "Added files")
 
         self.run_P4Transfer()
-        self.assertCounters(2, 2)   # Normally (1,1) - Extras change due to stream creation
+        self.assertCounters(2, 3)   # Normally (1,1) - Extras change due to stream creation
 
         changes = self.target.p4cmd('changes', '//targ_streams/...')
         self.assertEqual(len(changes), 1, "Not exactly one change on target")
@@ -3660,7 +3660,7 @@ class TestP4Transfer(unittest.TestCase):
 
         # Run again and expect no extra stream changes to be created
         self.run_P4Transfer()
-        self.assertCounters(2, 2)
+        self.assertCounters(2, 3)
 
     def testStreamsMultiple(self):
         "Test source/target being streams with multiples"
@@ -3700,11 +3700,6 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "Added files")
 
         self.run_P4Transfer()
-        #     self.assertTrue(False, "Failed to get expected exception")
-        # except Exception as e:
-        #     msg = str(e)
-        # self.assertRegex(msg, "No source streams found matching:")
-
         self.assertCounters(0, 1)
 
         s = self.source.p4.fetch_stream('-t', 'release', '-P', '//src_streams/main', '//src_streams/rel1')
@@ -3752,6 +3747,20 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual("add", filelog[0].revisions[0].action)
         self.assertEqual("add", filelog[1].revisions[0].action)
         filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
+        self.assertEqual(1, len(filelog))
+        self.assertEqual("add", filelog[0].revisions[0].action)
+
+        # Now change source streams, and replicate again - expecting new stream to be picked up
+        s = self.source.p4.fetch_stream('-t', 'release', '-P', '//src_streams/main', '//src_streams/rel3')
+        self.source.p4.save_stream(s)
+        self.source.p4.run_populate('-S', '//src_streams/rel3', '-r')
+
+        self.run_P4Transfer()
+        self.assertCounters(9, 10)
+
+        changes = self.target.p4cmd('changes', '//targ_streams/...')
+        self.assertEqual(4, len(changes))
+        filelog = self.target.p4.run_filelog('//targ_streams/rel3/...')
         self.assertEqual(1, len(filelog))
         self.assertEqual("add", filelog[0].revisions[0].action)
 

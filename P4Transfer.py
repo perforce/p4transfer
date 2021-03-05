@@ -779,6 +779,7 @@ class P4Base(object):
                 origStream = dict(transferStream)
                 transferStream["Type"] = "mainline"
                 transferStream["Paths"] = []
+                targStreamsUpdated = False
                 for v in self.options.stream_views:
                     for s in matchingStreams:   # Array of tuples passed in
                         src = s[0]
@@ -791,11 +792,13 @@ class P4Base(object):
                         targStream['Type'] = v['type']
                         if v['parent']:
                             targStream['Parent'] = v['parent']
-                        if origTargStream['Type'] != targStream['Type'] and \
-                           origTargStream['Parent'] != targStream['Parent']:
+                        if (origTargStream['Type'] != targStream['Type'] and \
+                           origTargStream['Parent'] != targStream['Parent']) or \
+                           ('Update' not in targStream):  # As in this is a new stream
                             self.p4.save_stream(targStream)
-                if origStream["Type"] != transferStream["Type"] and \
-                   origStream["Paths"] != transferStream["Paths"]:
+                            targStreamsUpdated = True
+                if targStreamsUpdated or (origStream["Type"] != transferStream["Type"] and \
+                   origStream["Paths"] != transferStream["Paths"]):
                     self.p4.save_stream(transferStream)
                 clientspec['Stream'] = self.options.transfer_target_stream
         else:   # Ordinary workspace views which allow exclusions
