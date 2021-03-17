@@ -138,7 +138,10 @@ class P4Server:
             self.logger.debug("Running: %s" % cmd)
             if get_output:
                 p = subprocess.Popen(cmd, cwd=dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, shell=True)
-                output, _ = p.communicate(timeout=timeout)
+                if python3:
+                    output, _ = p.communicate(timeout=timeout)
+                else:
+                    output, _ = p.communicate()
                 # rc = p.returncode
                 self.logger.debug("Output:\n%s" % output)
             else:
