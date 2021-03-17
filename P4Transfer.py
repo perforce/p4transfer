@@ -1770,6 +1770,10 @@ class P4Transfer(object):
             self.save_previous_target_change_counter()
             self.source.progress = ReportProgress(self.source.p4, changes, self.logger, self.source.P4CLIENT)
             self.source.progress.SetSyncProgressSizeInterval(self.options.sync_progress_size_interval)
+            if self.options.repeat:
+                # Clear out any opened files from previous errors - hoping they are transient
+                with self.target.p4.at_exception_level(P4.P4.RAISE_NONE):
+                    self.target.p4cmd('revert', "//%s/..." % self.target.P4CLIENT)
             for change in changes:
                 if self.endDatetimeExceeded():
                     # Bail early
