@@ -185,6 +185,10 @@ summary_report_interval: "7 * 24 * 60"
 #    Useful for keeping an eye on progress for large syncs over slow network links.
 sync_progress_size_interval: "500 * 1000 * 1000"
 
+# max_logfile_size (Integer): Max size of file to (in bytes) after which it should be rotated
+#     Typically some value such as 20MB = 20 * 1024 * 1024. Useful if transfer being run with --repeat option.
+max_logfile_size: "20 * 1024 * 1024"
+
 # change_description_format: The standard format for transferred changes.
 #    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
 #     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
@@ -1709,6 +1713,7 @@ class P4Transfer(object):
         self.options.summary_report_interval = self.getIntOption(GENERAL_SECTION, "summary_report_interval", 10080)
         self.options.sync_progress_size_interval = self.getIntOption(
             GENERAL_SECTION, "sync_progress_size_interval")
+        self.options.max_logfile_size = self.getIntOption(GENERAL_SECTION, "max_logfile_size", 20 * 1024 * 1024)
         self.options.change_description_format = self.getOption(
             GENERAL_SECTION, "change_description_format",
             "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange")
@@ -1770,6 +1775,7 @@ class P4Transfer(object):
             self.save_previous_target_change_counter()
             self.source.progress = ReportProgress(self.source.p4, changes, self.logger, self.source.P4CLIENT)
             self.source.progress.SetSyncProgressSizeInterval(self.options.sync_progress_size_interval)
+            self.checkRotateLogFile()
             if self.options.repeat:
                 # Clear out any opened files from previous errors - hoping they are transient
                 with self.target.p4.at_exception_level(P4.P4.RAISE_NONE):
@@ -1914,6 +1920,17 @@ class P4Transfer(object):
         global alreadyLogged
         alreadyLogged = {}
         self.writeLogHeader()
+
+    def checkRotateLogFile(self):
+        "Rotate log file if greater than limit"
+        try:
+            fname = logutils.getCurrentLogFileName(LOGGER_NAME)
+            fsize = os.path.getsize(fname)
+            if fsize > self.options.max_logfile_size:
+                self.logger.info("Rotating logfile since greater than max_logfile_size: %d" % fsize)
+                self.rotateLogFile()
+        except Exception as e:
+            self.log_exception(e)
 
     def endDatetimeExceeded(self):
         """Determine if we should stop due to this being set"""

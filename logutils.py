@@ -225,6 +225,14 @@ def getLogger(logger_name, stream=None):
     return logger
 
 
+def getCurrentLogFileName(logger_name):
+    "Get name of current log file"
+    logger = logging.getLogger(logger_name)
+    for hdlr in logger.handlers:
+        if isinstance(hdlr, logging.FileHandler):
+            return hdlr.baseFilename
+
+
 def resetLogger(logger_name):
     "Reset - which creates new files etc"
     logger = logging.getLogger(logger_name)
