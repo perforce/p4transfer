@@ -56,6 +56,10 @@ summary_report_interval: 7 * 24 * 60
 #    Useful for keeping an eye on progress for large syncs over slow network links.
 sync_progress_size_interval: 500 * 1000 * 1000
 
+# max_logfile_size (Integer): Max size of file to (in bytes) after which it should be rotated
+#     Typically some value such as 20MB = 20 * 1024 * 1024. Useful if transfer being run with --repeat option.
+max_logfile_size: 20 * 1024 * 1024
+
 # change_description_format: The standard format for transferred changes.
 #    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
 #     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
