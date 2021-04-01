@@ -3753,12 +3753,12 @@ class TestP4Transfer(unittest.TestCase):
         self.run_P4Transfer()
 
         changes = self.target.p4cmd('changes', '//targ_streams/...')
-        self.assertEqual(len(changes), 2, "Not exactly one change on target")
+        self.assertEqual(2, len(changes))
         filelog = self.target.p4.run_filelog('//targ_streams/rel1/...')
-        self.assertEqual(len(filelog), 1, "Not exactly one file on target")
+        self.assertEqual(1, len(filelog))
         self.assertEqual(filelog[0].revisions[0].action, "add")
         filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
-        self.assertEqual(len(filelog), 1, "Not exactly one file on target")
+        self.assertEqual(1, len(filelog))
         self.assertEqual(filelog[0].revisions[0].action, "add")
 
         # Double wildcards
@@ -3802,6 +3802,70 @@ class TestP4Transfer(unittest.TestCase):
         filelog = self.target.p4.run_filelog('//targ_streams/rel3/...')
         self.assertEqual(1, len(filelog))
         self.assertEqual("add", filelog[0].revisions[0].action)
+
+    def testStreamsMultipleIndividual(self):
+        "Test source/target being streams with multiple source/target matching"
+        self.setupTransfer()
+
+        d = self.source.p4.fetch_depot('src_streams')
+        d['Type'] = 'stream'
+        self.source.p4.save_depot(d)
+        s = self.source.p4.fetch_stream('-t', 'mainline', '//src_streams/main')
+        self.source.p4.save_stream(s)
+
+        d = self.target.p4.fetch_depot('targ_streams')
+        d['Type'] = 'stream'
+        self.target.p4.save_depot(d)
+
+        s = self.target.p4.fetch_stream('-t', 'mainline', '//targ_streams/main')
+        self.target.p4.save_stream(s)
+
+        config = self.getDefaultOptions()
+        config['views'] = []
+        config['transfer_target_stream'] = '//targ_streams/transfer_target_stream'
+        config['stream_views'] = [{'src': '//src_streams/main',
+                                   'targ': '//targ_streams/main',
+                                   'type': 'mainline',
+                                   'parent': ''},
+                                   {'src': '//src_streams/rel1',
+                                   'targ': '//targ_streams/rel1',
+                                   'type': 'release',
+                                   'parent': '//targ_streams/main'},
+                                   {'src': '//src_streams/rel2',
+                                   'targ': '//targ_streams/rel2',
+                                   'type': 'release',
+                                   'parent': '//targ_streams/main'}]
+        self.createConfigFile(options=config)
+
+        c = self.source.p4.fetch_client(self.source.client_name)
+        c['Stream'] = '//src_streams/main'
+        self.source.p4.save_client(c)
+
+        inside = localDirectory(self.source.client_root, "inside")
+
+        file1 = os.path.join(inside, 'file1')
+        create_file(file1, "Test content")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', "Added files")
+
+        s = self.source.p4.fetch_stream('-t', 'release', '-P', '//src_streams/main', '//src_streams/rel1')
+        self.source.p4.save_stream(s)
+        s = self.source.p4.fetch_stream('-t', 'release', '-P', '//src_streams/main', '//src_streams/rel2')
+        self.source.p4.save_stream(s)
+        self.source.p4.run_populate('-S', '//src_streams/rel1', '-r')
+        self.source.p4.run_populate('-S', '//src_streams/rel2', '-r')
+
+        self.run_P4Transfer()
+        self.assertCounters(6, 7)
+
+        changes = self.target.p4cmd('changes', '//targ_streams/...')
+        self.assertEqual(3, len(changes))
+        filelog = self.target.p4.run_filelog('//targ_streams/rel1/...')
+        self.assertEqual(1, len(filelog))
+        self.assertEqual("branch", filelog[0].revisions[0].action)
+        filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
+        self.assertEqual(1, len(filelog))
+        self.assertEqual("branch", filelog[0].revisions[0].action)
 
 
 if __name__ == '__main__':

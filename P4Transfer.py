@@ -730,6 +730,16 @@ class P4Base(object):
             self.p4.password = self.P4PASSWD
             self.p4.run_login()
 
+    def streamMatches(self, srcName, streamName):
+        "Decides if stream matches the source view (which may contain wildcards)"
+        if "*" not in srcName:
+            return srcName == streamName
+        reSrc = srcName.replace(r"*", r"(.*)")
+        m = re.search(reSrc, streamName)
+        if m:
+            return True
+        return False
+
     def matchingSourceStreams(self, view):
         "Search for any streams matching the source view expanding p4 wildcards *"
         streams = self.p4.run_streams(view['src'])  # Valid with wildcards
@@ -788,7 +798,7 @@ class P4Base(object):
                     for s in matchingStreams:   # Array of tuples passed in
                         src = s[0]
                         targ = s[1]
-                        if not src == v['src']:
+                        if not self.streamMatches(v['src'], src):
                             continue
                         srcPath = src.replace('//', '')
                         line = "import+ %s/... %s/..." % (srcPath, targ)
