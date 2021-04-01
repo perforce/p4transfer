@@ -788,6 +788,8 @@ class P4Base(object):
                     for s in matchingStreams:   # Array of tuples passed in
                         src = s[0]
                         targ = s[1]
+                        if not src == v['src']:
+                            continue
                         srcPath = src.replace('//', '')
                         line = "import+ %s/... %s/..." % (srcPath, targ)
                         transferStream["Paths"].append(line)

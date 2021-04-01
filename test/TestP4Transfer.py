@@ -769,7 +769,7 @@ class TestP4Transfer(unittest.TestCase):
         self.assertCounters(1, 1)
 
     def testNonSuperUser(self):
-        "Basic file add"
+        "Test when not a superuser - who can't update"
         self.setupTransfer()
         # Setup default transfer user as super user
         # All other users will just have write access
@@ -801,6 +801,42 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
 
         self.assertCounters(1, 1)
+
+    def testObliterate(self):
+        "What happens to obliterated changes"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, 'Test content')
+        create_file(inside_file2, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "more stuff")
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited and 2 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "yet more stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited again')
+
+        self.source.p4cmd('obliterate', '-y', "%s#2,2" % inside_file1)
+
+        self.run_P4Transfer()
+
+        self.assertCounters(3, 3)
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(3, len(changes))
+        # self.assertEqual(changes[0]['change'], "1")
+
+        # files = self.target.p4cmd('files', '//depot/...')
+        # self.assertEqual(len(files), 1)
+        # self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
 
     def testSymlinks(self):
         "Various symlink actions"
