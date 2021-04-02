@@ -211,7 +211,8 @@ change_map_file:
 superuser: "y"
 
 source:
-    # P4PORT to connect to, e.g. some-server:1666
+    # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
+    # want to specify port number, then use quotes: "1666"
     p4port:
     # P4USER to use
     p4user:
@@ -219,12 +220,14 @@ source:
     p4client:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!.
+    # Make sure your P4TICKETS file is correctly found in the environment
     p4passwd:
-    # P4CHARSET to use, e.g. none, utf8, etc
+    # P4CHARSET to use, e.g. none, utf8, etc - leave blank for non-unicode p4d instance
     p4charset:
 
 target:
-    # P4PORT to connect to, e.g. some-server:1666
+    # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
+    # want to specify port number, then use quotes: "1666"
     p4port:
     # P4USER to use
     p4user:
@@ -232,13 +235,15 @@ target:
     p4client:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!
+    # Make sure your P4TICKETS file is correctly found in the environment
     p4passwd:
-    # P4CHARSET to use, e.g. none, utf8, etc
+    # P4CHARSET to use, e.g. none, utf8, etc - leave blank for non-unicode p4d instance
     p4charset:
 
 # workspace_root: Root directory to use for both client workspaces.
 #    This will be used to update the client workspace Root: field for both source/target workspaces
 #    They must be the same.
+#    Make sure there is enough space to hold the largest single changelist that will be transferred!
 workspace_root: /work/transfer
 
 # views: An array of source/target view mappings

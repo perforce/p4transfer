@@ -445,7 +445,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <span id="author" class="author">Perforce Professional Services</span><br>
 <span id="email" class="email"><a href="mailto:consulting@perforce.com">consulting@perforce.com</a></span><br>
 <span id="revnumber">version v2021.1,</span>
-<span id="revdate">2021-02-22</span>
+<span id="revdate">2021-04-02</span>
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
@@ -468,17 +468,18 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#_script_parameters">4.3. Script parameters</a></li>
 <li><a href="#_optional_parameters">4.4. Optional Parameters</a></li>
 <li><a href="#_long_running_jobs">4.5. Long running jobs</a></li>
-<li><a href="#_configuration_options">4.6. Configuration Options</a>
+<li><a href="#_setting_up_environment">4.6. Setting up environment</a></li>
+<li><a href="#_configuration_options">4.7. Configuration Options</a>
 <ul class="sectlevel3">
-<li><a href="#_changelist_comment_formatting">4.6.1. Changelist comment formatting</a></li>
-<li><a href="#_recording_a_change_list_mapping_file">4.6.2. Recording a change list mapping file</a></li>
+<li><a href="#_changelist_comment_formatting">4.7.1. Changelist comment formatting</a></li>
+<li><a href="#_recording_a_change_list_mapping_file">4.7.2. Recording a change list mapping file</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#_usage">5. Usage</a>
+<li><a href="#_misc_usage_notes">5. Misc Usage Notes</a>
 <ul class="sectlevel2">
-<li><a href="#_integration">5.1. Integration</a></li>
+<li><a href="#_integration_recrods">5.1. Integration Recrods</a></li>
 <li><a href="#_setting_up_as_a_service_on_windows">5.2. Setting up as a service on Windows</a></li>
 </ul>
 </li>
@@ -751,6 +752,9 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <div class="paragraph">
 <p>The minimum requirements are the modules <code>P4Transfer.py</code> and <code>logutils.py</code></p>
 </div>
+<div class="paragraph">
+<p>If you have installed P4Python as above, then check the <code>requirements.txt</code> for other modules to install via <code>pip</code> or <code>pip3</code>.</p>
+</div>
 </div>
 <div class="sect2">
 <h3 id="_getting_started">4.2. Getting started</h3>
@@ -765,11 +769,11 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>python3 P4Transfer.py –-sample-config &gt; transfer.cg</pre>
+<pre>python3 P4Transfer.py –-sample-config &gt; transfer.yaml</pre>
 </div>
 </div>
 <div class="paragraph">
-<p>Then edit the resulting file.</p>
+<p>Then edit the resulting file, paying attention to the comments.</p>
 </div>
 <div class="paragraph">
 <p>The password stored in P4Passwd is optional if you do not want to rely on tickets. The tool performs a login if provided with a password, so it should work with <code>security=3</code> or <code>auth_check</code> trigger set.</p>
@@ -795,6 +799,10 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <h3 id="_script_parameters">4.3. Script parameters</h3>
 <div class="paragraph">
 <p>P4Transfer has various options – these are documented via the <code>-h</code> or <code>--help</code> parameters.</p>
+</div>
+<div class="paragraph">
+<p>The following text may not display properly if your are viewing this P4Transfer.adoc file in GitHub. Please refer
+the the .pdf version instead, or open up <a href="help.txt">help.txt</a> file directly.</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -882,11 +890,16 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 <p>This will run in the background, and poll for new changes (according to <code>poll_interval</code> in the config file.)</p>
 </div>
 <div class="paragraph">
-<p>You can look at the output file for progress, e.g. (avoiding long lines of text which can be output)</p>
+<p>You can look at the output file for progress, e.g. (avoiding long lines of text which can be output), or grep the log file:</p>
 </div>
 <div class="literalblock">
 <div class="content">
 <pre>tail -f out1 | cut -c -140</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>grep :INFO: log-P4Transfer-*.log</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -894,7 +907,40 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 </div>
 <div class="sect2">
-<h3 id="_configuration_options">4.6. Configuration Options</h3>
+<h3 id="_setting_up_environment">4.6. Setting up environment</h3>
+<div class="paragraph">
+<p>The following simple setup will allow you to cross check easily source and target servers.
+Assume we are in a directory: <code>/some/path/p4transfer</code></p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>export P4CONFIG=.p4config
+mkdir source target
+cd source
+vi .p4config</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>and create appropriate values as per your config file for the source server e.g.:</p>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>cat .p4config
+P4PORT=source-server:1666
+P4USER=p4transfer
+P4CLIENT=p4transfer_client</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>And similarly create a file in the <code>target</code> sub-directory.</p>
+</div>
+<div class="paragraph">
+<p>This will allow you to quickly and easily <code>cd</code> between directories and be able to run commands against respective
+source and target p4d instances.</p>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_configuration_options">4.7. Configuration Options</h3>
 <div class="paragraph">
 <p>The comments in the file are mostly self-explanatory. It is important to specify the main values for the <code>[source]</code> and <code>[target]</code> sections.</p>
 </div>
@@ -907,6 +953,10 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 <div class="content">
 <pre>cat transfer.yaml</pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The following included text may not display correctly when this .adoc file is  viewed in GitHub - instead
+download the PDF version of this doc, or open <a href="transfer.yaml">transfer.yaml</a> directly.</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -949,7 +999,7 @@ sleep_on_error_interval: 60
 poll_interval: 60
 
 # change_batch_size (Integer): changelists are processed in batches of this size
-change_batch_size: 20000
+change_batch_size: 1000
 
 # The following *_interval values result in reports, but only if mail_* values are specified
 # report_interval (Integer): Interval (in minutes) between regular update emails being sent
@@ -992,7 +1042,8 @@ change_map_file:
 superuser: y
 
 source:
-    # P4PORT to connect to, e.g. some-server:1666
+    # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
+    # want to specify port number, then use quotes: "1666"
   p4port:
     # P4USER to use
   p4user:
@@ -1000,12 +1051,14 @@ source:
   p4client:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!.
+    # Make sure your P4TICKETS file is correctly found in the environment
   p4passwd:
-    # P4CHARSET to use, e.g. none, utf8, etc
+    # P4CHARSET to use, e.g. none, utf8, etc - leave blank for non-unicode p4d instance
   p4charset:
 
 target:
-    # P4PORT to connect to, e.g. some-server:1666
+    # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
+    # want to specify port number, then use quotes: "1666"
   p4port:
     # P4USER to use
   p4user:
@@ -1013,13 +1066,15 @@ target:
   p4client:
     # P4PASSWD for the user - valid password. If blank then no login performed.
     # Recommended to make sure user is in a group with a long password timeout!
+    # Make sure your P4TICKETS file is correctly found in the environment
   p4passwd:
-    # P4CHARSET to use, e.g. none, utf8, etc
+    # P4CHARSET to use, e.g. none, utf8, etc - leave blank for non-unicode p4d instance
   p4charset:
 
 # workspace_root: Root directory to use for both client workspaces.
 #    This will be used to update the client workspace Root: field for both source/target workspaces
 #    They must be the same.
+#    Make sure there is enough space to hold the largest single changelist that will be transferred!
 workspace_root: /work/transfer
 
 # views: An array of source/target view mappings
@@ -1066,7 +1121,7 @@ stream_views:
 </div>
 </div>
 <div class="sect3">
-<h4 id="_changelist_comment_formatting">4.6.1. Changelist comment formatting</h4>
+<h4 id="_changelist_comment_formatting">4.7.1. Changelist comment formatting</h4>
 <div class="paragraph">
 <p>In the <code>[general]</code> section, you can customize the <code>change_description_format</code> value to decide how transferred change descriptions are formatted.</p>
 </div>
@@ -1116,13 +1171,13 @@ Original change description</pre>
 </div>
 </div>
 <div class="sect3">
-<h4 id="_recording_a_change_list_mapping_file">4.6.2. Recording a change list mapping file</h4>
+<h4 id="_recording_a_change_list_mapping_file">4.7.2. Recording a change list mapping file</h4>
 <div class="paragraph">
 <p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then P4Transfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>change_map_file = change_map.csv</pre>
+<pre>change_map_file = depot/import/change_map.csv</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1142,18 +1197,32 @@ src-server:1666,1235,12248</code></pre>
 <div class="paragraph">
 <p>It is very straight forward to use standard tools such as grep to search this file. Because it is checked in to the target server, you can also use “p4 grep”.</p>
 </div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+You will need to ensure that the change_map filename is properly mapped in the local workspace - thus it must
+include <code>&lt;depot&gt;</code> and other pathname components in the path. When you have created your target workspace, run <code>p4 client -o</code>
+to check the view mapping.
+</td>
+</tr>
+</table>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_usage">5. Usage</h2>
+<h2 id="_misc_usage_notes">5. Misc Usage Notes</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Note that since labeling itself is not versioned no labels or tags are transferred.</p>
 </div>
 <div class="sect2">
-<h3 id="_integration">5.1. Integration</h3>
+<h3 id="_integration_recrods">5.1. Integration Recrods</h3>
 <div class="paragraph">
 <p>Branching and integrating with is implemented, as long as both source and target are within the workspace view. Otherwise, the integrate action is downgraded to an add or edit.</p>
 </div>
@@ -1322,7 +1391,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-03-09 17:46:29 UTC
+Last updated 2021-04-02 15:52:23 +0100
 </div>
 </div>
 </body>
