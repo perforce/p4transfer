@@ -127,6 +127,7 @@ GENERAL_SECTION = 'general'
 SOURCE_SECTION = 'source'
 TARGET_SECTION = 'target'
 LOGGER_NAME = "P4Transfer"
+CHANGE_MAP_DESC = "Updated change_map_file"
 
 # This is for writing to sample config file
 DEFAULT_CONFIG = yaml.load(r"""
@@ -167,7 +168,7 @@ sleep_on_error_interval: 60
 poll_interval: 60
 
 # change_batch_size (Integer): changelists are processed in batches of this size
-change_batch_size: 20000
+change_batch_size: 1000
 
 # The following *_interval values result in reports, but only if mail_* values are specified
 # report_interval (Integer): Interval (in minutes) between regular update emails being sent
@@ -290,16 +291,27 @@ class SourceTargetTextComparison(object):
     files can be compared by size and digest (no line ending differences)"""
     sourceVersion = None
     targetVersion = None
+    sourceP4DVersion = None
+    targetP4DVersion = None
 
-    def _getOS(self, server):
-        info = server.p4cmd("info", "-s")[0]
-        serverVersion = info["serverVersion"]
-        parts = serverVersion.split("/")
+    def _getServerString(self, server):
+        return server.p4cmd("info", "-s")[0]["serverVersion"]
+
+    def _getOS(self, serverString):
+        parts = serverString.split("/")
         return parts[1]
 
+    def _getP4DVersion(self, serverString):
+        parts = serverString.split("/")
+        return parts[2]
+
     def setup(self, src, targ):
-        self.sourceVersion = self._getOS(src)
-        self.targetVersion = self._getOS(targ)
+        svrString = self._getServerString(src)
+        self.sourceVersion = self._getOS(svrString)
+        self.sourceP4DVersion = self._getP4DVersion(svrString)
+        svrString = self._getServerString(targ)
+        self.targetVersion = self._getOS(svrString)
+        self.targetP4DVersion = self._getP4DVersion(svrString)
 
     def compatible(self):
         if self.sourceVersion:
@@ -655,6 +667,7 @@ class ReportProgress(object):
         self.previousSizeSynced = 0
         self.sync_progress_size_interval = None     # Set to integer value to get reports
         self.logger.info("Syncing %d changes" % (len(changes)))
+        self.logger.info("Finding change sizes")
         for chg in changes:
             sizes = p4.run('sizes', '-s', '//%s/...@%s,%s' % (workspace, chg['change'], chg['change']))
             self.sizeToSync += int(sizes[0]['fileSize'])
@@ -919,14 +932,29 @@ class P4Source(P4Base):
 
     def missingChanges(self, counter):
         revRange = '//{client}/...@{rev},#head'.format(client=self.P4CLIENT, rev=counter + 1)
-        self.logger.debug('reading changes: ', revRange)
-        changes = self.p4cmd('changes', '-l', revRange)
-        self.logger.debug('found %d changes' % len(changes))
-        changes.reverse()
-        if self.options.change_batch_size:
-            changes = changes[:self.options.change_batch_size]
-        if self.options.maximum:
-            changes = changes[:self.options.maximum]
+        if sourceTargetTextComparison.sourceP4DVersion > "2017.1":
+            # We can be more efficient with 2017.2 or greater servers with changes -r -m
+            maxChanges = 0
+            if self.options.change_batch_size:
+                maxChanges = self.options.change_batch_size
+            if self.options.maximum and self.options.maximum < maxChanges:
+                maxChanges = self.options.maximum
+            args = ['changes', '-l', '-r']
+            if maxChanges > 0:
+                args.extend(['-m', maxChanges])
+            args.append(revRange)
+            self.logger.debug('reading changes: %s' % args)
+            changes = self.p4cmd(args)
+            self.logger.debug('found %d changes' % len(changes))
+        else:
+            self.logger.debug('reading changes: ', revRange)
+            changes = self.p4cmd('changes', '-l', revRange)
+            self.logger.debug('found %d changes' % len(changes))
+            changes.reverse()
+            if self.options.change_batch_size:
+                changes = changes[:self.options.change_batch_size]
+            if self.options.maximum:
+                changes = changes[:self.options.maximum]
         self.logger.debug('processing %d changes' % len(changes))
         return changes
 
@@ -1606,7 +1634,7 @@ class P4Target(P4Base):
                 self.p4cmd('reopen', '-t', 'text+CS32', fpath)
         chg = self.p4.fetch_change()
         fpath = os.path.join(self.root, self.options.change_map_file)
-        chg['Description'] = "Updated change_map_file"
+        chg['Description'] = CHANGE_MAP_DESC
         output = self.p4.save_change(chg)[0]
         m = re.search("Change ([0-9]+) created", output)
         if not m:
@@ -1719,7 +1747,7 @@ class P4Transfer(object):
         self.options.mail_server = self.getOption(GENERAL_SECTION, "mail_server")
         self.options.sleep_on_error_interval = self.getIntOption(GENERAL_SECTION, "sleep_on_error_interval", 60)
         self.options.poll_interval = self.getIntOption(GENERAL_SECTION, "poll_interval", 60)
-        self.options.change_batch_size = self.getIntOption(GENERAL_SECTION, "change_batch_size", 20000)
+        self.options.change_batch_size = self.getIntOption(GENERAL_SECTION, "change_batch_size", 1000)
         self.options.report_interval = self.getIntOption(GENERAL_SECTION, "report_interval", 30)
         self.options.error_report_interval = self.getIntOption(GENERAL_SECTION, "error_report_interval", 30)
         self.options.summary_report_interval = self.getIntOption(GENERAL_SECTION, "summary_report_interval", 10080)
@@ -1770,6 +1798,18 @@ class P4Transfer(object):
         elif not optional:
             raise P4TConfigException('Required option %s not found in section %s' % (option, p4config.section))
 
+    def revertOpenedFiles(self):
+        "Clear out any opened files from previous errors - hoping they are transient - except for change_map"
+        if not self.options.change_map_file:
+            with self.target.p4.at_exception_level(P4.P4.RAISE_NONE):
+                self.target.p4cmd('revert', "//%s/..." % self.target.P4CLIENT)
+            return
+        openChanges = self.target.p4cmd('changes', '-s', 'pending', '-c', self.target.P4CLIENT)
+        for change in openChanges:
+            if not change['desc'].startswith(CHANGE_MAP_DESC):
+                with self.target.p4.at_exception_level(P4.P4.RAISE_NONE):
+                    self.target.p4cmd('revert', "-c", change['change'], "//%s/..." % self.target.P4CLIENT)
+
     def replicate_changes(self):
         "Perform a replication loop"
         self.source.connect('source replicate')
@@ -1788,10 +1828,7 @@ class P4Transfer(object):
             self.source.progress = ReportProgress(self.source.p4, changes, self.logger, self.source.P4CLIENT)
             self.source.progress.SetSyncProgressSizeInterval(self.options.sync_progress_size_interval)
             self.checkRotateLogFile()
-            if self.options.repeat:
-                # Clear out any opened files from previous errors - hoping they are transient
-                with self.target.p4.at_exception_level(P4.P4.RAISE_NONE):
-                    self.target.p4cmd('revert', "//%s/..." % self.target.P4CLIENT)
+            self.revertOpenedFiles()
             for change in changes:
                 if self.endDatetimeExceeded():
                     # Bail early
