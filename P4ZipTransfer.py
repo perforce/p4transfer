@@ -406,6 +406,7 @@ class P4Base(object):
         logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientSpec)))
 
         self.root = self.options.workspace_root
+        ensureDirectory(self.root)
         clientSpec._root = self.root
         clientSpec["LineEnd"] = "unix"
         clientSpec._view = []
@@ -468,6 +469,8 @@ class P4Source(P4Base):
         """Expects change number as a string"""
         self.p4cmd('sizes', '-sh', "@=%s" % (change))
         zipName = os.path.join(self.options.workspace_root, "%s.zip" % change)
+        if os.path.exists(zipName):
+            os.remove(zipName)
         self.p4cmd('zip', '-o', zipName, '-r', self.options.remote_name, '-A', "//%s/...@=%s" % (self.P4CLIENT, change))
         fsize = os.path.getsize(zipName)
         self.logger.info("Export file size %s: %d" % (zipName, fsize))
