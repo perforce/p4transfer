@@ -2451,6 +2451,31 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "ignored")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
 
+    def testIgnoreFiles(self):
+        "Test when specifying files to ignore"
+        self.setupTransfer()
+
+        config = self.getDefaultOptions()
+        config['ignore_files'] = ['file2$']
+        self.createConfigFile(options=config)
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, 'file1')
+        file2 = os.path.join(inside, 'file2')
+        create_file(file1, "Test content")
+        create_file(file2, "Test content")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', "Added files")
+
+        self.run_P4Transfer()
+        self.assertCounters(1, 1)
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes))
+        files = self.target.p4.run_files('//depot/import/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual(files[0]['depotFile'], '//depot/import/file1')
+
     def testExclusionsInClientMap(self):
         "Test exclusion lines in client views work"
         self.setupTransfer()

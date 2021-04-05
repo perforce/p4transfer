@@ -57,6 +57,7 @@ DESCRIPTION:
 """
 
 from __future__ import print_function
+from os import error
 
 import sys
 import re
@@ -209,6 +210,13 @@ change_map_file:
 
 # superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
 superuser: "y"
+
+# ignore_files: An array of regex patterns which are used to ingore any matching files.
+#    Allows you to ignore some issues which cause transfer problems.
+#    E.g.
+#    ignore_files:
+#    - "some/files/to/*ignore$"
+ignore_files:
 
 source:
     # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
@@ -1089,13 +1097,25 @@ class P4Target(P4Base):
         result = t.safe_substitute(**kwargs)
         return result
 
+    def ignoreFile(self, fname):
+        "Returns True if file is to be ignored"
+        if not self.options.re_ignore_files:
+            return False
+        for exp in self.options.re_ignore_files:
+            if exp.search(fname):
+                return True
+        return False
+
     def processChangeRevs(self, filerevs):
         "Process all revisions in the change"
         for f in filerevs:
             self.logger.debug('targ:', f)
             self.currentFileContent = None
 
-            if f.action == 'edit':
+            if self.ignoreFile(f.localFile):
+                self.logger.warning("Ignoring file: %s#%s" % (f.depotFile, f.rev))
+                self.filesToIgnore.append(f.localFile)
+            elif f.action == 'edit':
                 self.logger.debug('processing:0010 edit')
                 self.p4cmd('sync', '-k', f.localFile)
                 self.p4cmd('edit', '-t', f.type, f.localFile)
@@ -1319,7 +1339,7 @@ class P4Target(P4Base):
     def replicateBranch(self, file, dirty=False):
         # An integration where source has been obliterated will not have integrations
         self.logger.debug('replicateBranch')
-        if not self.options.ignore and file.hasIntegrations() and file.getIntegration().localFile:
+        if not self.options.ignore_integrations and file.hasIntegrations() and file.getIntegration().localFile:
             afterAdd = False
             if not self.currentFileContent and os.path.exists(file.fixedLocalFile):
                 self.currentFileContent = readContents(file.fixedLocalFile)
@@ -1509,7 +1529,7 @@ class P4Target(P4Base):
             def actionResolve(self, mergeInfo):
                 return 'at'
 
-        if not self.options.ignore and file.hasIntegrations() and file.getIntegration().localFile:
+        if not self.options.ignore_integrations and file.hasIntegrations() and file.getIntegration().localFile:
             if not self.currentFileContent and os.path.exists(file.fixedLocalFile):
                 self.currentFileContent = readContents(file.fixedLocalFile)
             if startInd is None:
@@ -1696,7 +1716,7 @@ class P4Transfer(object):
                             help="Repeat transfer in a loop - for continuous transfer as background task")
         parser.add_argument('-s', '--stoponerror', action='store_true', help="Stop on any error even if --repeat has been specified")
         parser.add_argument('--sample-config', action='store_true', help="Print an example config file and exit")
-        parser.add_argument('-i', '--ignore', action='store_true', help="Treat integrations as adds and edits")
+        parser.add_argument('-i', '--ignore-integrations', action='store_true', help="Treat integrations as adds and edits")
         parser.add_argument('--end-datetime', type=valid_datetime_type, default=None,
                             help="Time to stop transfers, format: 'YYYY/MM/DD HH:mm' - useful"
                             " for automation runs during quiet periods e.g. run overnight but stop first thing in the morning")
@@ -1768,12 +1788,20 @@ class P4Transfer(object):
         self.options.transfer_target_stream = self.getOption(GENERAL_SECTION, "transfer_target_stream")
         self.options.stream_views = self.getOption(GENERAL_SECTION, "stream_views")
         self.options.workspace_root = self.getOption(GENERAL_SECTION, "workspace_root")
+        self.options.ignore_files = self.getOption(GENERAL_SECTION, "ignore_files")
         if not self.options.views and not self.options.stream_views:
             errors.append("One of options views/stream_views must be specified")
         if not self.options.workspace_root:
             errors.append("Option workspace_root must not be blank")
         if self.options.stream_views and not self.options.transfer_target_stream:
             errors.append("Option transfer_target_stream must be specified if streams are being used")
+        self.options.re_ignore_files = []
+        if self.options.ignore_files:
+            for exp in self.options.ignore_files:
+                try:
+                    self.options.re_ignore_files.append(re.compile(exp))
+                except Exception as e:
+                    errors.append("Failed to parse ignore_files: %s" % str(e))
         if errors:
             raise P4TConfigException("\n".join(errors))
 
