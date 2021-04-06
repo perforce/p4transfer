@@ -48,4 +48,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=160 --statistics
     - name: Run tests
       run: |
-        cd test && python TestP4Transfer.py
+        cd test
+        python TestP4Transfer.py
+        python TestP4ZipTransfer.py
