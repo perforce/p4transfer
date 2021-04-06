@@ -60,7 +60,7 @@ from __future__ import print_function
 
 import sys
 import re
-import hashlib
+from string import Template
 import stat
 import pprint
 import argparse
@@ -188,6 +188,11 @@ sync_progress_size_interval: "500 * 1000 * 1000"
 # max_logfile_size (Integer): Max size of file to (in bytes) after which it should be rotated
 #     Typically some value such as 20MB = 20 * 1024 * 1024. Useful if transfer being run with --repeat option.
 max_logfile_size: "20 * 1024 * 1024"
+
+# change_description_format: The standard format for transferred changes.
+#    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
+#     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
+change_description_format: "$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange"
 
 # superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
 superuser: "y"
@@ -430,6 +435,31 @@ class P4Base(object):
         self.p4.save_client(clientSpec)
         logOnce(self.logger, "updated %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientSpec)))
 
+    def createTargetClientWorkspace(self):
+        "Create or adjust client workspace for target - not really used but required to update changelists"
+        clientspec = self.p4.fetch_client(self.p4.client)
+        logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
+
+        self.root = self.options.workspace_root
+        clientspec._root = self.root
+        clientspec["Options"] = clientspec["Options"].replace("noclobber", "clobber")
+        clientspec["LineEnd"] = "unix"
+        clientspec._view = []
+
+        exclude = ''
+        for v in self.options.views:
+            lhs = v['src']
+            if lhs[0] == '-':
+                exclude = '-'
+                lhs = lhs[1:]
+            srcPath = lhs.replace('//', '')
+            line = "%s%s //%s/%s" % (exclude, v['targ'], self.p4.client, srcPath)
+            clientspec._view.append(line)
+
+        self.p4.save_client(clientspec)
+        logOnce(self.logger, "updated %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
+
+
 class P4Source(P4Base):
     "Functionality for reading from source Perforce repository"
 
@@ -483,7 +513,15 @@ class P4Target(P4Base):
         super(P4Target, self).__init__(section, options, 'targ')
         self.src = src
 
-    def replicateChange(self, zipName, change):
+    def formatChangeDescription(self, **kwargs):
+        """Format using specified format options - see call in replicateChange"""
+        format = self.options.change_description_format
+        format = format.replace("\\n", "\n")
+        t = Template(format)
+        result = t.safe_substitute(**kwargs)
+        return result
+
+    def replicateChange(self, zipName, change, sourcePort):
         "This is the heart of it all. Replicate a change by unzipping"
         result = self.p4cmd('unzip', '-i', zipName, '-A')
         newChangeId = None
@@ -492,6 +530,15 @@ class P4Target(P4Base):
         except Exception:
             pass
         self.logger.info("source = {} : target = {}".format(change['change'], newChangeId))
+        # Update target change description - much easier for tracking
+        if self.options.superuser == 'y':
+            newDesc = self.formatChangeDescription(
+                sourceDescription=change['desc'],
+                sourceChange=change['change'], sourcePort=sourcePort,
+                sourceUser=change['user'])
+            chg = self.p4.fetch_change(newChangeId)
+            chg['Description'] = newDesc
+            self.p4.save_change(chg, "-f")
         os.remove(zipName)
         return newChangeId
 
@@ -595,6 +642,9 @@ class P4ZipTransfer(object):
         self.options.error_report_interval = self.getIntOption(GENERAL_SECTION, "error_report_interval", 30)
         self.options.summary_report_interval = self.getIntOption(GENERAL_SECTION, "summary_report_interval", 10080)
         self.options.max_logfile_size = self.getIntOption(GENERAL_SECTION, "max_logfile_size", 20 * 1024 * 1024)
+        self.options.change_description_format = self.getOption(
+            GENERAL_SECTION, "change_description_format",
+            "$sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange")
         self.options.superuser = self.getOption(GENERAL_SECTION, "superuser", "y")
         self.options.workspace_root = self.getOption(GENERAL_SECTION, "workspace_root")
         self.options.remote_name = self.getOption(GENERAL_SECTION, "remote_name")
@@ -637,6 +687,7 @@ class P4ZipTransfer(object):
         self.source.connect('source replicate')
         self.target.connect('target replicate')
         self.source.createRemote()
+        self.target.createTargetClientWorkspace()
         changes = self.source.missingChanges(self.target.getCounter())
         if self.options.notransfer:
             self.logger.info("Would transfer %d changes - stopping due to --notransfer" % len(changes))
@@ -654,7 +705,7 @@ class P4ZipTransfer(object):
                 msg = 'Processing change: {} "{}"'.format(change['change'], change['desc'].strip())
                 self.logger.info(msg)
                 fname = self.source.getChange(change['change'])
-                self.target.replicateChange(fname, change)
+                self.target.replicateChange(fname, change, self.source.p4.port)
                 self.target.setCounter(change['change'])
                 changesTransferred += 1
         self.source.disconnect()
