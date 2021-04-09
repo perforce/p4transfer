@@ -1057,8 +1057,14 @@ class P4Source(P4Base):
                             # This is move/add with obliterated source
                             filerevs.append(chRev)
                         else:
-                            self.logger.debug('integration', chRev.getIntegration())
-                            movetracker.trackAdd(chRev, flog.depotFile, chRev.getIntegration().file)
+                            # Possible that there is a move/add as well as another integration - rare but happens
+                            found = False
+                            for integ in revision.integrations:
+                                if integ.how == 'moved from':
+                                    found = True
+                                    movetracker.trackAdd(chRev, flog.depotFile, integ.file)
+                            if not found:
+                                self.logger.warning(u"Failed to find integ record for move/add {}".format(flog.depotFile))
                     else:
                         filerevs.append(chRev)
                 else:
@@ -1153,6 +1159,8 @@ class P4Target(P4Base):
                 self.replicateIntegration(f)
             elif f.action == 'move/add':
                 self.moveAdd(f)
+                if f.numIntegrations() > 1:
+                    self.replicateIntegration(f, afterAdd=True)
             elif f.action == 'archive':
                 self.logger.warning("Ignoring archived revision: %s#%s" % (f.depotFile, f.rev))
                 self.filesToIgnore.append(f.localFile)
@@ -1267,8 +1275,14 @@ class P4Target(P4Base):
         "Either paired with a move/delete or an orphaned move/add"
         self.logger.debug('processing:0100 move/add')
         if file.hasIntegrations() and file.getIntegration() and file.getIntegration().localFile:
-            source = file.getIntegration().localFile
-            self.p4cmd('sync', '-f', file.localIntegSyncSource())
+            ind = 0
+            while ind < file.numIntegrations():
+                if file.getIntegration(ind).how == 'moved from':
+                    break
+                ind += 1
+            assert(ind < file.numIntegrations())
+            source = file.getIntegration(ind).localFile
+            self.p4cmd('sync', '-f', file.localIntegSyncSource(ind))
             output = self.p4cmd('edit', source)
             if len(output) > 1 and self.re_edit_of_deleted_file.search(output[-1]):
                 self.renameOfDeletedFileEncountered = True
@@ -1537,7 +1551,7 @@ class P4Target(P4Base):
             for ind, integ in file.integrations():
                 if ind > startInd:
                     continue
-                if integ.how == 'add from':
+                if integ.how in ['add from', 'moved from']:
                     assert(afterAdd)
                     continue        # We ignore these
                 self.logger.debug('processing:0300 integ:', integ.how)

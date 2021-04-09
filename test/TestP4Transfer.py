@@ -1748,6 +1748,34 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(len(filelog[0].revisions[1].integrations), 1)
         self.assertEqual(filelog[0].revisions[0].integrations[0].how, "copy from")
 
+    # def testIntegrateExclusiveLocks(self):
+    #     "Test integrations of exclusively locked files"
+    #     self.setupTransfer()
+
+    #     inside = localDirectory(self.source.client_root, "inside")
+    #     file1 = os.path.join(inside, "file1")
+    #     file2 = os.path.join(inside, "file2")
+    #     file3 = os.path.join(inside, "file3")
+    #     create_file(file1, "Test content")
+    #     self.source.p4cmd('add', '-t', 'binary+l', file1)
+    #     self.source.p4cmd('submit', '-d', 'file1 added')
+
+    #     self.source.p4cmd('integrate', file1, file2)
+    #     self.source.p4cmd('edit', file2)
+    #     self.source.p4cmd('submit', '-d', 'file1 -> file2')
+
+    #     self.source.p4cmd('integrate', file2, file3)
+    #     # self.source.p4.run_resolve('-at')
+    #     self.source.p4cmd('submit', '-d', 'file2 -> file3 (copy)')
+
+    #     self.run_P4Transfer()
+    #     self.assertCounters(3, 3)
+
+    #     filelog = self.target.p4.run_filelog('//depot/import/file2')
+    #     self.assertEqual(2, len(filelog[0].revisions))
+    #     self.assertEqual(1, len(filelog[0].revisions[1].integrations))
+    #     self.assertEqual("copy from", filelog[0].revisions[0].integrations[0].how)
+
     def testComplexIntegrate(self):
         "More complex integrations with various resolve options"
         self.setupTransfer()
@@ -2866,6 +2894,74 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
         self.assertEqual(filelog.revisions[0].integrations[2].how, "ignored")
+
+    def testIntegCopyAndRename(self):
+        """Test for integrating a copy and move into single target."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        create_file(file1, "Test content")
+        create_file(file2, "Test content2")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        class EditResolve(P4.Resolver):
+            def resolve(self, mergeData):
+                create_file(mergeData.result_path, "new contents\nsome more")
+                return 'ae'
+
+        self.source.p4cmd('edit', file2)
+        self.source.p4cmd('move', file2, file3)
+        self.source.p4cmd('integrate', file1, file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file3 added')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+        # We can't move onto 
+        recs = self.dumpDBFiles("db.integed")
+        self.logger.debug(recs)
+        # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
+        # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
+
+        # Convert copy -> branch - can't be done through front end
+
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/file3@ @//depot/inside/file1@" in rec:
+                rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/inside/file1@ @//depot/inside/file3@" in rec:
+                rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations))
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
     def testIntegDirtyCopy(self):
         """Test for a copy which is then edited."""
