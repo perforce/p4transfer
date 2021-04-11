@@ -1575,7 +1575,7 @@ class P4Target(P4Base):
                     flags = ['-t']
                     if file.action == 'delete' and integ.how == 'ignored':
                         flags.append('-Rb')
-                    self.doIntegrate(file.localIntegSource(ind), file.localFile, flags)
+                    integResult = self.doIntegrate(file.localIntegSource(ind), file.localFile, flags)
                     if integ.how == 'copy from':
                         self.logger.debug('processing:0320 copy from')
                         self.p4cmd('resolve', '-at')
@@ -1584,12 +1584,19 @@ class P4Target(P4Base):
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                     elif integ.how == 'ignored':
                         self.logger.debug('processing:0330 ignored')
-                        self.p4cmd('resolve', '-ay')
-                        if file.action != 'delete' and ind == 0 and diskFileContentModified(file):
-                            # Strange but possible in older servers - but only handled for last integrate
-                            # in the bunch, hence ind==0
-                            self.p4cmd('edit', file.localFile)
-                            self.src.p4cmd('sync', '-f', file.localFileRev())
+                        if 'action' in integResult and integResult['action'] == 'delete':
+                            # Strange case of ignoring a delete - we have to revert and redo
+                            self.p4cmd('revert', file.localFile)
+                            flags.append('-Rd')
+                            integResult = self.doIntegrate(file.localIntegSource(ind), file.localFile, flags)
+                            self.p4cmd('resolve', '-ay')
+                        else:
+                            self.p4cmd('resolve', '-ay')
+                            if file.action != 'delete' and ind == 0 and diskFileContentModified(file):
+                                # Strange but possible in older servers - but only handled for last integrate
+                                # in the bunch, hence ind==0
+                                self.p4cmd('edit', file.localFile)
+                                self.src.p4cmd('sync', '-f', file.localFileRev())
                     elif integ.how == 'merge from':
                         self.logger.debug('processing:0350 merge from')
                         resolve_result = ""

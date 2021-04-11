@@ -2963,6 +2963,41 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
+    def testIgnoredDelete(self):
+        """Test for ignoring a delete and then doing it again"""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        create_file(file1, "Test content")
+
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('integ', file1, file2)
+        self.source.p4cmd('submit', '-d', 'file2 added')
+
+        self.source.p4cmd('delete', file2)
+        self.source.p4cmd('submit', '-d', 'file2 deleted')
+
+        self.source.p4cmd('integ', '-Rd', file2, file1)
+        self.source.p4cmd('resolve', '-ay')
+        self.source.p4cmd('submit', '-d', 'file2 delete ignored')
+
+        self.source.p4cmd('integ', '-f', file2, file1)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file2 delete integrated')
+
+        self.run_P4Transfer()
+        self.assertCounters(5, 5)
+
+        # filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        # self.logger.debug(filelog)
+        # self.assertEqual(2, len(filelog.revisions[0].integrations))
+        # self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        # self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
     def testIntegDirtyCopy(self):
         """Test for a copy which is then edited."""
         self.setupTransfer()
