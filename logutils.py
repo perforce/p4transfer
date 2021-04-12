@@ -16,6 +16,7 @@ import os
 import time
 import logging
 import smtplib
+import requests
 from email.mime.text import MIMEText
 
 python3 = sys.version_info[0] >= 3
@@ -50,12 +51,21 @@ def notify_users_by_form(mail_form_url, subject, msg):
         return
     response = None
     try:
-        if python3:
-            data = urllib.parse.urlencode({'subject': subject, 'message': msg})
-            response = urllib.request.urlopen(mail_form_url, data.encode('ascii'))
+        if "api" in mail_form_url:
+            # Mailgun API
+            requests.post("%s/messages" % mail_form_url["url"],
+                          auth=("api", mail_form_url["api"]),
+                          data={"from": mail_form_url["mail_from"],
+                                "to": mail_form_url["mail_to"],
+                                "subject": subject,
+                                "text": msg})
         else:
-            data = urllib.urlencode({'subject': subject, 'message': msg})
-            response = urllib.urlopen(mail_form_url, data)
+            if python3:
+                data = urllib.parse.urlencode({'subject': subject, 'message': msg})
+                response = urllib.request.urlopen(mail_form_url, data.encode('ascii'))
+            else:
+                data = urllib.urlencode({'subject': subject, 'message': msg})
+                response = urllib.urlopen(mail_form_url, data)
     except Exception as e:
         print("Failed to notify:", str(e))
         sys.stdout.flush()

@@ -142,6 +142,13 @@ counter_name: p4transfer_counter
 instance_name: "Perforce Transfer from XYZ"
 
 # For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
+#   E.g. expects to post using 2 fields: subject, message
+# Alternatively, use the following entries (suitable adjusted) to use Mailgun for notifications
+#   api: "<Mailgun API key"
+#   url: "https://api.mailgun.net/v3/<domain or sandbox>"
+#   mail_from: "Fred <fred@example.com>"
+#   mail_to:
+#   - "fred@example.com"
 mail_form_url:
 
 # The mail_* parameters must all be valid (non-blank) to receive email updates during processing.
