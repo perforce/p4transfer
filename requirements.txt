@@ -1,3 +1,4 @@
 # Modules for P4Transfer.py to be installed with pip/pip3
 ruamel.yaml
+requests
 p4python
