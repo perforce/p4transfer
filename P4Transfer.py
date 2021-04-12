@@ -533,6 +533,12 @@ class ChangeRevision:
     def numIntegrations(self):
         return len(self._integrations)
 
+    def hasMoveIntegrations(self):
+        for integ in self._integrations:
+            if integ.how in ["moved from", "moved into"]:
+                return True
+        return False
+
     def integrations(self):
         "Yield in reverse order so that we replay correctly"
         for ind, integ in reversed(list(enumerate(self._integrations))):
@@ -1140,7 +1146,11 @@ class P4Target(P4Base):
                     self.logger.warning('Resyncing source due to file content changes')
                 self.src.p4cmd('sync', '-f', f.localFileRev())
             elif f.action == 'add' or f.action == 'import':
-                if f.hasIntegrations():
+                if f.hasMoveIntegrations():
+                    self.moveAdd(f)
+                    if f.numIntegrations() > 1:
+                        self.replicateIntegration(f, afterAdd=True)
+                elif f.hasIntegrations():
                     self.replicateBranch(f, dirty=True)
                 else:
                     self.logger.debug('processing:0020 add')
