@@ -32,7 +32,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8
         # Specific version of p4python - for ease of installation with static libs
-        pip install p4python==2017.2.1615960 ruamel.yaml
+        pip install p4python==2017.2.1615960 ruamel.yaml requests
         # Normally one would run the following
         # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         # Now get latest tested version of p4d and put in the path
