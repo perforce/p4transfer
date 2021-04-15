@@ -694,10 +694,14 @@ class ReportProgress(object):
         self.sync_progress_size_interval = None     # Set to integer value to get reports
         self.logger.info("Syncing %d changes" % (len(changes)))
         self.logger.info("Finding change sizes")
+        self.changeSizes = {}
         for chg in changes:
             sizes = p4.run('sizes', '-s', '//%s/...@%s,%s' % (workspace, chg['change'], chg['change']))
-            self.sizeToSync += int(sizes[0]['fileSize'])
-            self.filesToSync += int(sizes[0]['fileCount'])
+            fcount = int(sizes[0]['fileCount'])
+            fsize = int(sizes[0]['fileSize'])
+            self.sizeToSync += fsize
+            self.filesToSync += fcount
+            self.changeSizes[chg['change']] = (fcount, fsize)
         self.logger.info("Syncing filerevs %d, size %s" % (self.filesToSync, fmtsize(self.sizeToSync)))
 
     def SetSyncProgressSizeInterval(self, interval):
@@ -1938,7 +1942,12 @@ class P4Transfer(object):
                     # Bail early
                     self.logger.info("Transfer stopped due to --end-datetime being exceeded")
                     return changesTransferred
-                msg = 'Processing change: {} "{}"'.format(change['change'], change['desc'].strip())
+                changeSizes = self.source.progress.changeSizes
+                fcount = fsize = 0
+                if change['change'] in changeSizes:
+                    fcount, fsize = changeSizes[change['change']]
+                msg = 'Processing change: {}, files {}, size {} "{}"'.format(
+                            change['change'], fcount, fmtsize(fsize), change['desc'].strip())
                 self.logger.info(msg)
                 fileRevs, branchRevs = self.source.getChange(change['change'])
                 targetChange = self.target.replicateChange(fileRevs, branchRevs, change, self.source.p4.port)
