@@ -1160,6 +1160,7 @@ class P4Target(P4Base):
             # These are clean branches - can be done with -v
             self.logger.debug('targ:', f)
             flags = ['-t', '-v']
+            self.logger.debug('processing:0005 branch')
             outputDict = self.doIntegrate(f.localIntegSource(), f.localFile, flags=flags)
         for f in fileRevs:
             self.logger.debug('targ:', f)
