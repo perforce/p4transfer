@@ -1571,10 +1571,13 @@ class P4Target(P4Base):
                 if integ.how in ['add from', 'moved from']:
                     assert(afterAdd)
                     continue        # We ignore these
+                if integ.localFile is None:
+                    # Happens with integrations on top of a move from outside source client view
+                    self.logger.warning('Ignoring non existent source file')
+                    continue
                 self.logger.debug('processing:0300 integ:', integ.how)
                 if integ.how == 'edit from':
                     self.logger.debug('processing:0305 edit from')
-#                    if afterAdd or ind < file.numIntegrations():
                     if afterAdd:
                         # Resync source version and then do resolve -ae
                         self.src.p4cmd('sync', '-f', file.localFileRev())
