@@ -1131,6 +1131,7 @@ class P4Target(P4Base):
         self.re_resolve_tampered = re.compile(r" tampered with before resolve - edit or revert")
         self.re_edit_of_deleted_file = re.compile(r"warning: edit of deleted file")
         self.re_all_revisions_already_integrated = re.compile(r" all revision\(s\) already integrated")
+        self.re_no_revisions_above_that_revision = re.compile(r" no revision\(s\) above that revision.")
         self.re_file_not_on_client = re.compile(r"\- file\(s\) not on client")
         self.re_no_such_file = re.compile(r"\- no such file\(s\)")
         self.re_move_delete_needs_move_add = re.compile(r"move/delete\(s\) must be integrated along with matching move/add\(s\)")
@@ -1539,6 +1540,17 @@ class P4Target(P4Base):
                 flags.append('-Di')
             elif self.re_cant_branch_without_Dt.search(outputStr) and "-Dt" not in flags:
                 flags.append('-Dt')
+            elif self.re_no_revisions_above_that_revision.search(outputStr):
+                # Happens rarely when deletions have occurred. If there are source revs specified we try with one less rev
+                m = re.search("(.*)#(\d+),(\d+)$", srcname)
+                if m:
+                    r1 = int(m.group(2)) - 1
+                    r2 = int(m.group(3)) - 1
+                    newSrc = "%s#%d,%d" % (m.group(1), r1, r2)
+                    self.logger.warning("Trying to integrate previous rev '%s'" % newSrc)
+                    srcname = newSrc
+                else:
+                    break
             elif self.re_file_remapped.search(outputStr) and "-2" not in flags:
                 flags.append("-2")
             elif self.re_all_revisions_already_integrated.search(outputStr) and "-f" in flags:

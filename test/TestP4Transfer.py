@@ -3113,11 +3113,97 @@ class TestP4Transfer(unittest.TestCase):
         self.run_P4Transfer()
         self.assertCounters(5, 5)
 
-        # filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
-        # self.logger.debug(filelog)
-        # self.assertEqual(2, len(filelog.revisions[0].integrations))
-        # self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-        # self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+    def testIgnoredDeleteInteg(self):
+        """Test for ignoring a delete which is being integrated 0360 - and the resulting rev re-numbering"""
+        self.setupTransfer()
+
+        # file3
+        # $ p4 filelog //Ocean/Console-0.12.4/T_Shark.uasset#2
+
+        # //Ocean/Console-0.12.4/T_Shark.uasset#2
+        # ... #2 change 11891294 integrate on 2020/03/03 by casey.spencer@ROBO (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... copy from //Ocean/Release-0.12.4/T_Shark.uasset#3
+        # ... #1 change 11890184 branch on 2020/03/03 by casey.spencer@ROBO (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... branch from //Ocean/Release-0.12.4/T_Shark.uasset#2
+
+        # file2
+        # $ p4 filelog //Ocean/Release-0.12.4/T_Shark.uasset#3
+
+        # //Ocean/Release-0.12.4/T_Shark.uasset
+        # ... #3 change 11891280 integrate on 2020/03/03 by Casey.Spencer@CSws (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... copy from //Ocean/Release-0.13/T_Shark.uasset#5
+        # ... #2 change 11890179 branch on 2020/03/03 by Casey.Spencer@CSws (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... branch from //Ocean/Release-0.13/T_Shark.uasset#4
+        # ... #1 change 11887389 delete on 2020/03/03 by Casey.Spencer@CSws (binary+l) '@ocn Cherry picking CL 11882562'
+        # ... ... ignored //Ocean/Release-0.13/T_Shark.uasset#4
+
+        # file1
+        # $ p4 filelog //Ocean/Release-0.13/T_Shark.uasset#4
+
+        # //Ocean/Release-0.13/T_Shark.uasset
+        # ... #4 change 11885487 edit on 2020/03/03 by emily.solomon@ESws (binary+l) '#jira nojira  Updating Shark an'
+        # ... ... branch into //Ocean/Release-0.12.4/T_Shark.uasset#2
+        # ... ... ignored by //Ocean/Release-0.12.4/T_Shark.uasset#1
+        # ... #3 change 11872056 edit on 2020/03/03 by Emily.Solomon@ESws (binary+l) '#jira nojira Updating Elim Obje'
+        # ... #2 change 11849715 edit on 2020/03/02 by emily.solomon@ESws (binary+l) '#jira nojira  Updating Elim Obj'
+        # ... #1 change 11711950 add on 2020/02/27 by Emily.Solomon@ESws (binary+l) '#jira nojira Updating Snowman t'
+
+        inside = localDirectory(self.source.client_root, "inside")
+        # outside = localDirectory(self.source.client_root, "outside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        # outside_file1 = os.path.join(outside, 'outside_file1')
+        create_file(file1, "Test content")
+        # create_file(outside_file1, "Some content")
+
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore')
+        self.source.p4cmd('submit', '-d', 'edited')
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore')
+        self.source.p4cmd('submit', '-d', 'edited')
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore')
+        self.source.p4cmd('submit', '-d', 'edited')
+
+        # Generate a first rev which is an ignore of a delete - this will not be transferred.
+        self.source.p4cmd('integ', '-Rb', '%s#4,4' % file1, file2)
+        self.source.p4cmd('resolve', '-ay')
+        self.source.p4cmd('submit', '-d', 'ignore delete')
+
+        self.source.p4cmd('integ', '-f', '%s#4,4' % file1, file2)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        self.source.p4cmd('integ', file2, file3)
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore again')
+        self.source.p4cmd('submit', '-d', 'edited')
+
+        self.source.p4cmd('integ', file1, file2)
+        self.source.p4cmd('resolve', '-am')
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        self.source.p4cmd('integ', file2, file3)
+        self.source.p4cmd('resolve', '-am')
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file2')[0]
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[1].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[2].integrations[0].how, "ignored")
+        self.assertEqual(filelog.revisions[0].action, "integrate")
+        self.assertEqual(filelog.revisions[1].action, "branch")
+        self.assertEqual(filelog.revisions[2].action, "delete")
+
+        self.run_P4Transfer()
+        self.assertCounters(10, 10)
 
     def testIntegDirtyCopy(self):
         """Test for a copy which is then edited."""
