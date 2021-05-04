@@ -1033,7 +1033,6 @@ class P4Source(P4Base):
         self.progress.ReportChangeSync()
         change = self.p4cmd('describe', '-s', changeNum)[0]
         fileRevs = []
-        branchRevs = []
         filesToLog = {}
         branchedFiles = {}
         excludedFiles = []
@@ -1070,20 +1069,7 @@ class P4Source(P4Base):
                             if 'from' in integ.how or integ.how == "ignored":
                                 integ.localFile = self.localmap.translate(integ.file)
                                 chRev.addIntegrationInfo(integ)
-                    if chRev.action == 'branch' and chRev.rev == '1':
-                        # Check for branched files that are the same as their sources - we can optimize and
-                        # avoid syncing them and use integrate with -v
-                        cleanBranch = False
-                        if len(revision.integrations) == 1 and revision.integrations[0].localFile:
-                            fs = self.p4.run('fstat', '-Ol', flog.depotFile, integ.file)
-                            assert(2 == len(fs))
-                            if 'digest' in fs[0] and 'digest' in fs[1]:
-                                if fs[0]['digest'] == fs[1]['digest']:
-                                    branchRevs.append(chRev)
-                                    cleanBranch = True
-                        if not cleanBranch:
-                            fileRevs.append(chRev)
-                    elif chRev.action == 'move/add':
+                    if chRev.action == 'move/add':
                         if not chRev.hasIntegrations():
                             # This is move/add with obliterated source
                             fileRevs.append(chRev)
@@ -1103,17 +1089,13 @@ class P4Source(P4Base):
                                       flog.rev))
         fileRevs.extend(movetracker.getMoves())
         syncCallback = SyncOutput(self.p4id, self.logger, self.progress)
-        if fileRevs and (len(branchRevs) / len(fileRevs)) > 0.1:
-            # TODO - sync only relevant files - potentially big win for 100k file changelists!
-            self.p4cmd('sync', '//{}/...@={}'.format(self.P4CLIENT, changeNum), handler=syncCallback)
-        else:
-            self.p4cmd('sync', '//{}/...@={}'.format(self.P4CLIENT, changeNum), handler=syncCallback)
+        self.p4cmd('sync', '//{}/...@={}'.format(self.P4CLIENT, changeNum), handler=syncCallback)
         for flog in filelogs:
             if flog.depotFile in filesToLog:
                 chRev = filesToLog[flog.depotFile]
                 chRev.updateDigest()
         self.abortIfUnsyncableUTF16FilesExist(syncCallback, changeNum)  # May raise exception
-        return fileRevs, branchRevs
+        return fileRevs
 
 
 class P4Target(P4Base):
@@ -1155,14 +1137,8 @@ class P4Target(P4Base):
                 return True
         return False
 
-    def processChangeRevs(self, fileRevs, branchRevs):
+    def processChangeRevs(self, fileRevs):
         "Process all revisions in the change"
-        for f in branchRevs:
-            # These are clean branches - can be done with -v
-            self.logger.debug('targ:', f)
-            flags = ['-t', '-v']
-            self.logger.debug('processing:0005 branch')
-            outputDict = self.doIntegrate(f.localIntegSource(), f.localFile, flags=flags)
         for f in fileRevs:
             self.logger.debug('targ:', f)
             self.currentFileContent = None
@@ -1232,13 +1208,13 @@ class P4Target(P4Base):
                 if chRev.type != ofile['type']:
                     self.p4cmd('reopen', '-t', chRev.type, chRev.fixedLocalFile)
 
-    def replicateChange(self, fileRevs, branchRevs, change, sourcePort):
+    def replicateChange(self, fileRevs, change, sourcePort):
         """This is the heart of it all. Replicate all changes according to their description"""
 
         self.renameOfDeletedFileEncountered = False
         self.resolveDeleteEncountered = False
         self.filesToIgnore = []
-        self.processChangeRevs(fileRevs, branchRevs)
+        self.processChangeRevs(fileRevs)
         newChangeId = None
 
         openedFiles = self.p4cmd('opened')
@@ -1962,8 +1938,8 @@ class P4Transfer(object):
                 msg = 'Processing change: {}, files {}, size {} "{}"'.format(
                             change['change'], fcount, fmtsize(fsize), change['desc'].strip())
                 self.logger.info(msg)
-                fileRevs, branchRevs = self.source.getChange(change['change'])
-                targetChange = self.target.replicateChange(fileRevs, branchRevs, change, self.source.p4.port)
+                fileRevs = self.source.getChange(change['change'])
+                targetChange = self.target.replicateChange(fileRevs, change, self.source.p4.port)
                 self.target.setCounter(change['change'])
                 self.target.updateChangeMap(self.source.p4.port, change['change'], targetChange)
                 # Tidy up the workspaces after successful transfer

@@ -2930,6 +2930,69 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
+    def testIntegCopyAndRenameFromOutside(self):
+        """Test for integrating a copy and move into single target with integ coming from outside."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        outside = localDirectory(self.source.client_root, "outside")
+        file1 = os.path.join(outside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        create_file(file1, "Test content")
+        create_file(file2, "Test content2")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file2)
+        self.source.p4cmd('move', file2, file3)
+        self.source.p4cmd('integrate', file1, file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file3 added')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
+
+        # We can't move onto 
+        recs = self.dumpDBFiles("db.integed")
+        self.logger.debug(recs)
+        # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
+        # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
+
+        # Convert copy -> branch - can't be done through front end
+
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/file3@ @//depot/outside/file1@" in rec:
+                rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/outside/file1@ @//depot/inside/file3@" in rec:
+                rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "branch from")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(1, len(filelog.revisions[0].integrations))
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+
     def testIntegCopyAndRenameAsAdd(self):
         """Test for integrating a copy and move into single target - with target action add."""
         self.setupTransfer()
