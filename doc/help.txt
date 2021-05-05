@@ -39,7 +39,8 @@ optional arguments:
                         background task
   -s, --stoponerror     Stop on any error even if --repeat has been specified
   --sample-config       Print an example config file and exit
-  -i, --ignore          Treat integrations as adds and edits
+  -i, --ignore-integrations
+                        Treat integrations as adds and edits
   --end-datetime END_DATETIME
                         Time to stop transfers, format: 'YYYY/MM/DD HH:mm' -
                         useful for automation runs during quiet periods e.g.

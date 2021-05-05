@@ -11,6 +11,13 @@ counter_name: p4transfer_counter
 instance_name: Perforce Transfer from XYZ
 
 # For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
+#   E.g. expects to post using 2 fields: subject, message
+# Alternatively, use the following entries (suitable adjusted) to use Mailgun for notifications
+#   api: "<Mailgun API key"
+#   url: "https://api.mailgun.net/v3/<domain or sandbox>"
+#   mail_from: "Fred <fred@example.com>"
+#   mail_to:
+#   - "fred@example.com"
 mail_form_url:
 
 # The mail_* parameters must all be valid (non-blank) to receive email updates during processing.
@@ -79,6 +86,13 @@ change_map_file:
 
 # superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
 superuser: y
+
+# ignore_files: An array of regex patterns which are used to ingore any matching files.
+#    Allows you to ignore some issues which cause transfer problems.
+#    E.g.
+#    ignore_files:
+#    - "some/files/to/*ignore$"
+ignore_files:
 
 source:
     # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
