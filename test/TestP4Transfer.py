@@ -1306,7 +1306,40 @@ class TestP4Transfer(unittest.TestCase):
 
         self.run_P4Transfer()
         self.assertCounters(3, 3)
-    #
+
+    def testMoveWithCopyFromOutside(self):
+        """Test for Move and Copy to same file where the Copy is ignored"""
+        self.setupTransfer()
+        inside = localDirectory(self.source.client_root, "inside")
+        # Note _outside sorts before inside - important to provoke a problem
+        outside = localDirectory(self.source.client_root, "_outside")
+
+        original_file = os.path.join(inside, 'original', 'original_file')
+        renamed_file = os.path.join(inside, 'new', 'new_file')
+        other_file = os.path.join(outside, 'new', 'new_file')
+        create_file(original_file, "Some content")
+        create_file(other_file, "Some content")
+        self.source.p4cmd('add', '-tbinary', original_file, other_file)
+        self.source.p4cmd('submit', '-d', "adding original file")
+
+        self.source.p4cmd('edit', original_file)
+        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('integ', '-f', other_file, renamed_file)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', "renaming file with copy")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        change = self.target.p4.run_describe('2')[0]
+        self.assertEqual(len(change['depotFile']), 2)
+        self.assertEqual(change['depotFile'][0], '//depot/import/new/new_file')
+        self.assertEqual(change['depotFile'][1], '//depot/import/original/original_file')
+        self.assertEqual(change['action'][0], 'move/add')
+        self.assertEqual(change['action'][1], 'move/delete')
+        filelog = self.target.p4.run_filelog('//depot/import/new/new_file')
+        self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'moved from')
+
     # def testPartialTransferMoves(self):
     #     """Test for Move when partial_transfer=y"""
     #     self.setupTransfer()

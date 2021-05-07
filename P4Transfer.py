@@ -1303,13 +1303,17 @@ class P4Target(P4Base):
     def moveAdd(self, file):
         "Either paired with a move/delete or an orphaned move/add"
         self.logger.debug('processing:0100 move/add')
-        if file.hasIntegrations() and file.getIntegration() and file.getIntegration().localFile:
-            ind = 0
+        doMove = False
+        ind = 0
+        if file.hasIntegrations():
             while ind < file.numIntegrations():
                 if file.getIntegration(ind).how == 'moved from':
                     break
                 ind += 1
             assert(ind < file.numIntegrations())
+            if file.getIntegration(ind).localFile:
+                doMove = True
+        if doMove:
             source = file.getIntegration(ind).localFile
             self.p4cmd('sync', '-f', file.localIntegSyncSource(ind))
             output = self.p4cmd('edit', source)
