@@ -3994,6 +3994,22 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog[0].revisions[0].action, 'integrate')
         self.assertEqual(filelog[0].revisions[1].action, 'purge')
 
+    def testBranchPerformance(self):
+        "Branch lots of files and test performance"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        for i in range(99):
+            file = os.path.join(inside, "original", "file%d" % i)
+            create_file(file, "Test content")
+        self.source.p4cmd('add', "//depot/inside/...")
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('populate', "//depot/inside/original/...", "//depot/inside/new/...")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
     def testBackoutMove(self):
         """In this test we move a file and then rollback to the previous changelist
         way that P4V does - this does an 'add -d'"""

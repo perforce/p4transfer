@@ -1057,7 +1057,8 @@ class P4Source(P4Base):
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
         filelogs = []
         if fpaths:
-            filelogs = self.p4.run_filelog('-m1', *fpaths)
+            # Get 2 filelogs
+            filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
             if filelogs:
                 self.logger.debug('filelogs:', filelogs)
             for flog in filelogs:
@@ -1084,9 +1085,9 @@ class P4Source(P4Base):
                                 self.logger.warning(u"Failed to find integ record for move/add {}".format(flog.depotFile))
                     else:
                         fileRevs.append(chRev)
-                else:
-                    self.logger.error(u"Failed to retrieve filelog for {}#{}".format(flog.depotFile,
-                                      flog.rev))
+                # else:
+                #     self.logger.error(u"Failed to retrieve filelog for {}#{}".format(flog.depotFile,
+                #                       flog.rev))
         fileRevs.extend(movetracker.getMoves())
         syncCallback = SyncOutput(self.p4id, self.logger, self.progress)
         self.p4cmd('sync', '//{}/...@={}'.format(self.P4CLIENT, changeNum), handler=syncCallback)
@@ -1095,7 +1096,7 @@ class P4Source(P4Base):
                 chRev = filesToLog[flog.depotFile]
                 chRev.updateDigest()
         self.abortIfUnsyncableUTF16FilesExist(syncCallback, changeNum)  # May raise exception
-        return fileRevs
+        return fileRevs, filelogs
 
 
 class P4Target(P4Base):
@@ -1137,8 +1138,11 @@ class P4Target(P4Base):
                 return True
         return False
 
-    def processChangeRevs(self, fileRevs):
+    def processChangeRevs(self, fileRevs, srcFileLogs):
         "Process all revisions in the change"
+        self.srcFileLogs = {}
+        for f in srcFileLogs:
+            self.srcFileLogs[f.depotFile] = f
         for f in fileRevs:
             self.logger.debug('targ:', f)
             self.currentFileContent = None
@@ -1208,13 +1212,13 @@ class P4Target(P4Base):
                 if chRev.type != ofile['type']:
                     self.p4cmd('reopen', '-t', chRev.type, chRev.fixedLocalFile)
 
-    def replicateChange(self, fileRevs, change, sourcePort):
+    def replicateChange(self, fileRevs, srcFileLogs, change, sourcePort):
         """This is the heart of it all. Replicate all changes according to their description"""
 
         self.renameOfDeletedFileEncountered = False
         self.resolveDeleteEncountered = False
         self.filesToIgnore = []
-        self.processChangeRevs(fileRevs)
+        self.processChangeRevs(fileRevs, srcFileLogs)
         newChangeId = None
 
         openedFiles = self.p4cmd('opened')
@@ -1450,7 +1454,9 @@ class P4Target(P4Base):
         "Is the source of integrated different to target"
         fileSize, digest = 0, ""
         if fileContentComparisonPossible(file.type):
-            filelog = self.src.p4cmd('filelog', '-m1', file.integSyncSource())
+            if file.integSyncSource() not in self.srcFileLogs:
+                return False
+            filelog = self.srcFileLogs[file.integSyncSource()]
             if filelog and 'digest' in filelog[0] and 'fileSize' in filelog[0]:
                 fileSize = filelog[0]['fileSize'][0]
                 digest = filelog[0]['digest'][0]
@@ -1942,8 +1948,8 @@ class P4Transfer(object):
                 msg = 'Processing change: {}, files {}, size {} "{}"'.format(
                             change['change'], fcount, fmtsize(fsize), change['desc'].strip())
                 self.logger.info(msg)
-                fileRevs = self.source.getChange(change['change'])
-                targetChange = self.target.replicateChange(fileRevs, change, self.source.p4.port)
+                fileRevs, srcFileLogs = self.source.getChange(change['change'])
+                targetChange = self.target.replicateChange(fileRevs, srcFileLogs, change, self.source.p4.port)
                 self.target.setCounter(change['change'])
                 self.target.updateChangeMap(self.source.p4.port, change['change'], targetChange)
                 # Tidy up the workspaces after successful transfer
