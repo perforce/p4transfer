@@ -1057,10 +1057,12 @@ class P4Source(P4Base):
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
         filelogs = []
         if fpaths:
-            # Get 2 filelogs
+            # Get 2 filelogs pre rev
             filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
-            if filelogs:
+            if len(filelogs) < 1000:
                 self.logger.debug('filelogs:', filelogs)
+            else:
+                self.logger.debug('filelogs count: %d' % len(filelogs))
             for flog in filelogs:
                 if flog.depotFile in filesToLog:
                     chRev = filesToLog[flog.depotFile]
