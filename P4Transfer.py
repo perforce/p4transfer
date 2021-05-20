@@ -1224,7 +1224,9 @@ class P4Target(P4Base):
         newChangeId = None
 
         openedFiles = self.p4cmd('opened')
-        if len(openedFiles) > 0:
+        lenOpenedFiles = len(openedFiles)
+        if lenOpenedFiles > 0:
+            self.logger.debug("Opened files: %d" % lenOpenedFiles)
             self.fixFileTypes(fileRevs, openedFiles)
             description = self.formatChangeDescription(
                 sourceDescription=change['desc'],
@@ -1236,9 +1238,16 @@ class P4Target(P4Base):
 
             result = None
             try:
+                # Debug for larger changelists
+                if lenOpenedFiles > 1000:
+                    self.logger.debug("About to fetch change")
                 chg = self.p4.fetch_change()
                 chg['Description'] = description
+                if lenOpenedFiles > 1000:
+                    self.logger.debug("About to submit")
                 result = self.p4.save_submit(chg)
+                if lenOpenedFiles > 1000:
+                    self.logger.debug("submitted")
                 self.logger.debug(self.p4id, result)
                 self.checkWarnings()
             except P4.P4Exception as e:
