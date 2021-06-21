@@ -445,7 +445,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <span id="author" class="author">Perforce Professional Services</span><br>
 <span id="email" class="email"><a href="mailto:consulting@perforce.com">consulting@perforce.com</a></span><br>
 <span id="revnumber">version v2021.1,</span>
-<span id="revdate">2021-04-02</span>
+<span id="revdate">2021-06-19</span>
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
@@ -506,7 +506,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <p>The script <a href="../P4Transfer.py">P4Transfer.py</a> solves the problem: how to transfer changes between unrelated and unconnected Perforce Helix Core repositories.</p>
 </div>
 <div class="paragraph">
-<p>If you have a 2015.1 or greater Helix Core server then you can use the new <a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">P4DVCS</a> commands (<code>clone</code>/<code>fetch</code>/<code>push</code>). If you have an older version of Helix Core (or very large repository sizes to be transferred) then <code>P4Transfer.py</code> may be your best option! See next section for guidance.</p>
+<p>If you have a 2015.1 or greater Helix Core server then you can use the <a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> commands (<code>p4 clone</code>/<code>p4 fetch</code>/<code>p4 push</code>). If you have a pre-2015.1 version of Helix Core (or very large repository sizes to be transferred), then <code>P4Transfer.py</code> may be your best option! See next section for guidance.</p>
 </div>
 <div class="paragraph">
 <p>While best practice is usually to have only one Perforce Server, the reality is often that many different Perforce Servers are required. A typical example is the Perforce public depot, which sits outside the Perforce Network.</p>
@@ -523,7 +523,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <p>Both Helix native DVCS and P4Transfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.</p>
 </div>
 <div class="paragraph">
-<p><a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> has additional functionality, such as creating a personal micro-repo for personal use without a continuously running ‘p4d’ process.</p>
+<p><a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> has additional functionality, such as creating a personal micro-repo for personal use without a continuously running <code>p4d</code> process.</p>
 </div>
 <div class="admonitionblock important">
 <table>
@@ -560,7 +560,7 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>Helix native DVCS has some limitations at larger scales (depends on server RAM as it creates zip files) - won&#8217;t scale to TB requiring to be transferred.</p>
 </li>
 <li>
-<p>Helix native DVCS is generally deemed to product the highest possible quality data on the target server, as it transfers raw journal data and archive content.</p>
+<p>Helix native DVCS is generally deemed to produce the highest possible quality data on the target server, as it transfers raw journal data and archive content.</p>
 </li>
 <li>
 <p>Helix native DVCS is very fast.</p>
@@ -582,19 +582,19 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>If Helix native DVCS hits data snags, there may not be an easy way to work around them, unless a new P4D server release address them.</p>
 </li>
 <li>
-<p>Helix native DVCS must be explicitly enabled.  If not already enabled, it requires ‘super’ access on both Helix Core servers involved in the process.</p>
+<p>Helix native DVCS must be explicitly enabled.  If not already enabled, it requires 'super' access on both Helix Core servers involved in the process.</p>
 </li>
 <li>
 <p>P4Transfer is community supported (and with paid Consulting engagements).</p>
 </li>
 <li>
-<p>P4Transfer can make timestamps more accurate if it has ‘admin’ level access, but does not require it.</p>
+<p>P4Transfer can make timestamps more accurate if it has 'admin' level access, but does not require it.</p>
 </li>
 <li>
-<p>P4Transfer automates front-door workflows, i.e. it does would a human with a ‘p4’ command line client, fleet fingers and a lot of time could do.</p>
+<p>P4Transfer automates front-door workflows, i.e. it does would a human with a <code>p4</code> command line client, fleet fingers and a lot of time could do.</p>
 </li>
 <li>
-<p>P4Transfer can work with mismatched server data sets (different case sensitivity, Unicode mode, or P4D settings) <strong>so long as</strong> the actual data to be migrated doesn’t cause issues.  (For example, if you try to copy paths that actually do have Korean glyphs in the path name to a non-Unicode server, that ain’t gonna work).</p>
+<p>P4Transfer can work with mismatched server data sets (different case sensitivity, Unicode mode, or P4D settings) <strong>so long as</strong> the actual data to be migrated doesn&#8217;t cause issues.  (For example, if you try to copy paths that actually do have Korean glyphs in the path name to a non-Unicode server, that ain&#8217;t gonna work).</p>
 </li>
 <li>
 <p>If P4Transfer does have issues with importing some data (like the above example with Unicode paths), you can manually work around those snags, and then pick up with the next changelist.  If there aren’t too many snags, this trial and error process is viable.</p>
@@ -709,7 +709,7 @@ Remember that humans should not be writing to the targets of a P4Transfer instan
 <p>You will need Python 2.7 or 3.6+ and P4Python 2017.2+ to make this script work.</p>
 </div>
 <div class="paragraph">
-<p>The easiest way to install P4Python is probably using “pip” – <a href="https://pip.pypa.io/en/stable/installing.html">make sure this is installed</a>. Then:</p>
+<p>The easiest way to install P4Python is probably using "pip" (or "pip3") – <a href="https://pip.pypa.io/en/stable/installing.html">make sure this is installed</a>. Then:</p>
 </div>
 <div class="literalblock">
 <div class="content">
@@ -742,7 +742,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <div class="ulist">
 <ul>
 <li>
-<p>running <code>git clone <a href="https://github.com/perforce/p4transfer.git" class="bare">https://github.com/perforce/p4transfer.git</a></code></p>
+<p>running <code>git clone <a href="https://github.com/perforce/p4transfer" class="bare">https://github.com/perforce/p4transfer</a></code></p>
 </li>
 <li>
 <p>or by downloading <a href="https://github.com/perforce/p4transfer/archive/main.zip">the project zip file</a> and unzipping.</p>
@@ -1257,8 +1257,7 @@ to check the view mapping.
 <h2 id="_support">6. Support</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Any errors in the script are highly likely to be due to some unusual integration history, which may have been
-done with an older version of the Perforce server.</p>
+<p>Any errors in the script are highly likely to be due to some unusual integration history, which may have been done with an older version of the Perforce server.</p>
 </div>
 <div class="paragraph">
 <p>If you have an error when running the script, please use summarise_log.sh to create
@@ -1406,7 +1405,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-04-02 15:52:23 +0100
+Last updated 2021-06-19 22:35:26 -0400
 </div>
 </div>
 </body>
