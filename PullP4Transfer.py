@@ -621,7 +621,11 @@ class P4Target(P4Base):
         remoteSpec["DepotMap"] = []
         exclude = ''
         for v in self.options.views:
-            line = "%s %s" % (v['targ'], v['src'])
+            rhs = v['src']
+            if rhs[0] == '-':
+                exclude = '-'
+                rhs = rhs[1:]
+            line = "%s%s %s" % (exclude, v['targ'], rhs)
             remoteSpec["DepotMap"].append(line)
 
         self.remoteSpec = remoteSpec
