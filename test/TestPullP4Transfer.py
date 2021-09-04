@@ -2599,53 +2599,53 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(len(change['depotFile']), 1)
         self.assertEqual(change['depotFile'][0], '//depot/import/inside_file2')
 
-    # def testOutsideInsideDirtyCopy(self):
-    #     "Test integrations between the inside<->outside where copy is not actually clean"
-    #     self.setupTransfer()
+    def testOutsideInsideDirtyCopy(self):
+        "Test integrations between the inside<->outside where copy is not actually clean"
+        self.setupTransfer()
 
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     outside = localDirectory(self.source.client_root, "outside")
+        inside = localDirectory(self.source.client_root, "inside")
+        outside = localDirectory(self.source.client_root, "outside")
 
-    #     # Add and delete inside file
-    #     inside_file = os.path.join(inside, 'inside_file')
-    #     create_file(inside_file, "Inside content")
-    #     self.source.p4cmd('add', inside_file)
-    #     self.source.p4cmd('submit', '-d', "Added inside_file")
-    #     self.source.p4cmd('delete', inside_file)
-    #     self.source.p4cmd('submit', '-d', "Deleted inside_file")
+        # Add and delete inside file
+        inside_file = os.path.join(inside, 'inside_file')
+        create_file(inside_file, "Inside content")
+        self.source.p4cmd('add', inside_file)
+        self.source.p4cmd('submit', '-d', "Added inside_file")
+        self.source.p4cmd('delete', inside_file)
+        self.source.p4cmd('submit', '-d', "Deleted inside_file")
 
-    #     # add from outside, integrate in
-    #     outside_file = os.path.join(outside, 'outside_file')
-    #     create_file(outside_file, "Outside content")
-    #     self.source.p4cmd('add', outside_file)
-    #     self.source.p4cmd('submit', '-d', "Outside outside_file")
+        # add from outside, integrate in
+        outside_file = os.path.join(outside, 'outside_file')
+        create_file(outside_file, "Outside content")
+        self.source.p4cmd('add', outside_file)
+        self.source.p4cmd('submit', '-d', "Outside outside_file")
 
-    #     self.source.p4cmd('integrate', outside_file, inside_file)
-    #     self.source.p4cmd('edit', inside_file)
-    #     append_to_file(inside_file, "extra stuff")
-    #     self.source.p4cmd('submit', '-d', "Integrated from outside to inside")
+        self.source.p4cmd('integrate', outside_file, inside_file)
+        self.source.p4cmd('edit', inside_file)
+        append_to_file(inside_file, "extra stuff")
+        self.source.p4cmd('submit', '-d', "Integrated from outside to inside")
 
-    #     filelog = self.source.p4.run_filelog(outside_file)
-    #     self.assertEqual(len(filelog[0].revisions[0].integrations), 1)
-    #     self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'add into')
+        filelog = self.source.p4.run_filelog(outside_file)
+        self.assertEqual(len(filelog[0].revisions[0].integrations), 1)
+        self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'add into')
 
-    #     # Branch as edit (fields 2/11)
-    #     # @pv@ 0 @db.integed@ @//depot/inside/inside_file@ @//depot/outside/outside_file@ 0 1 2 3 2 4
-    #     # @pv@ 0 @db.integed@ @//depot/outside/outside_file@ @//depot/inside/inside_file@ 2 3 0 1 11 4
-    #     #
-    #     # Clean branch (fields 2/3)
-    #     # @pv@ 0 @db.integed@ @//depot/inside/inside_file@ @//depot/outside/outside_file@ 0 1 2 3 2 4
-    #     # @pv@ 0 @db.integed@ @//depot/outside/outside_file@ @//depot/inside/inside_file@ 2 3 0 1 3 4
-    #     jnl_rec = "@rv@ 0 @db.integed@ @//depot/inside/inside_file@ @//depot/outside/outside_file@ 0 1 2 3 2 4\n" + \
-    #         "@rv@ 0 @db.integed@ @//depot/outside/outside_file@ @//depot/inside/inside_file@ 2 3 0 1 3 4\n"
-    #     self.applyJournalPatch(jnl_rec)
+        # Branch as edit (fields 2/11)
+        # @pv@ 0 @db.integed@ @//depot/inside/inside_file@ @//depot/outside/outside_file@ 0 1 2 3 2 4
+        # @pv@ 0 @db.integed@ @//depot/outside/outside_file@ @//depot/inside/inside_file@ 2 3 0 1 11 4
+        #
+        # Clean branch (fields 2/3)
+        # @pv@ 0 @db.integed@ @//depot/inside/inside_file@ @//depot/outside/outside_file@ 0 1 2 3 2 4
+        # @pv@ 0 @db.integed@ @//depot/outside/outside_file@ @//depot/inside/inside_file@ 2 3 0 1 3 4
+        jnl_rec = "@rv@ 0 @db.integed@ @//depot/inside/inside_file@ @//depot/outside/outside_file@ 0 1 2 3 2 4\n" + \
+            "@rv@ 0 @db.integed@ @//depot/outside/outside_file@ @//depot/inside/inside_file@ 2 3 0 1 3 4\n"
+        self.applyJournalPatch(jnl_rec)
 
-    #     filelog = self.source.p4.run_filelog(inside_file)
-    #     self.assertEqual(len(filelog[0].revisions[0].integrations), 1)
-    #     self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'branch from')
+        filelog = self.source.p4.run_filelog(inside_file)
+        self.assertEqual(len(filelog[0].revisions[0].integrations), 1)
+        self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'branch from')
 
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(4, 3)
+        self.run_PullP4Transfer()
+        self.assertCounters(4, 3)
 
     # def testFailedSubmit(self):
     #     """Test what happens if submits fail, e.g. due to trigger"""
@@ -2676,971 +2676,903 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.assertCounters(0, 1)
 
-    # @unittest.skip("Not properly working test yet - issues around fetching protect...")
-    # def testHiddenFiles(self):
-    #     """Test for adding and integrating from hidden files - not visible to transfer user"""
-    #     self.setupTransfer()
-    #     inside = localDirectory(self.source.client_root, "inside")
-
-    #     inside_file = os.path.join(inside, 'inside_file')
-    #     create_file(inside_file, "Some content")
-    #     hidden_file = os.path.join(inside, 'hidden_file')
-    #     create_file(hidden_file, "Some content")
-    #     self.source.p4cmd('add', inside_file, hidden_file)
-    #     self.source.p4cmd('submit', '-d', "adding inside, hidden")
-
-    #     # Now change permissions
-
-    #     self.source.p4cmd('edit', inside_file, hidden_file)
-    #     append_to_file(inside_file, 'More content')
-    #     append_to_file(hidden_file, 'More content')
-    #     self.source.p4cmd('submit', '-d', "changing inside, hidden")
-
-    #     p4superuser = 'p4newadmin'
-    #     self.source.p4.user = p4superuser
-    #     protect = self.source.p4.fetch_protect()
-    #     protect['Protections'].append("write user %s * -//depot/...hidden_file" % P4USER)
-    #     self.source.p4.save_protect(protect)
-    #     self.logger.debug("protect:", self.source.p4.run_protect("-o"))
-
-    #     self.source.p4.user = P4USER
-    #     self.source.p4.disconnect()
-    #     self.source.p4.connect()
-    #     p = self.source.p4.run_protects('//depot/...')
-    #     self.logger.debug('protects:', p)
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(2, 2)
-
-    #     change = self.target.p4.run_describe('1')[0]
-    #     self.assertEqual(len(change['depotFile']), 1)
-    #     self.assertEqual(change['depotFile'][0], '//depot/import/inside_file')
-
-    #     change = self.target.p4.run_describe('2')[0]
-    #     self.assertEqual(len(change['depotFile']), 1)
-    #     self.assertEqual(change['depotFile'][0], '//depot/import/inside_file')
-
-    #     # Edit and integrate in
-    #     self.source.p4.user = p4superuser
-    #     self.source.p4cmd('edit', hidden_file)
-    #     append_to_file(hidden_file, 'Yet More content')
-    #     self.source.p4cmd('submit', '-d', "Edited")
-
-    #     self.source.p4.user = P4USER
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(2, 2)
-
-    #     self.source.p4.user = p4superuser
-    #     inside_file2 = os.path.join(inside, 'inside_file2')
-    #     self.source.p4cmd('integrate', hidden_file, inside_file2)
-    #     self.source.p4cmd('submit', '-d', "Copied outside_file -> inside_file2")
-    #     self.logger.debug(self.source.p4.run_print(inside_file2))
-
-    #     self.source.p4.user = P4USER
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(4, 3)
-
-    #     change = self.target.p4.run_describe('3')[0]
-    #     self.assertEqual(len(change['depotFile']), 1)
-    #     self.assertEqual(change['depotFile'][0], '//depot/import/inside_file2')
-    #     self.assertEqual(change['action'][0], 'branch')
-
-    # def testIntegDt(self):
-    #     """Test for integ -Dt being required - only necessary with older integ.engine"""
-    #     self.setupTransfer()
-    #     self.target.p4cmd("configure", "set", "dm.integ.engine=2")
-    #     self.source.p4cmd("configure", "set", "dm.integ.engine=2")
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('integrate', inside_file1, inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added')
-
-    #     self.source.p4cmd('delete', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
-
-    #     self.source.p4cmd('integrate', inside_file1, inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 deleted')
-
-    #     create_file(inside_file1, "Test content again")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('integrate', inside_file1, inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added')
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(6, 6)
-
-    # def testIntegDeleteForce(self):
-    #     """Test for forced integrate of a delete being required"""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'file added')
-
-    #     self.source.p4cmd('integrate', inside_file1, inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'file2 added')
-
-    #     self.source.p4cmd('delete', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
-
-    #     self.source.p4cmd('integrate', inside_file1, inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 deleted')
-
-    #     create_file(inside_file2, "Test content again")
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added')
-
-    #     self.source.p4cmd('integrate', '-f', inside_file1, inside_file2)
-    #     self.source.p4cmd('resolve', '-at', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added')
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(6, 6)
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 1)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "delete from")
-
-    # def testIntegMultipleToOne(self):
-    #     """Test for integrating multiple versions into single target."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     inside_file3 = os.path.join(inside, "inside_file3")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nmore stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 edited')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nYet more stuff")
-    #     self.source.p4cmd('submit', '-d', 'file edited again')
-
-    #     class EditResolve(P4.Resolver):
-    #         def resolve(self, mergeData):
-    #             create_file(mergeData.result_path, "new contents\nsome more")
-    #             return 'ae'
-
-    #     self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
-    #     self.source.p4cmd('edit', inside_file2)
-    #     self.source.p4.run_resolve(resolver=EditResolve())
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
-
-    #     # Separate test - 3 into 1
-    #     self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file3)
-    #     self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file3)
-    #     self.source.p4cmd('edit', inside_file3)
-    #     self.source.p4cmd('resolve', '-am')
-    #     self.source.p4cmd('integrate', "%s#3,3" % inside_file1, inside_file3)
-    #     self.source.p4cmd('resolve', "-as")
-    #     self.source.p4cmd('submit', '-d', 'inside_file3 added with multiple integrates')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/inside_file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 3)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
-    #     self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(5, 5)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "add from")
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 3)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
-    #     self.assertEqual(filelog.revisions[0].integrations[2].how, "ignored")
-
-    # def testIntegCopyAndRename(self):
-    #     """Test for integrating a copy and move into single target."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     file1 = os.path.join(inside, "file1")
-    #     file2 = os.path.join(inside, "file2")
-    #     file3 = os.path.join(inside, "file3")
-    #     create_file(file1, "Test content")
-    #     create_file(file2, "Test content2")
-    #     self.source.p4cmd('add', file1, file2)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', file2)
-    #     self.source.p4cmd('move', file2, file3)
-    #     self.source.p4cmd('integrate', file1, file3)
-    #     self.source.p4cmd('resolve', '-at')
-    #     self.source.p4cmd('submit', '-d', 'file3 added')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
-
-    #     # We can't move onto 
-    #     recs = self.dumpDBFiles("db.integed")
-    #     self.logger.debug(recs)
-    #     # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
-
-    #     # Convert copy -> branch - can't be done through front end
-
-    #     newrecs = []
-    #     for rec in recs:
-    #         if "@db.integed@ @//depot/inside/file3@ @//depot/inside/file1@" in rec:
-    #             rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         if "@db.integed@ @//depot/inside/file1@ @//depot/inside/file3@" in rec:
-    #             rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #     self.logger.debug("Newrecs:", "\n".join(newrecs))
-    #     self.applyJournalPatch("\n".join(newrecs))
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(2, 2)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(2, len(filelog.revisions[0].integrations))
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
-
-    # def testIntegCopyAndRenameFromOutside(self):
-    #     """Test for integrating a copy and move into single target with integ coming from outside."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     outside = localDirectory(self.source.client_root, "outside")
-    #     file1 = os.path.join(outside, "file1")
-    #     file2 = os.path.join(inside, "file2")
-    #     file3 = os.path.join(inside, "file3")
-    #     create_file(file1, "Test content")
-    #     create_file(file2, "Test content2")
-    #     self.source.p4cmd('add', file1, file2)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', file2)
-    #     self.source.p4cmd('move', file2, file3)
-    #     self.source.p4cmd('integrate', file1, file3)
-    #     self.source.p4cmd('resolve', '-at')
-    #     self.source.p4cmd('submit', '-d', 'file3 added')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
-
-    #     # We can't move onto 
-    #     recs = self.dumpDBFiles("db.integed")
-    #     self.logger.debug(recs)
-    #     # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
-
-    #     # Convert copy -> branch - can't be done through front end
-
-    #     newrecs = []
-    #     for rec in recs:
-    #         if "@db.integed@ @//depot/inside/file3@ @//depot/outside/file1@" in rec:
-    #             rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         if "@db.integed@ @//depot/outside/file1@ @//depot/inside/file3@" in rec:
-    #             rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #     self.logger.debug("Newrecs:", "\n".join(newrecs))
-    #     self.applyJournalPatch("\n".join(newrecs))
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "branch from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(2, 2)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(1, len(filelog.revisions[0].integrations))
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
-
-    # def testIntegCopyAndRenameAsAdd(self):
-    #     """Test for integrating a copy and move into single target - with target action add."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     file1 = os.path.join(inside, "file1")
-    #     file2 = os.path.join(inside, "file2")
-    #     file3 = os.path.join(inside, "file3")
-    #     create_file(file1, "Test content")
-    #     create_file(file2, "Test content2")
-    #     self.source.p4cmd('add', file1, file2)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', file2)
-    #     self.source.p4cmd('move', file2, file3)
-    #     self.source.p4cmd('integrate', file1, file3)
-    #     self.source.p4cmd('resolve', '-at')
-    #     self.source.p4cmd('submit', '-d', 'file3 added')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
-
-    #     recs = self.dumpDBFiles("db.integed,db.rev,db.revhx")
-    #     self.logger.debug(recs)
-    #     # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
-    #     # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
-
-    #     # @pv@ 9 @db.rev@ @//depot/inside/file3@ 1 0 8 2 1618248262 1618248262 8BFA8E0684108F419933A5995264D150 12 0 0 @//depot/inside/file3@ @1.2@ 0
-    #     # @pv@ 9 @db.revhx@ @//depot/inside/file3@ 1 0 8 2 1618248262 1618248262 8BFA8E0684108F419933A5995264D150 12 0 0 @//depot/inside/file3@ @1.2@ 0
-
-    #     # Convert copy -> branch, and move/add -> add - can't be done through front end
-
-    #     newrecs = []
-    #     for rec in recs:
-    #         if "@db.integed@ @//depot/inside/file3@ @//depot/inside/file1@" in rec:
-    #             rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         if "@db.integed@ @//depot/inside/file1@ @//depot/inside/file3@" in rec:
-    #             rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         # move/add -> add
-    #         if "@db.rev@ @//depot/inside/file3@ 1 0 8" in rec:
-    #             rec = rec.replace("@//depot/inside/file3@ 1 0 8", "@//depot/inside/file3@ 1 0 0")     # 10->5
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         if "@db.revhx@ @//depot/inside/file3@ 1 0 8" in rec:
-    #             rec = rec.replace("@//depot/inside/file3@ 1 0 8", "@//depot/inside/file3@ 1 0 0")     # 10->5
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         # move/delete -> delete
-    #         if "@db.rev@ @//depot/inside/file1@ 1 0 7" in rec:
-    #             rec = rec.replace("@//depot/inside/file1@ 1 0 7", "@//depot/inside/file1@ 1 0 2")
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         if "@db.revhx@ @//depot/inside/file1@ 1 0 7" in rec:
-    #             rec = rec.replace("@//depot/inside/file1@ 1 0 7", "@//depot/inside/file1@ 1 0 2")
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #     self.logger.debug("Newrecs:", "\n".join(newrecs))
-    #     self.applyJournalPatch("\n".join(newrecs))
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(2, 2)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(2, len(filelog.revisions[0].integrations))
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
-
-
-    # def testIntegCopyAndRenameAsAddFromOutside(self):
-    #     """Test for integrating a copy and move into single target - when copy is from outside view."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     outside = localDirectory(self.source.client_root, "outside")
-    #     file1 = os.path.join(inside, "file1")
-    #     file2 = os.path.join(inside, "file2")
-    #     file3 = os.path.join(inside, "file3")
-    #     outside_file4 = os.path.join(outside, "file4")
-    #     outside_file5 = os.path.join(outside, "file5")
-    #     create_file(file1, "Test content")
-    #     create_file(file2, "Test content")
-    #     create_file(outside_file4, "Test content")
-    #     create_file(outside_file5, "Test content")
-    #     self.source.p4cmd('add', file1, file2, outside_file4, outside_file5)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', outside_file5)
-    #     append_to_file(outside_file5, '\nmore')
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', file2)
-    #     self.source.p4cmd('move', file2, file3)
-    #     self.source.p4cmd('integrate', '-f', "%s#2,2" % outside_file5, file3)
-    #     self.source.p4cmd('resolve', '-am')
-    #     self.source.p4cmd('integrate', '-f', outside_file4, file3)
-    #     self.source.p4cmd('resolve', '-at')
-    #     self.source.p4cmd('submit', '-d', 'file3 added')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(3, len(filelog.revisions[0].integrations))
-    #     # self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
-    #     # self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
-    #     # self.assertEqual(filelog.revisions[0].integrations[2].how, "merged from")
-
-    #     recs = self.dumpDBFiles("db.integed")
-    #     self.logger.debug(recs)
-
-    #     # @pv@ 0 @db.integed@ @//depot/inside/file3@ @//depot/outside/file5@ 1 2 0 1 6 3 
-    #     # @pv@ 0 @db.integed@ @//depot/outside/file5@ @//depot/inside/file3@ 0 1 1 2 10 3 
-
-    #     # Convert copy from -> merged from
-    #     newrecs = []
-    #     for rec in recs:
-    #         if "@db.integed@ @//depot/inside/file3@ @//depot/outside/file5@" in rec:
-    #             rec = rec.replace("@ 1 2 0 1 6", "@ 1 2 0 1 0")     # 6->0
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #         if "@db.integed@ @//depot/outside/file5@ @//depot/inside/file3@" in rec:
-    #             rec = rec.replace("@ 0 1 1 2 10", "@ 0 1 1 2 1")     # 10->1
-    #             rec = rec.replace("@pv@", "@rv@")
-    #             newrecs.append(rec)
-    #     self.logger.debug("Newrecs:", "\n".join(newrecs))
-    #     self.applyJournalPatch("\n".join(newrecs))
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[2].how, "merge from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(3, 2)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(1, len(filelog.revisions[0].integrations))
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
-
-    # def testIgnoredDelete(self):
-    #     """Test for ignoring a delete and then doing it again"""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     file1 = os.path.join(inside, "file1")
-    #     file2 = os.path.join(inside, "file2")
-    #     create_file(file1, "Test content")
-
-    #     self.source.p4cmd('add', file1)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('integ', file1, file2)
-    #     self.source.p4cmd('submit', '-d', 'file2 added')
-
-    #     self.source.p4cmd('delete', file2)
-    #     self.source.p4cmd('submit', '-d', 'file2 deleted')
-
-    #     self.source.p4cmd('integ', '-Rd', file2, file1)
-    #     self.source.p4cmd('resolve', '-ay')
-    #     self.source.p4cmd('submit', '-d', 'file2 delete ignored')
-
-    #     self.source.p4cmd('integ', '-f', file2, file1)
-    #     self.source.p4cmd('resolve', '-at')
-    #     self.source.p4cmd('submit', '-d', 'file2 delete integrated')
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(5, 5)
-
-    # def testIgnoredDeleteInteg(self):
-    #     """Test for ignoring a delete which is being integrated 0360 - and the resulting rev re-numbering"""
-    #     self.setupTransfer()
-
-    #     # file3
-    #     # $ p4 filelog //Ocean/Console-0.12.4/T_Shark.uasset#2
-
-    #     # //Ocean/Console-0.12.4/T_Shark.uasset#2
-    #     # ... #2 change 11891294 integrate on 2020/03/03 by casey.spencer@ROBO (binary+l) 'Merging //Ocean/Release-0.13 to'
-    #     # ... ... copy from //Ocean/Release-0.12.4/T_Shark.uasset#3
-    #     # ... #1 change 11890184 branch on 2020/03/03 by casey.spencer@ROBO (binary+l) 'Merging //Ocean/Release-0.13 to'
-    #     # ... ... branch from //Ocean/Release-0.12.4/T_Shark.uasset#2
-
-    #     # file2
-    #     # $ p4 filelog //Ocean/Release-0.12.4/T_Shark.uasset#3
-
-    #     # //Ocean/Release-0.12.4/T_Shark.uasset
-    #     # ... #3 change 11891280 integrate on 2020/03/03 by Casey.Spencer@CSws (binary+l) 'Merging //Ocean/Release-0.13 to'
-    #     # ... ... copy from //Ocean/Release-0.13/T_Shark.uasset#5
-    #     # ... #2 change 11890179 branch on 2020/03/03 by Casey.Spencer@CSws (binary+l) 'Merging //Ocean/Release-0.13 to'
-    #     # ... ... branch from //Ocean/Release-0.13/T_Shark.uasset#4
-    #     # ... #1 change 11887389 delete on 2020/03/03 by Casey.Spencer@CSws (binary+l) '@ocn Cherry picking CL 11882562'
-    #     # ... ... ignored //Ocean/Release-0.13/T_Shark.uasset#4
-
-    #     # file1
-    #     # $ p4 filelog //Ocean/Release-0.13/T_Shark.uasset#4
-
-    #     # //Ocean/Release-0.13/T_Shark.uasset
-    #     # ... #4 change 11885487 edit on 2020/03/03 by emily.solomon@ESws (binary+l) '#jira nojira  Updating Shark an'
-    #     # ... ... branch into //Ocean/Release-0.12.4/T_Shark.uasset#2
-    #     # ... ... ignored by //Ocean/Release-0.12.4/T_Shark.uasset#1
-    #     # ... #3 change 11872056 edit on 2020/03/03 by Emily.Solomon@ESws (binary+l) '#jira nojira Updating Elim Obje'
-    #     # ... #2 change 11849715 edit on 2020/03/02 by emily.solomon@ESws (binary+l) '#jira nojira  Updating Elim Obj'
-    #     # ... #1 change 11711950 add on 2020/02/27 by Emily.Solomon@ESws (binary+l) '#jira nojira Updating Snowman t'
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     # outside = localDirectory(self.source.client_root, "outside")
-    #     file1 = os.path.join(inside, "file1")
-    #     file2 = os.path.join(inside, "file2")
-    #     file3 = os.path.join(inside, "file3")
-    #     # outside_file1 = os.path.join(outside, 'outside_file1')
-    #     create_file(file1, "Test content")
-    #     # create_file(outside_file1, "Some content")
-
-    #     self.source.p4cmd('add', file1)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', file1)
-    #     append_to_file(file1, '\nmore')
-    #     self.source.p4cmd('submit', '-d', 'edited')
-    #     self.source.p4cmd('edit', file1)
-    #     append_to_file(file1, '\nmore')
-    #     self.source.p4cmd('submit', '-d', 'edited')
-    #     self.source.p4cmd('edit', file1)
-    #     append_to_file(file1, '\nmore')
-    #     self.source.p4cmd('submit', '-d', 'edited')
-
-    #     # Generate a first rev which is an ignore of a delete - this will not be transferred.
-    #     self.source.p4cmd('integ', '-Rb', '%s#4,4' % file1, file2)
-    #     self.source.p4cmd('resolve', '-ay')
-    #     self.source.p4cmd('submit', '-d', 'ignore delete')
-
-    #     self.source.p4cmd('integ', '-f', '%s#4,4' % file1, file2)
-    #     self.source.p4cmd('resolve', '-at')
-    #     self.source.p4cmd('submit', '-d', 'branched')
-
-    #     self.source.p4cmd('integ', file2, file3)
-    #     self.source.p4cmd('submit', '-d', 'branched')
-
-    #     self.source.p4cmd('edit', file1)
-    #     append_to_file(file1, '\nmore again')
-    #     self.source.p4cmd('submit', '-d', 'edited')
-
-    #     self.source.p4cmd('integ', file1, file2)
-    #     self.source.p4cmd('resolve', '-am')
-    #     self.source.p4cmd('submit', '-d', 'branched')
-
-    #     self.source.p4cmd('integ', file2, file3)
-    #     self.source.p4cmd('resolve', '-am')
-    #     self.source.p4cmd('submit', '-d', 'branched')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/file2')[0]
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[1].integrations[0].how, "branch from")
-    #     self.assertEqual(filelog.revisions[2].integrations[0].how, "ignored")
-    #     self.assertEqual(filelog.revisions[0].action, "integrate")
-    #     self.assertEqual(filelog.revisions[1].action, "branch")
-    #     self.assertEqual(filelog.revisions[2].action, "delete")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(10, 10)
-
-    # def testIntegDirtyCopy(self):
-    #     """Test for a copy which is then edited."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nmore stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 edited')
-
-    #     self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
-    #     self.source.p4cmd('resolve', '-at', inside_file2)
-    #     append_to_file(inside_file2, '\nextra stuff')
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
-
-    #     filelog = self.source.p4.run_filelog(inside_file2)[0]
-    #     self.logger.debug(filelog)
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(3, 3)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
-
-    # def testIntegAddCopy(self):
-    #     """Test for and add and copy into same revision."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nmore stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 edited')
-
-    #     self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
-    #     self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
-    #     self.source.p4cmd('resolve', '-at', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
-
-    #     filelog = self.source.p4.run_filelog(inside_file2)[0]
-    #     self.logger.debug(filelog)
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(3, 3)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
-
-    # def testIntegBranchAndCopy(self):
-    #     """Branch a file and copy it as well into same revision."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('integrate', inside_file1, inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'branch original')
-
-    #     self.source.p4cmd('delete', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
-
-    #     self.source.p4cmd('edit', inside_file2)
-    #     append_to_file(inside_file2, "\nmore stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 edited')
-
-    #     class EditAcceptTheirs(P4.Resolver):
-    #         """
-    #         Required because of a special 'force' flag which is set if this is done interactively - doesn't
-    #         do the same as if you just resolve -at. Yuk!
-    #         """
-    #         def actionResolve(self, mergeInfo):
-    #             return 'at'
-
-    #     self.source.p4cmd('integrate', inside_file2, inside_file1)
-    #     self.source.p4.run_resolve(resolver=EditAcceptTheirs())
-    #     self.source.p4cmd('integrate', '-f', inside_file2, inside_file1)
-    #     self.source.p4.run_resolve(resolver=EditAcceptTheirs())
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added back with multiple integrates')
-
-    #     filelog = self.source.p4.run_filelog(inside_file1)[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(2, len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual("branch from", filelog.revisions[0].integrations[0].how)
-    #     self.assertEqual("copy from", filelog.revisions[0].integrations[1].how)
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(5, 5)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file1')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(1, len(filelog.revisions[0].integrations))
-    #     self.assertEqual("copy from", filelog.revisions[0].integrations[0].how)
-
-    # def testIntegAddMergeCopy(self):
-    #     """Integrate an add/merge/copy of 3 revisions into single new target."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nmore stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 edited')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nYet more stuff")
-    #     self.source.p4cmd('submit', '-d', 'file edited again')
-
-    #     self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('integrate', "%s#3,3" % inside_file1, inside_file2)
-    #     self.source.p4cmd('resolve', '-am', inside_file2)
-    #     self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
-    #     self.source.p4cmd('resolve', '-am', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 3)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
-    #     self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(4, 4)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 3)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
-    #     self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
-    #     self.assertEqual(filelog.revisions[0].integrations[2].how, "ignored")
-
-    # def testIntegSelectiveWithEdit(self):
-    #     """Integrate cherry picked rev into a file."""
-    #     self.setupTransfer()
-    #     self.target.p4cmd("configure", "set", "dm.integ.engine=2")
-    #     self.target.p4cmd("configure", "set", "dm.integ.engine=2")
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', '-tbinary', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     create_file(inside_file2, "Test content 2")
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 added')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nmore stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 edited')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "\nYet more stuff")
-    #     self.source.p4cmd('submit', '-d', 'file edited again')
-
-    #     self.source.p4cmd('integrate', "%s#2,3" % inside_file1, inside_file2)
-
-    #     class EditResolve(P4.Resolver):
-    #         def resolve(self, mergeData):
-    #             result_path = mergeData.result_path
-    #             if not result_path:
-    #                 result_path = mergeData.your_path
-    #             create_file(result_path, """
-    #     Line 1
-    #     Line 2 - changed
-    #     Line 3 - edited
-    #     """)
-    #             return 'ae'
-
-    #     self.source.p4.run_resolve(resolver=EditResolve())
-    #     self.source.p4cmd('submit', '-d', "Merge with edit")
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 1)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(5, 5)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 1)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
-
-    # def testIntegDeleteProblem(self):
-    #     "Reproduce a problem where integrate was resulting in a delete"
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     inside_file3 = os.path.join(inside, "inside_file3")
-    #     inside_file4 = os.path.join(inside, "inside_file4")
-    #     create_file(inside_file1, 'Test content')
-    #     create_file(inside_file3, 'Test content')
-
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('add', inside_file3)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('edit', inside_file1)
-    #     self.source.p4cmd('edit', inside_file3)
-    #     append_to_file(inside_file1, "more content")
-    #     append_to_file(inside_file3, "more content")
-    #     self.source.p4cmd('submit', '-d', 'files edited')
-
-    #     self.source.p4cmd('integrate', '-2', inside_file1, inside_file2)
-    #     self.source.p4cmd('integrate', '-2', inside_file3, inside_file4)
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('add', inside_file4)
-    #     append_to_file(inside_file4, "and some more")
-    #     self.source.p4cmd('delete', inside_file1)
-    #     self.source.p4cmd('delete', inside_file3)
-    #     self.source.p4cmd('submit', '-d', 'renamed old way')
-
-    #     self.source.p4cmd('integrate', '-2', '-f', inside_file2, inside_file1)
-    #     self.source.p4cmd('integrate', '-2', '-f', inside_file4, inside_file3)
-    #     self.source.p4cmd('add', inside_file3)
-    #     append_to_file(inside_file3, "yet more")
-    #     self.source.p4cmd('delete', inside_file2)
-    #     self.source.p4cmd('delete', inside_file4)
-    #     self.source.p4cmd('submit', '-d', 'renamed back again')
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(4, 4)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
-    #     self.assertEqual(filelog[0].revisions[0].action, 'add')
-    #     self.assertEqual(filelog[0].revisions[1].action, 'delete')
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
-    #     self.assertEqual(filelog[0].revisions[0].action, 'delete')
-    #     self.assertEqual(filelog[0].revisions[1].action, 'add')
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file3')
-    #     self.assertEqual(filelog[0].revisions[0].action, 'add')
-    #     self.assertEqual(filelog[0].revisions[1].action, 'delete')
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file4')
-    #     self.assertEqual(filelog[0].revisions[0].action, 'delete')
-    #     self.assertEqual(filelog[0].revisions[1].action, 'add')
-
-    # def testAddFrom(self):
-    #     """Test for adding a file which has in itself then branched."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     inside_file3 = os.path.join(inside, "inside_file3")
-    #     create_file(inside_file1, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
-
-    #     self.source.p4cmd('delete', inside_file1)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
-
-    #     self.source.p4cmd('sync', "%s#1" % inside_file1)
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('move', inside_file1, inside_file2)
-    #     os.chmod(inside_file2, stat.S_IWRITE + stat.S_IREAD)
-    #     append_to_file(inside_file2, "more stuff")
-    #     self.source.p4cmd('submit', '-d', 'inside_file2 created by branching with add')
-
-    #     filelog = self.source.p4.run_filelog(inside_file2)[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 1)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "add from")
-
-    #     self.source.p4cmd('integrate', inside_file2, inside_file3)
-    #     self.source.p4cmd('submit', '-d', 'inside_file3 created as copy')
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(4, 4)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(len(filelog.revisions[0].integrations), 2)
-    #     self.assertEqual(filelog.revisions[0].integrations[0].how, "add from")
-
-    # def testDeleteDelete(self):
-    #     """Test for a delete on top of a delete."""
-    #     self.setupTransfer()
-
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     inside_file2 = os.path.join(inside, "inside_file2")
-    #     inside_file3 = os.path.join(inside, "inside_file3")
-    #     create_file(inside_file1, "Test content")
-    #     create_file(inside_file2, "Test content")
-    #     self.source.p4cmd('add', inside_file1)
-    #     self.source.p4cmd('add', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'files added')
-
-    #     self.source.p4cmd('integrate', inside_file2, inside_file3)
-    #     self.source.p4cmd('submit', '-d', 'branched file')
-
-    #     self.source.p4cmd('delete', inside_file1)
-    #     self.source.p4cmd('delete', inside_file2)
-    #     self.source.p4cmd('submit', '-d', 'files deleted')
-
-    #     with self.source.p4.at_exception_level(P4.P4.RAISE_ERRORS):
-    #         self.source.p4cmd('sync', "%s#1" % '//depot/inside/inside_file1')
-    #         self.source.p4cmd('sync', "%s#1" % '//depot/inside/inside_file2')
-    #         self.source.p4cmd('delete', '//depot/inside/inside_file1')
-    #         self.source.p4cmd('delete', '//depot/inside/inside_file2')
-    #     self.source.p4cmd('opened')
-    #     try:
-    #         self.source.p4cmd('submit', '-d', 'files deleted again')
-    #     except Exception as e:
-    #         self.logger.info(str(e))
-    #         err = self.source.p4.errors[0]
-    #         if re.search("Submit failed -- fix problems above then", err):
-    #             m = re.search(r"p4 submit -c (\d+)", err)
-    #             if m:
-    #                 self.source.p4cmd('submit', '-c', m.group(1))
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/inside_file1')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(filelog.revisions[0].action, 'delete')
-    #     self.assertEqual(filelog.revisions[1].action, 'delete')
-
-    #     self.source.p4cmd('integrate', inside_file2, inside_file3)
-    #     self.source.p4cmd('submit', '-d', 'integrated delete')
-
-    #     filelog = self.source.p4.run_filelog('//depot/inside/inside_file3')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(filelog.revisions[0].action, 'delete')
-
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(5, 5)
-
-    #     filelog = self.target.p4.run_filelog('//depot/import/inside_file1')[0]
-    #     self.logger.debug(filelog)
-    #     self.assertEqual(filelog.revisions[0].action, 'delete')
-    #     self.assertEqual(filelog.revisions[1].action, 'delete')
+    def testIntegDt(self):
+        """Test for integ -Dt being required - only necessary with older integ.engine"""
+        self.setupTransfer()
+        self.target.p4cmd("configure", "set", "dm.integ.engine=2")
+        self.source.p4cmd("configure", "set", "dm.integ.engine=2")
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added')
+
+        self.source.p4cmd('delete', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 deleted')
+
+        create_file(inside_file1, "Test content again")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added')
+
+        self.run_PullP4Transfer()
+        self.assertCounters(6, 6)
+
+    def testIntegDeleteForce(self):
+        """Test for forced integrate of a delete being required"""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'file added')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'file2 added')
+
+        self.source.p4cmd('delete', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 deleted')
+
+        create_file(inside_file2, "Test content again")
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added')
+
+        self.source.p4cmd('integrate', '-f', inside_file1, inside_file2)
+        self.source.p4cmd('resolve', '-at', inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added')
+
+        self.run_PullP4Transfer()
+        self.assertCounters(6, 6)
+
+        filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 1)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "delete from")
+
+    def testIntegMultipleToOne(self):
+        """Test for integrating multiple versions into single target."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        inside_file3 = os.path.join(inside, "inside_file3")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nmore stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nYet more stuff")
+        self.source.p4cmd('submit', '-d', 'file edited again')
+
+        class EditResolve(P4.Resolver):
+            def resolve(self, mergeData):
+                create_file(mergeData.result_path, "new contents\nsome more")
+                return 'ae'
+
+        self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
+        self.source.p4cmd('edit', inside_file2)
+        self.source.p4.run_resolve(resolver=EditResolve())
+        self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
+
+        # Separate test - 3 into 1
+        self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file3)
+        self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file3)
+        self.source.p4cmd('edit', inside_file3)
+        self.source.p4cmd('resolve', '-am')
+        self.source.p4cmd('integrate', "%s#3,3" % inside_file1, inside_file3)
+        self.source.p4cmd('resolve', "-as")
+        self.source.p4cmd('submit', '-d', 'inside_file3 added with multiple integrates')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/inside_file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 3)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
+        self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(5, 5)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "add from")
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 3)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
+        self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
+
+    def testIntegCopyAndRename(self):
+        """Test for integrating a copy and move into single target."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        create_file(file1, "Test content")
+        create_file(file2, "Test content2")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file2)
+        self.source.p4cmd('move', file2, file3)
+        self.source.p4cmd('integrate', file1, file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file3 added')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+        # We can't move onto 
+        recs = self.dumpDBFiles("db.integed")
+        self.logger.debug(recs)
+        # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
+        # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
+
+        # Convert copy -> branch - can't be done through front end
+
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/file3@ @//depot/inside/file1@" in rec:
+                rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/inside/file1@ @//depot/inside/file3@" in rec:
+                rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations))
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+    def testIntegCopyAndRenameFromOutside(self):
+        """Test for integrating a copy and move into single target with integ coming from outside."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        outside = localDirectory(self.source.client_root, "outside")
+        file1 = os.path.join(outside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        create_file(file1, "Test content")
+        create_file(file2, "Test content2")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file2)
+        self.source.p4cmd('move', file2, file3)
+        self.source.p4cmd('integrate', file1, file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file3 added')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
+
+        # We can't move onto 
+        recs = self.dumpDBFiles("db.integed")
+        self.logger.debug(recs)
+        # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
+        # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
+
+        # Convert copy -> branch - can't be done through front end
+
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/file3@ @//depot/outside/file1@" in rec:
+                rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/outside/file1@ @//depot/inside/file3@" in rec:
+                rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "branch from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(1, len(filelog.revisions[0].integrations))
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+
+    def testIntegCopyAndRenameAsAdd(self):
+        """Test for integrating a copy and move into single target - with target action add."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        create_file(file1, "Test content")
+        create_file(file2, "Test content2")
+        self.source.p4cmd('add', file1, file2)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file2)
+        self.source.p4cmd('move', file2, file3)
+        self.source.p4cmd('integrate', file1, file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file3 added')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+        recs = self.dumpDBFiles("db.integed,db.rev,db.revhx")
+        self.logger.debug(recs)
+        # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
+        # @pv@ 0 @db.integed@ @//stream/main/file2@ @//stream/main/file3@ 0 1 0 1 15 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file1@ 0 1 0 1 4 5
+        # @pv@ 0 @db.integed@ @//stream/main/file3@ @//stream/main/file2@ 0 1 0 1 14 5
+
+        # @pv@ 9 @db.rev@ @//depot/inside/file3@ 1 0 8 2 1618248262 1618248262 8BFA8E0684108F419933A5995264D150 12 0 0 @//depot/inside/file3@ @1.2@ 0
+        # @pv@ 9 @db.revhx@ @//depot/inside/file3@ 1 0 8 2 1618248262 1618248262 8BFA8E0684108F419933A5995264D150 12 0 0 @//depot/inside/file3@ @1.2@ 0
+
+        # Convert copy -> branch, and move/add -> add - can't be done through front end
+
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/file3@ @//depot/inside/file1@" in rec:
+                rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/inside/file1@ @//depot/inside/file3@" in rec:
+                rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 5")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            # move/add -> add
+            if "@db.rev@ @//depot/inside/file3@ 1 0 8" in rec:
+                rec = rec.replace("@//depot/inside/file3@ 1 0 8", "@//depot/inside/file3@ 1 0 0")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.revhx@ @//depot/inside/file3@ 1 0 8" in rec:
+                rec = rec.replace("@//depot/inside/file3@ 1 0 8", "@//depot/inside/file3@ 1 0 0")     # 10->5
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            # move/delete -> delete
+            if "@db.rev@ @//depot/inside/file1@ 1 0 7" in rec:
+                rec = rec.replace("@//depot/inside/file1@ 1 0 7", "@//depot/inside/file1@ 1 0 2")
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.revhx@ @//depot/inside/file1@ 1 0 7" in rec:
+                rec = rec.replace("@//depot/inside/file1@ 1 0 7", "@//depot/inside/file1@ 1 0 2")
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations))
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+
+
+    def testIntegCopyAndRenameAsAddFromOutside(self):
+        """Test for integrating a copy and move into single target - when copy is from outside view."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        outside = localDirectory(self.source.client_root, "outside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        outside_file4 = os.path.join(outside, "file4")
+        outside_file5 = os.path.join(outside, "file5")
+        create_file(file1, "Test content")
+        create_file(file2, "Test content")
+        create_file(outside_file4, "Test content")
+        create_file(outside_file5, "Test content")
+        self.source.p4cmd('add', file1, file2, outside_file4, outside_file5)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', outside_file5)
+        append_to_file(outside_file5, '\nmore')
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file2)
+        self.source.p4cmd('move', file2, file3)
+        self.source.p4cmd('integrate', '-f', "%s#2,2" % outside_file5, file3)
+        self.source.p4cmd('resolve', '-am')
+        self.source.p4cmd('integrate', '-f', outside_file4, file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file3 added')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(3, len(filelog.revisions[0].integrations))
+        # self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+        # self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
+        # self.assertEqual(filelog.revisions[0].integrations[2].how, "merged from")
+
+        recs = self.dumpDBFiles("db.integed")
+        self.logger.debug(recs)
+
+        # @pv@ 0 @db.integed@ @//depot/inside/file3@ @//depot/outside/file5@ 1 2 0 1 6 3 
+        # @pv@ 0 @db.integed@ @//depot/outside/file5@ @//depot/inside/file3@ 0 1 1 2 10 3 
+
+        # Convert copy from -> merged from
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/file3@ @//depot/outside/file5@" in rec:
+                rec = rec.replace("@ 1 2 0 1 6", "@ 1 2 0 1 0")     # 6->0
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/outside/file5@ @//depot/inside/file3@" in rec:
+                rec = rec.replace("@ 0 1 1 2 10", "@ 0 1 1 2 1")     # 10->1
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file3')[0]
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[2].how, "merge from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(3, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(1, len(filelog.revisions[0].integrations))
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
+
+    def testIgnoredDelete(self):
+        """Test for ignoring a delete and then doing it again"""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        create_file(file1, "Test content")
+
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('integ', file1, file2)
+        self.source.p4cmd('submit', '-d', 'file2 added')
+
+        self.source.p4cmd('delete', file2)
+        self.source.p4cmd('submit', '-d', 'file2 deleted')
+
+        self.source.p4cmd('integ', '-Rd', file2, file1)
+        self.source.p4cmd('resolve', '-ay')
+        self.source.p4cmd('submit', '-d', 'file2 delete ignored')
+
+        self.source.p4cmd('integ', '-f', file2, file1)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'file2 delete integrated')
+
+        self.run_PullP4Transfer()
+        self.assertCounters(5, 5)
+
+    def testIgnoredDeleteInteg(self):
+        """Test for ignoring a delete which is being integrated 0360 - and the resulting rev re-numbering"""
+        self.setupTransfer()
+
+        # file3
+        # $ p4 filelog //Ocean/Console-0.12.4/T_Shark.uasset#2
+
+        # //Ocean/Console-0.12.4/T_Shark.uasset#2
+        # ... #2 change 11891294 integrate on 2020/03/03 by casey.spencer@ROBO (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... copy from //Ocean/Release-0.12.4/T_Shark.uasset#3
+        # ... #1 change 11890184 branch on 2020/03/03 by casey.spencer@ROBO (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... branch from //Ocean/Release-0.12.4/T_Shark.uasset#2
+
+        # file2
+        # $ p4 filelog //Ocean/Release-0.12.4/T_Shark.uasset#3
+
+        # //Ocean/Release-0.12.4/T_Shark.uasset
+        # ... #3 change 11891280 integrate on 2020/03/03 by Casey.Spencer@CSws (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... copy from //Ocean/Release-0.13/T_Shark.uasset#5
+        # ... #2 change 11890179 branch on 2020/03/03 by Casey.Spencer@CSws (binary+l) 'Merging //Ocean/Release-0.13 to'
+        # ... ... branch from //Ocean/Release-0.13/T_Shark.uasset#4
+        # ... #1 change 11887389 delete on 2020/03/03 by Casey.Spencer@CSws (binary+l) '@ocn Cherry picking CL 11882562'
+        # ... ... ignored //Ocean/Release-0.13/T_Shark.uasset#4
+
+        # file1
+        # $ p4 filelog //Ocean/Release-0.13/T_Shark.uasset#4
+
+        # //Ocean/Release-0.13/T_Shark.uasset
+        # ... #4 change 11885487 edit on 2020/03/03 by emily.solomon@ESws (binary+l) '#jira nojira  Updating Shark an'
+        # ... ... branch into //Ocean/Release-0.12.4/T_Shark.uasset#2
+        # ... ... ignored by //Ocean/Release-0.12.4/T_Shark.uasset#1
+        # ... #3 change 11872056 edit on 2020/03/03 by Emily.Solomon@ESws (binary+l) '#jira nojira Updating Elim Obje'
+        # ... #2 change 11849715 edit on 2020/03/02 by emily.solomon@ESws (binary+l) '#jira nojira  Updating Elim Obj'
+        # ... #1 change 11711950 add on 2020/02/27 by Emily.Solomon@ESws (binary+l) '#jira nojira Updating Snowman t'
+
+        inside = localDirectory(self.source.client_root, "inside")
+        # outside = localDirectory(self.source.client_root, "outside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        # outside_file1 = os.path.join(outside, 'outside_file1')
+        create_file(file1, "Test content")
+        # create_file(outside_file1, "Some content")
+
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore')
+        self.source.p4cmd('submit', '-d', 'edited')
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore')
+        self.source.p4cmd('submit', '-d', 'edited')
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore')
+        self.source.p4cmd('submit', '-d', 'edited')
+
+        # Generate a first rev which is an ignore of a delete - this will not be transferred.
+        self.source.p4cmd('integ', '-Rb', '%s#4,4' % file1, file2)
+        self.source.p4cmd('resolve', '-ay')
+        self.source.p4cmd('submit', '-d', 'ignore delete')
+
+        self.source.p4cmd('integ', '-f', '%s#4,4' % file1, file2)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        self.source.p4cmd('integ', file2, file3)
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, '\nmore again')
+        self.source.p4cmd('submit', '-d', 'edited')
+
+        self.source.p4cmd('integ', file1, file2)
+        self.source.p4cmd('resolve', '-am')
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        self.source.p4cmd('integ', file2, file3)
+        self.source.p4cmd('resolve', '-am')
+        self.source.p4cmd('submit', '-d', 'branched')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file2')[0]
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[1].integrations[0].how, "branch from")
+        self.assertEqual(filelog.revisions[2].integrations[0].how, "ignored")
+        self.assertEqual(filelog.revisions[0].action, "integrate")
+        self.assertEqual(filelog.revisions[1].action, "branch")
+        self.assertEqual(filelog.revisions[2].action, "delete")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(10, 10)
+
+    def testIntegDirtyCopy(self):
+        """Test for a copy which is then edited."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nmore stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
+        self.source.p4cmd('resolve', '-at', inside_file2)
+        append_to_file(inside_file2, '\nextra stuff')
+        self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
+
+        filelog = self.source.p4.run_filelog(inside_file2)[0]
+        self.logger.debug(filelog)
+
+        self.run_PullP4Transfer()
+        self.assertCounters(3, 3)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
+
+    def testIntegAddCopy(self):
+        """Test for and add and copy into same revision."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nmore stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
+        self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
+        self.source.p4cmd('resolve', '-at', inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
+
+        filelog = self.source.p4.run_filelog(inside_file2)[0]
+        self.logger.debug(filelog)
+
+        self.run_PullP4Transfer()
+        self.assertCounters(3, 3)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
+
+    def testIntegBranchAndCopy(self):
+        """Branch a file and copy it as well into same revision."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'branch original')
+
+        self.source.p4cmd('delete', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
+
+        self.source.p4cmd('edit', inside_file2)
+        append_to_file(inside_file2, "\nmore stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file2 edited')
+
+        class EditAcceptTheirs(P4.Resolver):
+            """
+            Required because of a special 'force' flag which is set if this is done interactively - doesn't
+            do the same as if you just resolve -at. Yuk!
+            """
+            def actionResolve(self, mergeInfo):
+                return 'at'
+
+        self.source.p4cmd('integrate', inside_file2, inside_file1)
+        self.source.p4.run_resolve(resolver=EditAcceptTheirs())
+        self.source.p4cmd('integrate', '-f', inside_file2, inside_file1)
+        self.source.p4.run_resolve(resolver=EditAcceptTheirs())
+        self.source.p4cmd('submit', '-d', 'inside_file1 added back with multiple integrates')
+
+        filelog = self.source.p4.run_filelog(inside_file1)[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations), 2)
+        self.assertEqual("branch from", filelog.revisions[0].integrations[0].how)
+        self.assertEqual("copy from", filelog.revisions[0].integrations[1].how)
+
+        self.run_PullP4Transfer()
+        self.assertCounters(5, 5)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations))
+        self.assertEqual("branch from", filelog.revisions[0].integrations[0].how)
+        self.assertEqual("copy from", filelog.revisions[0].integrations[1].how)
+
+    def testIntegAddMergeCopy(self):
+        """Integrate an add/merge/copy of 3 revisions into single new target."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nmore stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nYet more stuff")
+        self.source.p4cmd('submit', '-d', 'file edited again')
+
+        self.source.p4cmd('integrate', "%s#1" % inside_file1, inside_file2)
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('integrate', "%s#3,3" % inside_file1, inside_file2)
+        self.source.p4cmd('resolve', '-am', inside_file2)
+        self.source.p4cmd('integrate', "%s#2,2" % inside_file1, inside_file2)
+        self.source.p4cmd('resolve', '-am', inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added with multiple integrates')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 3)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
+        self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(4, 4)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 3)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
+        self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
+        self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
+
+    def testIntegSelectiveWithEdit(self):
+        """Integrate cherry picked rev into a file."""
+        self.setupTransfer()
+        self.target.p4cmd("configure", "set", "dm.integ.engine=2")
+        self.target.p4cmd("configure", "set", "dm.integ.engine=2")
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', '-tbinary', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        create_file(inside_file2, "Test content 2")
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file2 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nmore stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "\nYet more stuff")
+        self.source.p4cmd('submit', '-d', 'file edited again')
+
+        self.source.p4cmd('integrate', "%s#2,3" % inside_file1, inside_file2)
+
+        class EditResolve(P4.Resolver):
+            def resolve(self, mergeData):
+                result_path = mergeData.result_path
+                if not result_path:
+                    result_path = mergeData.your_path
+                create_file(result_path, """
+        Line 1
+        Line 2 - changed
+        Line 3 - edited
+        """)
+                return 'ae'
+
+        self.source.p4.run_resolve(resolver=EditResolve())
+        self.source.p4cmd('submit', '-d', "Merge with edit")
+
+        filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 1)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
+
+        self.run_PullP4Transfer()
+        self.assertCounters(5, 5)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 1)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
+
+    def testIntegDeleteProblem(self):
+        "Reproduce a problem where integrate was resulting in a delete"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        inside_file3 = os.path.join(inside, "inside_file3")
+        inside_file4 = os.path.join(inside, "inside_file4")
+        create_file(inside_file1, 'Test content')
+        create_file(inside_file3, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('add', inside_file3)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', inside_file1)
+        self.source.p4cmd('edit', inside_file3)
+        append_to_file(inside_file1, "more content")
+        append_to_file(inside_file3, "more content")
+        self.source.p4cmd('submit', '-d', 'files edited')
+
+        self.source.p4cmd('integrate', '-2', inside_file1, inside_file2)
+        self.source.p4cmd('integrate', '-2', inside_file3, inside_file4)
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('add', inside_file4)
+        append_to_file(inside_file4, "and some more")
+        self.source.p4cmd('delete', inside_file1)
+        self.source.p4cmd('delete', inside_file3)
+        self.source.p4cmd('submit', '-d', 'renamed old way')
+
+        self.source.p4cmd('integrate', '-2', '-f', inside_file2, inside_file1)
+        self.source.p4cmd('integrate', '-2', '-f', inside_file4, inside_file3)
+        self.source.p4cmd('add', inside_file3)
+        append_to_file(inside_file3, "yet more")
+        self.source.p4cmd('delete', inside_file2)
+        self.source.p4cmd('delete', inside_file4)
+        self.source.p4cmd('submit', '-d', 'renamed back again')
+
+        self.run_PullP4Transfer()
+        self.assertCounters(4, 4)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertEqual(filelog[0].revisions[0].action, 'branch')
+        self.assertEqual(filelog[0].revisions[1].action, 'delete')
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
+        self.assertEqual(filelog[0].revisions[0].action, 'delete')
+        self.assertEqual(filelog[0].revisions[1].action, 'add')
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file3')
+        self.assertEqual(filelog[0].revisions[0].action, 'add')
+        self.assertEqual(filelog[0].revisions[1].action, 'delete')
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file4')
+        self.assertEqual(filelog[0].revisions[0].action, 'delete')
+        self.assertEqual(filelog[0].revisions[1].action, 'add')
+
+    def testAddFrom(self):
+        """Test for adding a file which has in itself then branched."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        inside_file3 = os.path.join(inside, "inside_file3")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('delete', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
+
+        self.source.p4cmd('sync', "%s#1" % inside_file1)
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('move', inside_file1, inside_file2)
+        os.chmod(inside_file2, stat.S_IWRITE + stat.S_IREAD)
+        append_to_file(inside_file2, "more stuff")
+        self.source.p4cmd('submit', '-d', 'inside_file2 created by branching with add')
+
+        filelog = self.source.p4.run_filelog(inside_file2)[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 1)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "add from")
+
+        self.source.p4cmd('integrate', inside_file2, inside_file3)
+        self.source.p4cmd('submit', '-d', 'inside_file3 created as copy')
+
+        self.run_PullP4Transfer()
+        self.assertCounters(4, 4)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog.revisions[0].integrations), 2)
+        self.assertEqual(filelog.revisions[0].integrations[0].how, "add from")
+
+    def testDeleteDelete(self):
+        """Test for a delete on top of a delete."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        inside_file3 = os.path.join(inside, "inside_file3")
+        create_file(inside_file1, "Test content")
+        create_file(inside_file2, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('add', inside_file2)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('integrate', inside_file2, inside_file3)
+        self.source.p4cmd('submit', '-d', 'branched file')
+
+        self.source.p4cmd('delete', inside_file1)
+        self.source.p4cmd('delete', inside_file2)
+        self.source.p4cmd('submit', '-d', 'files deleted')
+
+        with self.source.p4.at_exception_level(P4.P4.RAISE_ERRORS):
+            self.source.p4cmd('sync', "%s#1" % '//depot/inside/inside_file1')
+            self.source.p4cmd('sync', "%s#1" % '//depot/inside/inside_file2')
+            self.source.p4cmd('delete', '//depot/inside/inside_file1')
+            self.source.p4cmd('delete', '//depot/inside/inside_file2')
+        self.source.p4cmd('opened')
+        try:
+            self.source.p4cmd('submit', '-d', 'files deleted again')
+        except Exception as e:
+            self.logger.info(str(e))
+            err = self.source.p4.errors[0]
+            if re.search("Submit failed -- fix problems above then", err):
+                m = re.search(r"p4 submit -c (\d+)", err)
+                if m:
+                    self.source.p4cmd('submit', '-c', m.group(1))
+
+        filelog = self.source.p4.run_filelog('//depot/inside/inside_file1')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(filelog.revisions[0].action, 'delete')
+        self.assertEqual(filelog.revisions[1].action, 'delete')
+
+        self.source.p4cmd('integrate', inside_file2, inside_file3)
+        self.source.p4cmd('submit', '-d', 'integrated delete')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/inside_file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(filelog.revisions[0].action, 'delete')
+
+        self.run_PullP4Transfer()
+        self.assertCounters(5, 5)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(filelog.revisions[0].action, 'delete')
+        self.assertEqual(filelog.revisions[1].action, 'delete')
 
     # def testIntegDeleteIgnore(self):
     #     """Test for an integrated delete with ignore."""
