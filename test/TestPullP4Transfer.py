@@ -729,6 +729,34 @@ class TestPullP4Transfer(unittest.TestCase):
 
         self.assertCounters(1, 1)
 
+    def testPartialTransfer(self):
+        "Basic file edit without taking add"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "more content")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        # Skip first change
+        self.target.p4cmd('counter', TEST_COUNTER_NAME, 1)
+        self.run_PullP4Transfer()
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes), 1)
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
+
+        self.assertCounters(1, 1)
+
     # def testNonSuperUser(self):
     #     "Test when not a superuser - who can't update"
     #     self.setupTransfer()
@@ -912,71 +940,39 @@ class TestPullP4Transfer(unittest.TestCase):
         # self.run_PullP4Transfer()
         # self.assertCounters(3, 3)
 
-    # @unittest.skipIf(python3 and (platform.system().lower() == "windows"),
-    #                  "Unicode not supported in Python3 on Windows yet - works on Mac/Unix...")
-    # def testUnicode(self):
-    #     "Adding of files with Unicode filenames"
-    #     self.setupTransfer()
+    @unittest.skipIf(python3 and (platform.system().lower() == "windows"),
+                     "Unicode not supported in Python3 on Windows yet - works on Mac/Unix...")
+    def testUnicode(self):
+        "Adding of files with Unicode filenames"
+        self.setupTransfer()
 
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     if python3:
-    #         inside_file1 = "inside_file1uåäö"
+        inside = localDirectory(self.source.client_root, "inside")
+        if python3:
+            inside_file1 = "inside_file1uåäö"
 
-    #     else:
-    #         inside_file1 = u"inside_file1uåäö".encode(sys.getfilesystemencoding())
-    #     inside_file2 = "Am\xE8lioration.txt"
-    #     localinside_file1 = os.path.join(inside, inside_file1)
-    #     localinside_file2 = os.path.join(inside, inside_file2)
+        else:
+            inside_file1 = u"inside_file1uåäö".encode(sys.getfilesystemencoding())
+        inside_file2 = "Am\xE8lioration.txt"
+        localinside_file1 = os.path.join(inside, inside_file1)
+        localinside_file2 = os.path.join(inside, inside_file2)
 
-    #     create_file(localinside_file1, 'Test content')
-    #     create_file(localinside_file2, 'Some Test content')
-    #     self.source.p4cmd('add', '-f', localinside_file1)
-    #     self.source.p4cmd('add', '-f', localinside_file2)
-    #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
+        create_file(localinside_file1, 'Test content')
+        create_file(localinside_file2, 'Some Test content')
+        self.source.p4cmd('add', '-f', localinside_file1)
+        self.source.p4cmd('add', '-f', localinside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
 
-    #     self.run_PullP4Transfer()
+        self.run_PullP4Transfer()
 
-    #     changes = self.target.p4cmd('changes')
-    #     self.assertEqual(len(changes), 1)
-    #     self.assertEqual(changes[0]['change'], "1")
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(changes[0]['change'], "2")
 
-    #     files = self.target.p4cmd('files', '//depot/...')
-    #     self.assertEqual(len(files), 2)
-    #     self.assertEqual(files[1]['depotFile'], '//depot/import/%s' % inside_file1)
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(len(files), 2)
+        self.assertEqual(files[1]['depotFile'], '//depot/import/%s' % inside_file1)
 
-    #     self.assertCounters(1, 1)
-
-    # # def testEncodingError(self):
-    # #     "Adding of files with Unicode encoding errors in filename"
-    # #     self.setupTransfer()
-    # #
-    # #     inside = localDirectory(self.source.client_root, "inside")
-    # #     # if python3:
-    # #     inside_file1 = b"inside_file1\x92s".decode('cp1250')
-    # #     inside_file2 = "50�s table"
-    # #     # else:
-    # #     #     inside_file1 = u"inside_file1’s".encode(sys.getfilesystemencoding())
-    # #     localinside_file1 = os.path.join(inside, inside_file1)
-    # #     localinside_file2 = os.path.join(inside, inside_file2)
-    # #
-    # #     create_file(localinside_file1, 'Test content')
-    # #     create_file(localinside_file2, 'Test content')
-    # #     self.source.p4cmd('add', '-f', localinside_file1)
-    # #     self.source.p4cmd('add', '-f', localinside_file2)
-    # #     self.source.p4cmd('submit', '-d', 'inside_files added')
-    # #
-    # #     self.run_PullP4Transfer()
-    # #
-    # #     changes = self.target.p4cmd('changes')
-    # #     self.assertEqual(len(changes), 1)
-    # #     self.assertEqual(changes[0]['change'], "1")
-    # #
-    # #     files = self.target.p4cmd('files', '//depot/...')
-    # #     self.assertEqual(len(files), 2)
-    # #     self.assertEqual(files[1]['depotFile'], '//depot/import/%s' % inside_file1)
-    # #     self.assertEqual(files[0]['depotFile'], '//depot/import/%s' % inside_file2)
-    # #
-    # #     self.assertCounters(1, 1)
+        self.assertCounters(1, 1)
 
     def testWildcardChars(self):
         "Test filenames containing Perforce wildcards"
@@ -1410,47 +1406,47 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(change['action'][0], 'delete')
         self.assertEqual(change['action'][1], 'add')
 
-    # def testMoveMoveBack(self):
-    #     """Test for Move and then a file being moved back, also move inside<->outside"""
-    #     self.setupTransfer()
-    #     inside = localDirectory(self.source.client_root, "inside")
+    def testMoveMoveBack(self):
+        """Test for Move and then a file being moved back, also move inside<->outside"""
+        self.setupTransfer()
+        inside = localDirectory(self.source.client_root, "inside")
 
-    #     original_file = os.path.join(inside, 'main', 'original', 'file1')
-    #     renamed_file = os.path.join(inside, 'main', 'renamed', 'file1')
-    #     create_file(original_file, "Some content")
-    #     self.source.p4cmd('add', original_file)
-    #     self.source.p4cmd('submit', '-d', "adding original file")
+        original_file = os.path.join(inside, 'main', 'original', 'file1')
+        renamed_file = os.path.join(inside, 'main', 'renamed', 'file1')
+        create_file(original_file, "Some content")
+        self.source.p4cmd('add', original_file)
+        self.source.p4cmd('submit', '-d', "adding original file")
 
-    #     self.source.p4cmd('integrate', '//depot/inside/main/...', '//depot/inside/branch/...')
-    #     self.source.p4cmd('submit', '-d', "branching file")
+        self.source.p4cmd('integrate', '//depot/inside/main/...', '//depot/inside/branch/...')
+        self.source.p4cmd('submit', '-d', "branching file")
 
-    #     self.source.p4cmd('edit', original_file)
-    #     self.source.p4.run_move(original_file, renamed_file)
-    #     self.source.p4cmd('submit', '-d', "renaming file")
+        self.source.p4cmd('edit', original_file)
+        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('submit', '-d', "renaming file")
 
-    #     self.source.p4cmd('integrate', '//depot/inside/main/...', '//depot/inside/branch/...')
-    #     self.source.p4cmd('resolve', '-as')
-    #     self.source.p4cmd('submit', '-d', "branching rename and rename back file")
+        self.source.p4cmd('integrate', '//depot/inside/main/...', '//depot/inside/branch/...')
+        self.source.p4cmd('resolve', '-as')
+        self.source.p4cmd('submit', '-d', "branching rename and rename back file")
 
-    #     self.source.p4cmd('edit', renamed_file)
-    #     self.source.p4.run_move(renamed_file, original_file)
-    #     self.source.p4cmd('submit', '-d', "renaming file back")
+        self.source.p4cmd('edit', renamed_file)
+        self.source.p4.run_move(renamed_file, original_file)
+        self.source.p4cmd('submit', '-d', "renaming file back")
 
-    #     # Copy the individual move/add and move/delete files, which become add and delete like this
-    #     with self.source.p4.at_exception_level(P4.P4.RAISE_ERRORS):
-    #         self.source.p4cmd('copy', '//depot/inside/main/original/file1', '//depot/inside/branch/original/file1')
-    #         self.source.p4cmd('copy', '//depot/inside/main/renamed/file1', '//depot/inside/branch/renamed/file1')
-    #     self.source.p4cmd('submit', '-d', "copying rename back to other branch individually")
+        # Copy the individual move/add and move/delete files, which become add and delete like this
+        with self.source.p4.at_exception_level(P4.P4.RAISE_ERRORS):
+            self.source.p4cmd('copy', '//depot/inside/main/original/file1', '//depot/inside/branch/original/file1')
+            self.source.p4cmd('copy', '//depot/inside/main/renamed/file1', '//depot/inside/branch/renamed/file1')
+        self.source.p4cmd('submit', '-d', "copying rename back to other branch individually")
 
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(6, 6)
+        self.run_PullP4Transfer()
+        self.assertCounters(6, 6)
 
-    #     change = self.target.p4.run_describe('6')[0]
-    #     self.assertEqual(len(change['depotFile']), 2)
-    #     self.assertEqual(change['depotFile'][0], '//depot/import/branch/original/file1')
-    #     self.assertEqual(change['depotFile'][1], '//depot/import/branch/renamed/file1')
-    #     self.assertEqual(change['action'][0], 'branch')
-    #     self.assertEqual(change['action'][1], 'delete')
+        change = self.target.p4.run_describe('7')[0]
+        self.assertEqual(len(change['depotFile']), 2)
+        self.assertEqual(change['depotFile'][0], '//depot/import/branch/original/file1')
+        self.assertEqual(change['depotFile'][1], '//depot/import/branch/renamed/file1')
+        self.assertEqual(change['action'][0], 'branch')
+        self.assertEqual(change['action'][1], 'delete')
 
     def testMoveAfterDelete(self):
         """Test for Move after a Delete"""
@@ -1529,69 +1525,69 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(change['action'][0], 'move/delete')
         self.assertEqual(change['action'][1], 'move/add')
 
-    # def testMoveFromOutsideAndEdit(self):
-    #     """Test for Move from outside with subsequent edit of a file"""
-    #     self.setupTransfer()
+    def testMoveFromOutsideAndEdit(self):
+        """Test for Move from outside with subsequent edit of a file"""
+        self.setupTransfer()
 
-    #     depot = self.target.p4.fetch_depot('target')
-    #     self.target.p4.save_depot(depot)
+        depot = self.target.p4.fetch_depot('target')
+        self.target.p4.save_depot(depot)
 
-    #     # Temporarily create different source client
-    #     source_client = self.source.p4.fetch_client(self.source.p4.client)
-    #     source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % self.source.p4.client,
-    #                            '//depot/outside/... //%s/outside/...' % self.source.p4.client]
-    #     self.source.p4.save_client(source_client)
+        # Temporarily create different source client
+        source_client = self.source.p4.fetch_client(self.source.p4.client)
+        source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % self.source.p4.client,
+                               '//depot/outside/... //%s/outside/...' % self.source.p4.client]
+        self.source.p4.save_client(source_client)
 
-    #     inside = localDirectory(self.source.client_root, "main", "Dir")
-    #     outside = localDirectory(self.source.client_root, "outside")
+        inside = localDirectory(self.source.client_root, "main", "Dir")
+        outside = localDirectory(self.source.client_root, "outside")
 
-    #     original_file1 = os.path.join(outside, 'original_file1')
-    #     original_file2 = os.path.join(outside, 'original_file2')
-    #     renamed_file1 = os.path.join(inside, 'new_file1')
-    #     renamed_file2 = os.path.join(inside, 'new_file2')
-    #     create_file(original_file1, "Some content")
-    #     create_file(original_file2, "Some content")
-    #     self.source.p4cmd('add', original_file1, original_file2)
-    #     self.source.p4cmd('submit', '-d', "adding original files")
+        original_file1 = os.path.join(outside, 'original_file1')
+        original_file2 = os.path.join(outside, 'original_file2')
+        renamed_file1 = os.path.join(inside, 'new_file1')
+        renamed_file2 = os.path.join(inside, 'new_file2')
+        create_file(original_file1, "Some content")
+        create_file(original_file2, "Some content")
+        self.source.p4cmd('add', original_file1, original_file2)
+        self.source.p4cmd('submit', '-d', "adding original files")
 
-    #     self.source.p4cmd('edit', original_file1, original_file2)
-    #     self.source.p4cmd('move', original_file1, renamed_file1)
-    #     self.source.p4cmd('move', original_file2, renamed_file2)
-    #     self.source.p4cmd('submit', '-d', "renaming files")
+        self.source.p4cmd('edit', original_file1, original_file2)
+        self.source.p4cmd('move', original_file1, renamed_file1)
+        self.source.p4cmd('move', original_file2, renamed_file2)
+        self.source.p4cmd('submit', '-d', "renaming files")
 
-    #     source_client = self.source.p4.fetch_client(self.source.p4.client)
-    #     source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % self.source.p4.client]
-    #     self.source.p4.save_client(source_client)
+        source_client = self.source.p4.fetch_client(self.source.p4.client)
+        source_client._view = ['//depot/inside/main/Dir/... //%s/main/Dir/...' % self.source.p4.client]
+        self.source.p4.save_client(source_client)
 
-    #     self.source.p4cmd('edit', renamed_file1)
-    #     self.source.p4cmd('edit', renamed_file2)
-    #     self.source.p4cmd('submit', '-d', "editing file")
+        self.source.p4cmd('edit', renamed_file1)
+        self.source.p4cmd('edit', renamed_file2)
+        self.source.p4cmd('submit', '-d', "editing file")
 
-    #     self.source.p4cmd('delete', renamed_file1)
-    #     self.source.p4cmd('delete', renamed_file2)
-    #     self.source.p4cmd('submit', '-d', "deleting file")
+        self.source.p4cmd('delete', renamed_file1)
+        self.source.p4cmd('delete', renamed_file2)
+        self.source.p4cmd('submit', '-d', "deleting file")
 
-    #     config = self.getDefaultOptions()
-    #     config['views'] = [{'src': '//depot/inside/main/Dir/...',
-    #                         'targ': '//target/inside/main/Dir/...'}]
-    #     self.createConfigFile(options=config)
+        config = self.getDefaultOptions()
+        config['views'] = [{'src': '//depot/inside/main/Dir/...',
+                            'targ': '//target/inside/main/Dir/...'}]
+        self.createConfigFile(options=config)
 
-    #     self.run_PullP4Transfer()
-    #     self.assertCounters(4, 3)
+        self.run_PullP4Transfer()
+        self.assertCounters(4, 3)
 
-    #     change = self.target.p4.run_describe('1')[0]
-    #     self.assertEqual(len(change['depotFile']), 2)
-    #     self.assertEqual(change['depotFile'][0], '//target/inside/main/Dir/new_file1')
-    #     self.assertEqual(change['depotFile'][1], '//target/inside/main/Dir/new_file2')
-    #     self.assertEqual(change['action'][0], 'add')
-    #     self.assertEqual(change['action'][1], 'add')
+        change = self.target.p4.run_describe('1')[0]
+        self.assertEqual(len(change['depotFile']), 2)
+        self.assertEqual(change['depotFile'][0], '//target/inside/main/Dir/new_file1')
+        self.assertEqual(change['depotFile'][1], '//target/inside/main/Dir/new_file2')
+        self.assertEqual(change['action'][0], 'add')
+        self.assertEqual(change['action'][1], 'add')
 
-    #     change = self.target.p4.run_describe('2')[0]
-    #     self.assertEqual(len(change['depotFile']), 2)
-    #     self.assertEqual(change['depotFile'][0], '//target/inside/main/Dir/new_file1')
-    #     self.assertEqual(change['depotFile'][1], '//target/inside/main/Dir/new_file2')
-    #     self.assertEqual(change['action'][0], 'edit')
-    #     self.assertEqual(change['action'][1], 'edit')
+        change = self.target.p4.run_describe('4')[0]
+        self.assertEqual(len(change['depotFile']), 2)
+        self.assertEqual(change['depotFile'][0], '//target/inside/main/Dir/new_file1')
+        self.assertEqual(change['depotFile'][1], '//target/inside/main/Dir/new_file2')
+        self.assertEqual(change['action'][0], 'edit')
+        self.assertEqual(change['action'][1], 'edit')
 
     def testMoveAndCopy(self):
         """Test for Move with subsequent copy of a file"""
