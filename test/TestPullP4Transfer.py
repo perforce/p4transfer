@@ -372,81 +372,30 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(datetime.datetime(2040, 1, 1, 13, 1), pt.options.end_datetime)
         self.assertFalse(pt.endDatetimeExceeded())
 
-    # def testMaximum(self):
-    #     "Test  only max number of changes are transferred"
-    #     self.setupTransfer()
-    #     args = ['-c', self.transfer_cfg, '-m1']
-    #     pt = PullP4Transfer.PullP4Transfer(*args)
-    #     self.assertEqual(pt.options.config, self.transfer_cfg)
+    def testMaximum(self):
+        "Test  only max number of changes are transferred"
+        self.setupTransfer()
+        args = ['-c', self.transfer_cfg, '-m1']
+        pt = PullP4Transfer.PullP4Transfer(*args)
+        self.assertEqual(pt.options.config, self.transfer_cfg)
 
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     create_file(inside_file1, 'Test content')
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
 
-    #     self.source.p4cmd('add', inside_file1)
-    #     desc = 'inside_file1 added'
-    #     self.source.p4cmd('submit', '-d', desc)
-    #     self.source.p4cmd('edit', inside_file1)
-    #     append_to_file(inside_file1, "New line")
-    #     desc = 'file edited'
-    #     self.source.p4cmd('submit', '-d', desc)
+        self.source.p4cmd('add', inside_file1)
+        desc = 'inside_file1 added'
+        self.source.p4cmd('submit', '-d', desc)
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "New line")
+        desc = 'file edited'
+        self.source.p4cmd('submit', '-d', desc)
 
-    #     pt.replicate()
-    #     self.assertCounters(1, 1)
+        pt.replicate()
+        self.assertCounters(1, 1)
 
-    #     pt.replicate()
-    #     self.assertCounters(2, 2)
-
-    # def testKTextDigests(self):
-    #     "Calculate filesizes and digests for files which might contain keywords"
-    #     self.setupTransfer()
-    #     filename = os.path.join(self.transfer_root, 'test_file')
-
-    #     create_file(filename, "line1\n")
-    #     fileSize, digest = PullP4Transfer.getKTextDigest(filename)
-    #     self.assertEqual(fileSize, 6)
-    #     self.assertEqual(digest, "1ddab9058a07abc0db2605ab02a61a00")
-
-    #     create_file(filename, "line1\nline2\n")
-    #     fileSize, digest = PullP4Transfer.getKTextDigest(filename)
-    #     self.assertEqual(fileSize, 12)
-    #     self.assertEqual(digest, "4fcc82a88ee38e0aa16c17f512c685c9")
-
-    #     create_file(filename, "line1\nsome $Id: //depot/fred.txt#2 $\nline2\n")
-    #     fileSize, digest = PullP4Transfer.getKTextDigest(filename)
-    #     self.assertEqual(fileSize, 10)
-    #     self.assertEqual(digest, "ce8bc0316bdd8ad1f716f48e5c968854")
-
-    #     create_file(filename, "line1\nsome $Id: //depot/fred.txt#2 $\nanother $Date: somedate$\nline2\n")
-    #     fileSize, digest = PullP4Transfer.getKTextDigest(filename)
-    #     self.assertEqual(fileSize, 10)
-    #     self.assertEqual(digest, "ce8bc0316bdd8ad1f716f48e5c968854")
-
-    #     create_file(filename, dedent("""\
-    #     line1
-    #     some $Id: //depot/fred.txt#2 $
-    #     another $Date: somedate$
-    #     line2
-    #     """))
-    #     fileSize, digest = PullP4Transfer.getKTextDigest(filename)
-    #     self.assertEqual(fileSize, 10)
-    #     self.assertEqual(digest, "ce8bc0316bdd8ad1f716f48e5c968854")
-
-    #     create_file(filename, dedent("""\
-    #     line1
-    #     some $Id: //depot/fred.txt#2 $
-    #     another $Date: somedata $
-    #     another $DateTime: somedata $
-    #     another $DateTime: somedata $
-    #     $Change: 1234 $
-    #     var = "$File: //depot/some/file.txt $";
-    #     var = "$Revision: 45 $";
-    #     var = "$Author: fred $";
-    #     line2
-    #     """))
-    #     fileSize, digest = PullP4Transfer.getKTextDigest(filename)
-    #     self.assertEqual(fileSize, 10)
-    #     self.assertEqual(digest, "ce8bc0316bdd8ad1f716f48e5c968854")
+        pt.replicate()
+        self.assertCounters(2, 2)
 
     # def testConfigValidation(self):
     #     "Make sure specified config options such as client views are valid"
@@ -956,11 +905,12 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('verify', '-q', '//depot/inside/...')
 
         self.run_PullP4Transfer()
-        self.assertCounters(0, 0)
-
-        self.source.p4cmd('retype', '-t', 'binary', '//depot/inside/...@1,@2')
-        self.run_PullP4Transfer()
         self.assertCounters(3, 3)
+
+        # Unlike P4Transfer - this step is not required.
+        # self.source.p4cmd('retype', '-t', 'binary', '//depot/inside/...@1,@2')
+        # self.run_PullP4Transfer()
+        # self.assertCounters(3, 3)
 
     # @unittest.skipIf(python3 and (platform.system().lower() == "windows"),
     #                  "Unicode not supported in Python3 on Windows yet - works on Mac/Unix...")
@@ -1356,6 +1306,7 @@ class TestPullP4Transfer(unittest.TestCase):
     # #     self.run_PullP4Transfer()
     # #     self.assertCounters(2, 2)
 
+    @unittest.skip("The final change cannot be processed by p4 fetch (moved back from outside -> inside")
     def testMoves(self):
         """Test for Move and then a file being moved back, also move inside<->outside"""
         self.setupTransfer()

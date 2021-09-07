@@ -671,10 +671,12 @@ class P4Target(P4Base):
         except P4.P4Exception as e:
             resultStr += "\n".join(self.p4.errors)
             resultStr += "\n".join(e.errors)
+        resultStr += "\n".join(self.p4.warnings)
+        if resultStr:
+            self.logger.debug(resultStr)
         # Weird side effect - some errors can disconnect!!
         if not self.p4.connected():
             self.p4.connect()
-        resultStr += "\n".join(self.p4.warnings)
         return (resultDict, resultStr)
 
     def doFetch(self, chgNo):
