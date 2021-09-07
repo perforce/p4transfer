@@ -105,6 +105,7 @@ P4.DepotFile.__repr__ = logrepr
 python3 = sys.version_info[0] >= 3
 if sys.hexversion < 0x02070000 or (0x0300000 <= sys.hexversion < 0x0303000):
     sys.exit("Python 2.7 or 3.3 or newer is required to run this program.")
+reFetchMoveError = re.compile("Files are missing as a result of one or more move operations")
 
 # Although this should work with Python 3, it doesn't currently handle Windows Perforce servers
 # with filenames containing charaters such as umlauts etc: åäö
@@ -653,18 +654,53 @@ class P4Target(P4Base):
     #     "Process all revisions in the change"
     #     pass
 
+    def fetchWithFlags(self, chgNo, flags):
+        "fetch which can be repeated with flags where necessary"
+        resultStr = ""
+        resultDict = {}
+        try:
+            cmd = ["fetch", "-v", "-r", self.options.target_remote]
+            cmd.extend(flags)
+            cmd.append("//...@%s,%s" % (chgNo, chgNo))
+            output = self.p4cmd(cmd)
+            if output:
+                if isinstance(output[0], dict):
+                    resultDict = output[0]
+                else:
+                    resultStr = output[0]
+        except P4.P4Exception as e:
+            resultStr += "\n".join(self.p4.errors)
+            resultStr += "\n".join(e.errors)
+        # Weird side effect - some errors can disconnect!!
+        if not self.p4.connected():
+            self.p4.connect()
+        resultStr += "\n".join(self.p4.warnings)
+        return (resultDict, resultStr)
+
+    def doFetch(self, chgNo):
+        "Perform integrate"
+        outputDict = {}
+        flags = []
+        while 1 == 1:
+            outputDict, outputStr = self.fetchWithFlags(chgNo, flags)
+            if reFetchMoveError.search(outputStr) and "-I" not in flags:
+                flags.append("-I")
+            else:
+                break
+        return outputDict
+
     def replicateChange(self, change):
         """This is the heart of it all. Replicate all changes according to their description"""
 
         self.filesToIgnore = []
         # self.processChangeRevs(fileRevs)
-        result = self.p4cmd("fetch", "-v", "-r", self.options.target_remote, "//...@%s,%s" % (change['change'], change['change']))
+        result = self.doFetch(change['change'])
         newChangeId = 0
         if result:
-            if 'renamedChange' in result[0]:
-                newChangeId = result[0]['renamedChange']
+            if 'renamedChange' in result:
+                newChangeId = result['renamedChange']
 
-        self.logger.info("source = {} : target = {}".format(change['change'], newChangeId))
+        self.logger.info("source = {} : target  = {}".format(change['change'], newChangeId))
         # self.validateSubmittedChange(newChangeId)
         return newChangeId
 
