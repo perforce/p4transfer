@@ -425,6 +425,41 @@ class ChangeRevision:
         localFile = localFile.replace("/", os.sep)
         self.fixedLocalFile = localFile
 
+    def canonicalType(self):
+        "Translate between old style type and new canonical type"
+        if self.type == "xtext":
+            return "text+x"
+        elif self.type == "ktext":
+            return "text+k"
+        elif self.type == "kxtext":
+            return "text+kx"
+        elif self.type == "xbinary":
+            return "binary+x"
+        elif self.type == "ctext":
+            return "text+C"
+        elif self.type == "cxtext":
+            return "text+Cx"
+        elif self.type == "ltext":
+            return "text+F"
+        elif self.type == "xltext":
+            return "text+Fx"
+        elif self.type == "ubinary":
+            return "binary+F"
+        elif self.type == "uxbinary":
+            return "binary+Fx"
+        elif self.type == "tempobj":
+            return "binary+FSw"
+        elif self.type == "ctempobj":
+            return "binary+Sw"
+        elif self.type == "xtempobj":
+            return "binary+FSwx"
+        elif self.type == "xunicode":
+            return "unicode+x"
+        elif self.type == "xutf16":
+            return "utf16+x"
+        else:
+            return self.type
+
     def __repr__(self):
         return 'rev={rev} action={action} type={type} size={size} digest={digest} depotFile={depotfile}' .format(
             rev=self.rev,
@@ -605,6 +640,22 @@ class P4Source(P4Base):
         self.logger.debug('processing %d changes' % len(changes))
         return changes
 
+    def getChange(self, changeNum):
+        """Expects change number as a string, and returns list of filerevs"""
+        change = self.p4cmd('describe', '-s', changeNum)[0]
+        fileRevs = []
+        excludedFiles = []
+        for (n, rev) in enumerate(change['rev']):
+            localFile = self.localmap.translate(change['depotFile'][n])
+            if localFile and len(localFile) > 0:
+                chRev = ChangeRevision(rev, change, n)
+                chRev.setLocalFile(localFile)
+                fileRevs.append(chRev)
+            else:
+                excludedFiles.append(change['depotFile'][n])
+        if excludedFiles:
+            self.logger.debug('excluded:', excludedFiles)
+        return fileRevs
 
 class P4Target(P4Base):
     "Functionality for transferring changes to target Perforce repository"
@@ -650,10 +701,6 @@ class P4Target(P4Base):
                 return True
         return False
 
-    # def processChangeRevs(self, fileRevs):
-    #     "Process all revisions in the change"
-    #     pass
-
     def fetchWithFlags(self, chgNo, flags):
         "fetch which can be repeated with flags where necessary"
         resultStr = ""
@@ -691,27 +738,27 @@ class P4Target(P4Base):
                 break
         return outputDict
 
-    def replicateChange(self, change):
-        """This is the heart of it all. Replicate all changes according to their description"""
+    def replicateChange(self, change, srcFileRevs):
+        """This is the heart of it all. Replicate a single change"""
 
         self.filesToIgnore = []
-        # self.processChangeRevs(fileRevs)
         result = self.doFetch(change['change'])
         newChangeId = 0
         if result:
             if 'renamedChange' in result:
                 newChangeId = result['renamedChange']
-
-        self.logger.info("source = {} : target  = {}".format(change['change'], newChangeId))
-        # self.validateSubmittedChange(newChangeId)
+        if newChangeId:
+            self.logger.info("source = {} : target  = {}".format(change['change'], newChangeId))
+        else:
+            self.logger.error("failed to replicate change {}".format(change['change']))
+        self.validateSubmittedChange(srcFileRevs, newChangeId)
         return newChangeId
 
-    def validateSubmittedChange(self, newChangeId):
+    def validateSubmittedChange(self, srcFileRevs, newChangeId):
         "Check against what was passed in"
         targFileRevs = []
-        filesToLog = {}
         if newChangeId:
-            change = self.p4cmd('describe', newChangeId)[0]
+            change = self.p4cmd('describe', '-s', newChangeId)[0]
             for (n, rev) in enumerate(change['rev']):
                 localFile = self.localmap.translate(change['depotFile'][n])
                 if localFile and len(localFile) > 0:
@@ -942,6 +989,8 @@ class FetchTransfer(object):
         "Perform a replication loop"
         self.source.connect('source replicate')
         self.target.connect('target replicate')
+        self.source.createClientWorkspace(isSource=True)
+        self.target.createClientWorkspace(isSource=False)
         changes = self.source.missingChanges(self.target.getCounter())
         if self.options.notransfer:
             self.logger.info("Would transfer %d changes - stopping due to --notransfer" % len(changes))
@@ -961,7 +1010,8 @@ class FetchTransfer(object):
                 msg = 'Processing change: {} "{}"'.format(
                             change['change'], change['desc'].strip())
                 self.logger.info(msg)
-                targetChange = self.target.replicateChange(change)
+                srcFileRevs = self.source.getChange(change['change'])
+                targetChange = self.target.replicateChange(change, srcFileRevs)
                 self.target.setCounter(change['change'])
                 self.target.updateChangeMap(self.source.p4.port, change['change'], targetChange)
                 changesTransferred += 1
@@ -1034,7 +1084,8 @@ class FetchTransfer(object):
         self.target.connect('target replicate')
         self.validateConfig()
         self.logger.debug("connected to source and target")
-        self.source.createClientWorkspace(True)
+        self.source.createClientWorkspace(isSource=True)
+        self.target.createClientWorkspace(isSource=False)
         self.target.createRemoteSpec(self.source)
         # sourceTargetTextComparison.setup(self.source, self.target)
 

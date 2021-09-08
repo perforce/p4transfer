@@ -761,7 +761,7 @@ class TestFetchTransfer(unittest.TestCase):
         self.assertEqual("edit", filelog[0].revisions[0].action)
 
     def testPartialBranch(self):
-        "Basic branch without taking add"
+        "Basic branch without taking original"
         self.setupTransfer()
 
         inside = localDirectory(self.source.client_root, "inside")
@@ -791,6 +791,44 @@ class TestFetchTransfer(unittest.TestCase):
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
         self.assertEqual("branch", filelog[0].revisions[0].action)
 
+    def testPartialInteg(self):
+        "Basic branch/integ back without taking original"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integ', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file1 branched')
+
+        self.source.p4cmd('edit', inside_file2)
+        append_to_file(inside_file2, "More content")
+        self.source.p4cmd('submit', '-d', 'inside_file2 edited')
+
+        self.source.p4cmd('integ', inside_file2, inside_file1)
+        self.source.p4cmd('resolve', '-as')
+        self.source.p4cmd('submit', '-d', 'merged back to original')
+
+        # Skip first three changes
+        self.target.p4cmd('counter', TEST_COUNTER_NAME, 3)
+        self.run_FetchTransfer()
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes), 1)
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
+
+        self.assertCounters(4, 1)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertEqual("integrate", filelog[0].revisions[0].action)
 
     # def testNonSuperUser(self):
     #     "Test when not a superuser - who can't update"
