@@ -1,5 +1,5 @@
 # -*- encoding: UTF8 -*-
-# Tests for the PullP4Transfer.py module.
+# Tests for the FetchTransfer.py module.
 
 from __future__ import print_function
 
@@ -23,7 +23,7 @@ from ruamel.yaml import YAML
 # Bring in module to be tested
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import logutils         # noqa: E402
-import PullP4Transfer       # noqa: E402
+import FetchTransfer       # noqa: E402
 
 yaml = YAML()
 
@@ -44,7 +44,7 @@ TRANSFER_CLIENT = "transfer"
 TRANSFER_TARGET_REMOTE = "transfer_remote"
 TRANSFER_CONFIG = "transfer.yaml"
 
-TEST_COUNTER_NAME = "PullP4Transfer"
+TEST_COUNTER_NAME = "FetchTransfer"
 INTEG_ENGINE = 3
 
 saved_stdoutput = StringIO()
@@ -178,30 +178,30 @@ class P4Server:
     def p4cmd(self, *args):
         "Execute p4 cmd while logging arguments and results"
         if not self.logger:
-            self.logger = logutils.getLogger(PullP4Transfer.LOGGER_NAME)
+            self.logger = logutils.getLogger(FetchTransfer.LOGGER_NAME)
         self.logger.debug('testp4:', args)
         output = self.p4.run(args)
         self.logger.debug('testp4r:', output)
         return output
 
 
-class TestPullP4Transfer(unittest.TestCase):
+class TestFetchTransfer(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
         global saved_stdoutput, test_logger
         saved_stdoutput.truncate(0)
         if test_logger is None:
-            test_logger = logutils.getLogger(PullP4Transfer.LOGGER_NAME, stream=saved_stdoutput)
+            test_logger = logutils.getLogger(FetchTransfer.LOGGER_NAME, stream=saved_stdoutput)
         else:
-            logutils.resetLogger(PullP4Transfer.LOGGER_NAME)
+            logutils.resetLogger(FetchTransfer.LOGGER_NAME)
         self.logger = test_logger
-        super(TestPullP4Transfer, self).__init__(methodName=methodName)
+        super(TestFetchTransfer, self).__init__(methodName=methodName)
 
     def assertRegex(self, *args, **kwargs):
         if python3:
-            return super(TestPullP4Transfer, self).assertRegex(*args, **kwargs)
+            return super(TestFetchTransfer, self).assertRegex(*args, **kwargs)
         else:
-            return super(TestPullP4Transfer, self).assertRegexpMatches(*args, **kwargs)
+            return super(TestFetchTransfer, self).assertRegexpMatches(*args, **kwargs)
 
     def assertContentsEqual(self, expected, content):
         if python3:
@@ -307,11 +307,11 @@ class TestPullP4Transfer(unittest.TestCase):
         with open(self.transfer_cfg, 'w') as f:
             yaml.dump(config, f)
 
-    def run_PullP4Transfer(self, *args):
+    def run_FetchTransfer(self, *args):
         base_args = ['-c', self.transfer_cfg, '-s']
         if args:
             base_args.extend(args)
-        pt = PullP4Transfer.PullP4Transfer(*base_args)
+        pt = FetchTransfer.FetchTransfer(*base_args)
         result = pt.replicate()
         return result
 
@@ -345,11 +345,11 @@ class TestPullP4Transfer(unittest.TestCase):
         "Basic argparsing for the module"
         self.setupTransfer()
         args = ['-c', self.transfer_cfg, '-s']
-        pt = PullP4Transfer.PullP4Transfer(*args)
+        pt = FetchTransfer.FetchTransfer(*args)
         self.assertEqual(pt.options.config, self.transfer_cfg)
         self.assertTrue(pt.options.stoponerror)
         args = ['-c', self.transfer_cfg]
-        pt = PullP4Transfer.PullP4Transfer(*args)
+        pt = FetchTransfer.FetchTransfer(*args)
 
     def testArgParsingErrors(self):
         "Basic argparsing for the module"
@@ -360,13 +360,13 @@ class TestPullP4Transfer(unittest.TestCase):
         # except Exception as e:
         #     pass
         args = ['-c', self.transfer_cfg, '--end-datetime', '2020/1/1 13:01']
-        pt = PullP4Transfer.PullP4Transfer(*args)
+        pt = FetchTransfer.FetchTransfer(*args)
         self.assertEqual(pt.options.config, self.transfer_cfg)
         self.assertFalse(pt.options.stoponerror)
         self.assertEqual(datetime.datetime(2020, 1, 1, 13, 1), pt.options.end_datetime)
         self.assertTrue(pt.endDatetimeExceeded())
         args = ['-c', self.transfer_cfg, '--end-datetime', '2040/1/1 13:01']
-        pt = PullP4Transfer.PullP4Transfer(*args)
+        pt = FetchTransfer.FetchTransfer(*args)
         self.assertEqual(pt.options.config, self.transfer_cfg)
         self.assertFalse(pt.options.stoponerror)
         self.assertEqual(datetime.datetime(2040, 1, 1, 13, 1), pt.options.end_datetime)
@@ -376,7 +376,7 @@ class TestPullP4Transfer(unittest.TestCase):
         "Test  only max number of changes are transferred"
         self.setupTransfer()
         args = ['-c', self.transfer_cfg, '-m1']
-        pt = PullP4Transfer.PullP4Transfer(*args)
+        pt = FetchTransfer.FetchTransfer(*args)
         self.assertEqual(pt.options.config, self.transfer_cfg)
 
         inside = localDirectory(self.source.client_root, "inside")
@@ -407,7 +407,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     msg = ""
     #     try:
     #         base_args = ['-c', self.transfer_cfg, '-s']
-    #         pt = PullP4Transfer.PullP4Transfer(*base_args)
+    #         pt = FetchTransfer.FetchTransfer(*base_args)
     #         pt.setupReplicate()
     #     except Exception as e:
     #         msg = str(e)
@@ -421,7 +421,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.createConfigFile(options=config)
 
     #     base_args = ['-c', self.transfer_cfg, '-s']
-    #     pt = PullP4Transfer.PullP4Transfer(*base_args)
+    #     pt = FetchTransfer.FetchTransfer(*base_args)
     #     pt.setupReplicate()
     #     self.assertEqual(5, pt.options.poll_interval)
     #     self.assertEqual(50, pt.options.report_interval)
@@ -438,7 +438,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     msg = ""
     #     try:
     #         base_args = ['-c', self.transfer_cfg, '-s']
-    #         pt = PullP4Transfer.PullP4Transfer(*base_args)
+    #         pt = FetchTransfer.FetchTransfer(*base_args)
     #         pt.setupReplicate()
     #     except Exception as e:
     #         msg = str(e)
@@ -454,7 +454,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     msg = ""
     #     try:
     #         base_args = ['-c', self.transfer_cfg, '-s']
-    #         pt = PullP4Transfer.PullP4Transfer(*base_args)
+    #         pt = FetchTransfer.FetchTransfer(*base_args)
     #         pt.setupReplicate()
     #     except Exception as e:
     #         msg = str(e)
@@ -476,7 +476,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     msg = ""
     #     try:
     #         base_args = ['-c', self.transfer_cfg, '-s']
-    #         pt = PullP4Transfer.PullP4Transfer(*base_args)
+    #         pt = FetchTransfer.FetchTransfer(*base_args)
     #         pt.setupReplicate()
     #     except Exception as e:
     #         msg = str(e)
@@ -493,7 +493,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', inside_file1)
     #     desc = 'inside_file1 added'
     #     self.source.p4cmd('submit', '-d', desc)
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(1, 1)
     #     changes = self.target.p4cmd('changes', '-l', '-m1')
     #     self.assertRegex(changes[0]['desc'], "%s\n\nTransferred from p4://rsh:.*@1\n$" % desc)
@@ -504,7 +504,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('edit', inside_file1)
     #     desc = 'inside_file1 edited'
     #     self.source.p4cmd('submit', '-d', desc)
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(2, 2)
     #     changes = self.target.p4cmd('changes', '-l', '-m1')
     #     self.assertRegex(changes[0]['desc'], "Originally 2 by %s" % P4USER)
@@ -515,7 +515,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('edit', inside_file1)
     #     desc = 'inside_file1 edited again'
     #     self.source.p4cmd('submit', '-d', desc)
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(3, 3)
     #     changes = self.target.p4cmd('changes', '-l', '-m1')
     #     self.assertEqual(changes[0]['desc'], "Was 3 by %s $fred\n%s\n" % (P4USER, desc))
@@ -542,7 +542,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     options["change_batch_size"] = "4"
     #     self.createConfigFile(options=options)
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(10, 10)
 
     #     logoutput = saved_stdoutput.getvalue()
@@ -558,7 +558,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('add', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'file added')
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(1, 1)
 
     #     options = self.getDefaultOptions()
@@ -568,7 +568,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('edit', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'edited')
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(2, 3)
     #     change = self.target.p4.run_describe('4')[0]
     #     self.assertEqual(len(change['depotFile']), 1)
@@ -585,7 +585,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('submit', '-d', 'edited again')
     #     self.source.p4cmd('edit', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'and again')
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(4, 6)
     #     change = self.target.p4.run_describe('8')[0]
     #     self.assertEqual(len(change['depotFile']), 1)
@@ -608,7 +608,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('add', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'file added')
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(1, 1)
 
     #     options = self.getDefaultOptions()
@@ -618,7 +618,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('edit', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'edited')
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(2, 3)
     #     change = self.target.p4.run_describe('4')[0]
     #     self.assertEqual(len(change['depotFile']), 1)
@@ -635,7 +635,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('submit', '-d', 'edited again')
     #     self.source.p4cmd('edit', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'and again')
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(4, 6)
     #     change = self.target.p4.run_describe('8')[0]
     #     self.assertEqual(len(change['depotFile']), 1)
@@ -686,7 +686,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog[0].revisions[0].action, 'edit')
         self.assertEqual(filelog[0].revisions[1].action, 'archive')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         change = self.target.p4.run_describe('2')[0]
@@ -718,7 +718,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', inside_file1)
         self.source.p4cmd('submit', '-d', 'inside_file1 added')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         changes = self.target.p4cmd('changes')
         self.assertEqual(len(changes), 1, "Target does not have exactly one change")
@@ -746,7 +746,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
         # Skip first change
         self.target.p4cmd('counter', TEST_COUNTER_NAME, 1)
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         changes = self.target.p4cmd('changes')
         self.assertEqual(1, len(changes), 1)
@@ -755,7 +755,42 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file1')
 
-        self.assertCounters(1, 1)
+        self.assertCounters(2, 1)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertEqual("edit", filelog[0].revisions[0].action)
+
+    def testPartialBranch(self):
+        "Basic branch without taking add"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integ', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file1 branched')
+
+        # Skip first change
+        self.target.p4cmd('counter', TEST_COUNTER_NAME, 1)
+        self.run_FetchTransfer()
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes), 1)
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]['depotFile'], '//depot/import/inside_file2')
+
+        self.assertCounters(2, 1)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
+        self.assertEqual("branch", filelog[0].revisions[0].action)
+
 
     # def testNonSuperUser(self):
     #     "Test when not a superuser - who can't update"
@@ -779,7 +814,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', inside_file1)
     #     self.source.p4cmd('submit', '-d', 'inside_file1 added')
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
 
     #     changes = self.target.p4cmd('changes')
     #     self.assertEqual(len(changes), 1, "Target does not have exactly one change")
@@ -815,7 +850,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
         self.source.p4cmd('obliterate', '-y', "%s#2,2" % inside_file1)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         self.assertCounters(3, 3)
 
@@ -853,7 +888,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', "-t", "symlink", file_link1, file_link2)
         self.source.p4cmd('submit', '-d', 'files added')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(1, 1)
 
         changes = self.target.p4cmd('changes')
@@ -869,7 +904,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('move', file_link2, file_link4)
         self.source.p4cmd('submit', '-d', 'links moved')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         self.source.p4cmd('edit', file_link3, file_link4)
@@ -877,7 +912,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('move', file_link4, file_link6)
         self.source.p4cmd('submit', '-d', 'links moved')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
     def testUTF16FaultyBOM(self):
@@ -901,7 +936,7 @@ class TestPullP4Transfer(unittest.TestCase):
             self.source.p4cmd('verify', '-qv', '//depot/inside/...')
         self.source.p4cmd('verify', '-q', '//depot/inside/...')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(1, 1)
 
     def testUTF16Unsyncable(self):
@@ -932,12 +967,12 @@ class TestPullP4Transfer(unittest.TestCase):
             self.source.p4cmd('verify', '-qv', '//depot/inside/...')
         self.source.p4cmd('verify', '-q', '//depot/inside/...')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         # Unlike P4Transfer - this step is not required.
         # self.source.p4cmd('retype', '-t', 'binary', '//depot/inside/...@1,@2')
-        # self.run_PullP4Transfer()
+        # self.run_FetchTransfer()
         # self.assertCounters(3, 3)
 
     @unittest.skipIf(python3 and (platform.system().lower() == "windows"),
@@ -962,7 +997,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', '-f', localinside_file2)
         self.source.p4cmd('submit', '-d', 'inside_file1 added')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         changes = self.target.p4cmd('changes')
         self.assertEqual(len(changes), 1)
@@ -1016,7 +1051,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', "//depot/inside/*", "//depot/inside/new/*")
         self.source.p4cmd('submit', '-d', 'files branched')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         files = self.target.p4cmd('files', '//depot/...')
@@ -1040,7 +1075,7 @@ class TestPullP4Transfer(unittest.TestCase):
         append_to_file(inside_file1, 'More content')
         self.source.p4cmd('submit', '-d', "inside_file1 edited")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         changes = self.target.p4cmd('changes', )
         self.assertEqual(len(changes), 2)
@@ -1050,7 +1085,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('delete', inside_file1)
         self.source.p4cmd('submit', '-d', "inside_file1 deleted")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         changes = self.target.p4cmd('changes', )
@@ -1062,7 +1097,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', inside_file1)
         self.source.p4cmd('submit', '-d', "Re-added")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -1078,7 +1113,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', '-tbinary', inside_file1)
         self.source.p4cmd('submit', '-d', "inside_file1 added")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(1, 1)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -1088,7 +1123,7 @@ class TestPullP4Transfer(unittest.TestCase):
         append_to_file(inside_file1, "More content")
         self.source.p4cmd('submit', '-d', "Type changed")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -1099,7 +1134,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', '-t+k', inside_file2)
         self.source.p4cmd('submit', '-d', "Ktext added")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1153,7 +1188,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('reopen', '-ttext', inside_file4)
         self.source.p4cmd('submit', '-d', "type change NOT integrated")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(7, 7)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1181,7 +1216,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
         self.source.p4cmd('obliterate', '-y', "%s#1" % original_file)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 1)
 
     def testMoveObliteratedSource(self):
@@ -1201,7 +1236,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
         self.source.p4cmd('obliterate', '-y', original_file)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 1)
 
     def testMoveBinary(self):
@@ -1219,7 +1254,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_move(original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         change = self.target.p4.run_describe('1')[0]
@@ -1237,7 +1272,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_move(renamed_file, original_file)
         self.source.p4cmd('submit', '-d', "renaming file back")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
     def testMoveWithCopyFromOutside(self):
@@ -1261,7 +1296,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-at')
         self.source.p4cmd('submit', '-d', "renaming file with copy")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         change = self.target.p4.run_describe('2')[0]
@@ -1299,7 +1334,7 @@ class TestPullP4Transfer(unittest.TestCase):
     # #     options = {"partial_transfer": 'y'}
     # #     self.createConfigFile(options=options)
     # #
-    # #     self.run_PullP4Transfer()
+    # #     self.run_FetchTransfer()
     # #     self.assertCounters(2, 2)
 
     @unittest.skip("The final change cannot be processed by p4 fetch (moved back from outside -> inside")
@@ -1319,7 +1354,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_move(original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         change = self.target.p4.run_describe('2')[0]
@@ -1337,7 +1372,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_move(renamed_file, original_file)
         self.source.p4cmd('submit', '-d', "renaming file back")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         change = self.target.p4.run_describe('4')[0]
@@ -1353,7 +1388,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_move(original_file, outside_file)
         self.source.p4cmd('submit', '-d', "moving file outside")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         change = self.target.p4.run_describe('5')[0]
@@ -1366,7 +1401,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_move(outside_file, original_file)
         self.source.p4cmd('submit', '-d', "moving file from outside back to inside")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         change = self.target.p4.run_describe('6')[0]
@@ -1396,7 +1431,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('delete', original_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         change = self.target.p4.run_describe('4')[0]
@@ -1438,7 +1473,7 @@ class TestPullP4Transfer(unittest.TestCase):
             self.source.p4cmd('copy', '//depot/inside/main/renamed/file1', '//depot/inside/branch/renamed/file1')
         self.source.p4cmd('submit', '-d', "copying rename back to other branch individually")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 6)
 
         change = self.target.p4.run_describe('7')[0]
@@ -1476,7 +1511,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd("sync")
         self.source.p4cmd("submit", "-c3")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         change = self.target.p4.run_describe('4')[0]
@@ -1515,7 +1550,7 @@ class TestPullP4Transfer(unittest.TestCase):
         append_to_file(file2, "A change")
         self.source.p4cmd("submit", "-c3")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         change = self.target.p4.run_describe('4')[0]
@@ -1572,7 +1607,7 @@ class TestPullP4Transfer(unittest.TestCase):
                             'targ': '//target/inside/main/Dir/...'}]
         self.createConfigFile(options=config)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 3)
 
         change = self.target.p4.run_describe('1')[0]
@@ -1608,7 +1643,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', '-Di', renamed_file, branched_file)
         self.source.p4cmd('submit', '-d', "copying files")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         change = self.target.p4.run_describe('3')[0]
@@ -1639,7 +1674,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('undo', "%s#2" % inside_file1)
         self.source.p4cmd('submit', '-d', 'undo delete')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         self.source.p4cmd('edit', inside_file1)
@@ -1650,7 +1685,7 @@ class TestPullP4Transfer(unittest.TestCase):
         # self.source.p4cmd('resolve', '-ay')
         self.source.p4cmd('submit', '-d', 'undo edit')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
     def testSimpleIntegrate(self):
@@ -1667,7 +1702,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', inside_file1, inside_file2)
         self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         changes = self.target.p4cmd('changes')
@@ -1681,7 +1716,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_resolve('-at')
         self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2 (copy)')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1706,7 +1741,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4.run_resolve('-at')
         self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2 (copy)')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(8, 8)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1760,7 +1795,7 @@ class TestPullP4Transfer(unittest.TestCase):
         sourceCounter = 4
         targetCounter = 4
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(sourceCounter, targetCounter)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1791,7 +1826,7 @@ class TestPullP4Transfer(unittest.TestCase):
         sourceCounter += 2
         targetCounter += 2
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(sourceCounter, targetCounter)
 
         # Prepare ignore
@@ -1806,7 +1841,7 @@ class TestPullP4Transfer(unittest.TestCase):
         sourceCounter += 2
         targetCounter += 2
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(sourceCounter, targetCounter)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1825,7 +1860,7 @@ class TestPullP4Transfer(unittest.TestCase):
         sourceCounter += 2
         targetCounter += 2
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(sourceCounter, targetCounter)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1843,7 +1878,7 @@ class TestPullP4Transfer(unittest.TestCase):
         sourceCounter += 2
         targetCounter += 2
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(sourceCounter, targetCounter)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1906,7 +1941,7 @@ class TestPullP4Transfer(unittest.TestCase):
         sourceCounter = 5
         targetCounter = 5
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(sourceCounter, targetCounter)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -1959,7 +1994,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'edit from')
         self.assertEqual(filelog[0].revisions[0].integrations[1].how, 'ignored')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 6)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -2002,7 +2037,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-at')
         self.source.p4cmd('submit', '-d', 'Force integrate')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 6)
 
     def testDirtyMerge(self):
@@ -2078,7 +2113,7 @@ class TestPullP4Transfer(unittest.TestCase):
             "@rv@ 0 @db.integed@ @//depot/inside/inside_file1@ @//depot/inside/inside_file2@ 2 3 1 2 1 4\n"
         self.applyJournalPatch(jnl_rec)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
     def testDodgyMerge(self):
@@ -2228,7 +2263,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'merge from')
         self.logger.debug("print:", self.source.p4.run_print(inside_file2))
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 6)
         self.logger.debug("print:", self.target.p4.run_print("//depot/import/inside_file2"))
 
@@ -2287,7 +2322,7 @@ class TestPullP4Transfer(unittest.TestCase):
         filelog = self.source.p4.run_filelog(inside_file1)
         self.assertEqual(filelog[0].revisions[0].action, 'import')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(1, 1)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -2333,7 +2368,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(len(filelog[0].revisions[0].integrations), 1)
         self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'branch from')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
     def testMultipleSimpleIntegrate(self):
@@ -2355,7 +2390,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', inside_file2, file3)
         self.source.p4cmd('submit', '-d', 'inside_file2 -> File3')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         filelog1 = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -2410,7 +2445,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
         self.source.p4cmd('submit', '-d', 'integrated twice separately into file2')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -2435,7 +2470,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', file1, file2)
     #     self.source.p4cmd('submit', '-d', "Added files")
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(1, 1)
 
     #     changes = self.target.p4cmd('changes')
@@ -2465,7 +2500,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', file1, file2)
         self.source.p4cmd('submit', '-d', "Added files")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(1, 1)
 
         changes = self.target.p4cmd('changes')
@@ -2501,7 +2536,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', outside_file, inside_file2)
         self.source.p4cmd('submit', '-d', "Integrated from outside to inside")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 1)
 
         changes = self.target.p4cmd('changes', )
@@ -2514,14 +2549,14 @@ class TestPullP4Transfer(unittest.TestCase):
         append_to_file(outside_file, "More content")
         self.source.p4cmd('submit', '-d', "Outside outside_file edited")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 1)   # counters will not move, no change within the client workspace's scope
 
         self.source.p4cmd('integrate', outside_file, inside_file2)
         self.source.p4.run_resolve('-at')
         self.source.p4cmd('submit', '-d', "Copied outside_file -> inside_file2")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 2)
 
         changes = self.target.p4cmd('changes', )
@@ -2536,7 +2571,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', outside_file, inside_file2)
         self.source.p4cmd('submit', '-d', "inside_file2 deleted from outside_file")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 3)
 
         changes = self.target.p4cmd('changes', )
@@ -2550,7 +2585,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', inside_file2, outside_file)
         self.source.p4cmd('submit', '-d', "adding inside and outside")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(7, 4)
 
         change = self.target.p4.run_describe('4')[0]
@@ -2602,7 +2637,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(len(filelog[0].revisions[0].integrations), 1)
         self.assertEqual(filelog[0].revisions[0].integrations[0].how, 'branch from')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 3)
 
     # def testFailedSubmit(self):
@@ -2629,7 +2664,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', inside_file)
     #     self.source.p4cmd('submit', '-d', "adding inside, hidden")
 
-    #     result = self.run_PullP4Transfer()
+    #     result = self.run_FetchTransfer()
     #     self.assertEqual(result, 1)
 
     #     self.assertCounters(0, 1)
@@ -2663,7 +2698,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', inside_file1, inside_file2)
         self.source.p4cmd('submit', '-d', 'inside_file2 added')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 6)
 
     def testIntegDeleteForce(self):
@@ -2694,7 +2729,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-at', inside_file2)
         self.source.p4cmd('submit', '-d', 'inside_file2 added')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(6, 6)
 
         filelog = self.source.p4.run_filelog('//depot/inside/inside_file2')[0]
@@ -2750,7 +2785,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
         self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -2820,7 +2855,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
@@ -2884,7 +2919,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "branch from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
@@ -2966,7 +3001,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(2, 2)
 
         filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
@@ -3038,7 +3073,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[2].how, "merge from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 2)
 
         filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
@@ -3072,7 +3107,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-at')
         self.source.p4cmd('submit', '-d', 'file2 delete integrated')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
     def testIgnoredDeleteInteg(self):
@@ -3164,7 +3199,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[1].action, "branch")
         self.assertEqual(filelog.revisions[2].action, "delete")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(10, 10)
 
     def testIntegDirtyCopy(self):
@@ -3192,7 +3227,7 @@ class TestPullP4Transfer(unittest.TestCase):
         filelog = self.source.p4.run_filelog(inside_file2)[0]
         self.logger.debug(filelog)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3224,7 +3259,7 @@ class TestPullP4Transfer(unittest.TestCase):
         filelog = self.source.p4.run_filelog(inside_file2)[0]
         self.logger.debug(filelog)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3274,7 +3309,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual("branch from", filelog.revisions[0].integrations[0].how)
         self.assertEqual("copy from", filelog.revisions[0].integrations[1].how)
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')[0]
@@ -3317,7 +3352,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[1].how, "merge from")
         self.assertEqual(filelog.revisions[0].integrations[2].how, "add from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3374,7 +3409,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(len(filelog.revisions[0].integrations), 1)
         self.assertEqual(filelog.revisions[0].integrations[0].how, "edit from")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3421,7 +3456,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('delete', inside_file4)
         self.source.p4cmd('submit', '-d', 'renamed back again')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -3467,7 +3502,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', inside_file2, inside_file3)
         self.source.p4cmd('submit', '-d', 'inside_file3 created as copy')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3524,7 +3559,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.logger.debug(filelog)
         self.assertEqual(filelog.revisions[0].action, 'delete')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')[0]
@@ -3574,7 +3609,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].action, 'delete')
         self.assertEqual(filelog.revisions[1].action, 'delete')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(3, 3)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3633,7 +3668,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "delete from")
         self.assertEqual(filelog.revisions[1].action, 'delete')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3692,7 +3727,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.logger.debug(filelog)
         self.assertEqual(filelog[0].revisions[0].action, 'integrate')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')[0]
@@ -3726,7 +3761,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-at')
         self.source.p4cmd('submit', '-d', "adding file2")
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         change = self.target.p4.run_describe('5')[0]
@@ -3764,7 +3799,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.assertEqual(filelog[0].revisions[0].action, 'integrate')
         self.assertEqual(filelog[0].revisions[1].action, 'branch')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 2)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
@@ -3793,7 +3828,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('submit', '-d', 'File(s) added')
 
-    #     self.run_PullP4Transfer("--nokeywords")
+    #     self.run_FetchTransfer("--nokeywords")
 
     #     newFiles = self.target.p4cmd('files', "//...")
     #     self.assertEqual(len(newFiles), 4)
@@ -3808,7 +3843,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('submit', '-d', 'File edited')
 
-    #     self.run_PullP4Transfer("--nokeywords")
+    #     self.run_FetchTransfer("--nokeywords")
 
     #     files = self.target.p4cmd('files', "//depot/import/file1")
     #     self.assertEqual(files[0]['type'], "text")
@@ -3849,7 +3884,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('resolve', '-as')
         self.source.p4cmd('submit', '-d', 'integrated')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(5, 5)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -3876,7 +3911,7 @@ class TestPullP4Transfer(unittest.TestCase):
 
     #     self.source.p4cmd('populate', "//depot/inside/original/...", "//depot/inside/new/...")
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(2, 2)
 
     def testBackoutMove(self):
@@ -3904,7 +3939,7 @@ class TestPullP4Transfer(unittest.TestCase):
         create_file(inside_file1, "Different test content")
         self.source.p4cmd('submit', '-d', 'changed inside_file1 again')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
         self.assertCounters(4, 4)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
@@ -3951,7 +3986,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('integrate', inside_file1, inside_file2)
         self.source.p4cmd('submit', '-d', 'branched into inside_file2')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         changes = self.target.p4cmd('changes', )
         self.assertEqual(len(changes), 4, "Target does not have exactly four changes")
@@ -3979,7 +4014,7 @@ class TestPullP4Transfer(unittest.TestCase):
         self.source.p4cmd('add', inside_file1)
         self.source.p4cmd('submit', '-d', 'inside_file1 added')
 
-        self.run_PullP4Transfer()
+        self.run_FetchTransfer()
 
         changes = self.target.p4cmd('changes')
         self.assertEqual(len(changes), 1, "Target does not have exactly one change")
@@ -4025,7 +4060,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', file1)
     #     self.source.p4cmd('submit', '-d', "Added files")
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(2, 3)   # Normally (1,1) - Extras change due to stream creation
 
     #     changes = self.target.p4cmd('changes', '//targ_streams/...')
@@ -4042,7 +4077,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.assertEqual('//targ_streams/transfer_target_stream', client._stream)
 
     #     # Run again and expect no extra stream changes to be created
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(2, 3)
 
     # def testStreamsMultiple(self):
@@ -4082,7 +4117,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', file1)
     #     self.source.p4cmd('submit', '-d', "Added files")
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(0, 1)
 
     #     s = self.source.p4.fetch_stream('-t', 'release', '-P', '//src_streams/main', '//src_streams/rel1')
@@ -4094,7 +4129,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4.run_populate('-S', '//src_streams/rel1', '-r')
     #     self.source.p4.run_populate('-S', '//src_streams/rel2', '-r')
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
 
     #     changes = self.target.p4cmd('changes', '//targ_streams/...')
     #     self.assertEqual(2, len(changes))
@@ -4121,7 +4156,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('add', file1)
     #     self.source.p4cmd('submit', '-d', "Added file2")
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
 
     #     changes = self.target.p4cmd('changes', '//targ_streams/...')
     #     self.assertEqual(3, len(changes))
@@ -4138,7 +4173,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4.save_stream(s)
     #     self.source.p4.run_populate('-S', '//src_streams/rel3', '-r')
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(9, 10)
 
     #     changes = self.target.p4cmd('changes', '//targ_streams/...')
@@ -4199,7 +4234,7 @@ class TestPullP4Transfer(unittest.TestCase):
     #     self.source.p4.run_populate('-S', '//src_streams/rel1', '-r')
     #     self.source.p4.run_populate('-S', '//src_streams/rel2', '-r')
 
-    #     self.run_PullP4Transfer()
+    #     self.run_FetchTransfer()
     #     self.assertCounters(6, 7)
 
     #     changes = self.target.p4cmd('changes', '//targ_streams/...')

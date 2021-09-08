@@ -30,7 +30,7 @@
 
 """
 NAME:
-    PullP4Transfer.py
+    FetchTransfer.py
 
 DESCRIPTION:
     This python script (2.7/3.6+ compatible) will transfer Perforce changelists with all contents
@@ -40,18 +40,18 @@ DESCRIPTION:
 
     Usage:
 
-        python3 PullP4Transfer.py -h
+        python3 FetchTransfer.py -h
 
     The script requires a config file, by default transfer.yaml,
     that provides the Perforce connection information for both servers.
 
     An initial example can be generated, e.g.
 
-        PullP4Transfer.py --sample-config > transfer.yaml
+        FetchTransfer.py --sample-config > transfer.yaml
 
     For full documentation/usage, see project doc:
 
-        https://github.com/perforce/p4transfer/blob/main/doc/P4Transfer.adoc
+        https://github.com/perforce/p4transfer/blob/main/doc/FetchTransfer.adoc
 
 """
 
@@ -127,7 +127,7 @@ CONFIG_FILE = 'transfer.yaml'
 GENERAL_SECTION = 'general'
 SOURCE_SECTION = 'source'
 TARGET_SECTION = 'target'
-LOGGER_NAME = "PullP4Transfer"
+LOGGER_NAME = "FetchTransfer"
 CHANGE_MAP_DESC = "Updated change_map_file"
 
 # This is for writing to sample config file
@@ -136,10 +136,10 @@ DEFAULT_CONFIG = yaml.load(r"""
 #    Name sensibly if you have multiple instances transferring into the same target p4 repository.
 #    The counter value represents the last transferred change number - script will start from next change.
 #    If not set, or 0 then transfer will start from first change.
-counter_name: pullp4transfer_counter
+counter_name: FetchTransfer_counter
 
-# instance_name: Name of the instance of PullP4Transfer - for emails etc. Spaces allowed.
-instance_name: "Perforce Pull Transfer from XYZ"
+# instance_name: Name of the instance of FetchTransfer - for emails etc. Spaces allowed.
+instance_name: "Perforce Fetch Transfer from XYZ"
 
 # For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
 #   E.g. expects to post using 2 fields: subject, message
@@ -251,7 +251,7 @@ target:
 workspace_root: /work/transfer
 
 # target_remote: Name of remote spec to setup - ensure this is unique and only used by this script!
-target_remote: pullp4transfer_remote
+target_remote: FetchTransfer_remote
 
 # views: An array of source/target view mappings
 #    You are not allowed to specify both 'views' and 'stream_views' - leave one or other blank!!
@@ -804,7 +804,7 @@ def valid_datetime_type(arg_datetime_str):
         raise argparse.ArgumentTypeError(msg)
 
 
-class PullP4Transfer(object):
+class FetchTransfer(object):
     "Main transfer class"
 
     def __init__(self, *args):
@@ -1161,7 +1161,7 @@ class PullP4Transfer(object):
 if __name__ == '__main__':
     result = 0
     try:
-        prog = PullP4Transfer(*sys.argv[1:])
+        prog = FetchTransfer(*sys.argv[1:])
         result = prog.replicate()
     except Exception as e:
         print(str(e))
