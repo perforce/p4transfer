@@ -1,0 +1,348 @@
+= FetchTransfer - Helix Core Incremental History Migration Tool
+Perforce Professional Services <consulting@perforce.com>
+:revnumber: v2021.1
+:revdate: 2021-09-08
+:doctype: book
+:icons: font
+:toc:
+:toclevels: 5
+:sectnumlevels: 4
+:xrefstyle: full
+
+:sectnums:
+== Introduction
+
+The script link:../FetchTransfer.py[FetchTransfer.py] is a wrapper around the underlying `p4 fetch` to the problem: how to transfer changes between unrelated and unconnected Perforce Helix Core repositories. 
+
+This requires a 2015.1 or greater Helix Core server with the https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html[Helix native DVCS] commands (`p4 clone`/`p4 fetch`/`p4 push`). If you have a pre-2015.1 version of Helix Core (or very large repository sizes to be transferred), then `P4Transfer.py` may be your best option! See next section for guidance.
+
+While best practice is usually to have only one Perforce Server, the reality is often that many different Perforce Servers are required. A typical example is the Perforce public depot, which sits outside the Perforce Network.
+
+Sometimes you start a project on one server and then realize that it would be nice to replicate these changes to another server. For example, you could start out on a local server on a laptop while being on the road but would like to make the results available on the public server. You may also wish to consolidate various Perforce servers into one with all their history (e.g. after an acquisition of another company).
+
+== FetchTransfer vs Helix native DVCS functions
+
+See also link:P4Transfer.adoc for reasons when that would be better than FetchTransfer.
+
+Both Helix native DVCS and FetchTransfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.
+
+https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html[Helix native DVCS] has additional functionality, such as creating a personal micro-repo for personal use without a continuously running `p4d` process.
+
+IMPORTANT: When it is an option, using Helix native DVCS is preferred.  But if that can’t be used for some reason, FetchTransfer can pretty much always be made to work.
+
+=== Guidance on tool differences
+
+Common features:
+
+* `FetchTransfer.py` is a wrapper around the underlying Helix native DVCS.
+
+Pros for basic native DVCS:
+
+* Helix native DVCS is a fully supported product feature.
+* Helix native DVCS requires consistency among the Helix Core servers: Same case sensitivity setting, same Unicode mode, and same P4D version (with some exceptions).
+* Helix native DVCS is easy to setup and use.
+* Helix native DVCS requires particular configurables to be setup, and may be viewed as a security concern for the extraction of history (this can be controlled with pre-command triggers)
+
+
+* Helix native DVCS is generally deemed to produce the highest possible quality data on the target server, as it transfers raw journal data and archive content.
+* Helix native DVCS is very fast.
+* Helix native DVCS has no external dependencies.
+* Helix native DVCS bypasses triggers.
+
+When FetchTransfer might be a better option:
+
+* Helix native DVCS has some limitations at larger scales (depends on server RAM as it creates zip files) - won't scale to TB requiring to be transferred.
+* If Helix native DVCS hits data snags, there may not be an easy way to work around them, unless a new P4D server release address them.
+* Helix native DVCS must be explicitly enabled.  If not already enabled, it requires 'super' access on both Helix Core servers involved in the process.
+* FetchTransfer is community supported (and with paid Consulting engagements).
+* FetchTransfer can make timestamps more accurate if it has 'admin' level access, but does not require it.
+* FetchTransfer can be run as a service for continuous operation.
+* FetchTransfer requires a little more initial setup than Helix native DVCS.
+
+== Implementation
+
+Like DVCS, FetchTransfer uses a remote spec to specify mappings between source and target servers. For validation of changelist contents, and also submission of change-map files, there are also client workspaces which duplicate the mappings.
+
+The remote spec and the client workspaces are created automatically from the `view` entries in the config file described below.
+
+FetchTransfer works uni-directionally. The tool will inquire the changes for the workspace files and compare these to a counter.
+
+FetchTransfer uses a single configuration file that contains the information of both servers as well as the current counter values. The tool maintains its state counter using a Perforce counter on the target server (thus requiring `review` privilege as well as `write` privilege – by default it assumes `super` user privilege is required since it updates changelist owners and date/time to the same as the source – this functionality is controlled by the config file).
+
+In addition the configurables `server.allowfetch` must be set.
+
+=== Classic/local target depots vs Streams targets
+
+TBD
+
+== Setup
+
+You will need Python 2.7 or 3.6+ and P4Python 2017.2+ to make this script work. 
+
+The easiest way to install P4Python is probably using "pip" (or "pip3") – https://pip.pypa.io/en/stable/installing.html[make sure this is installed]. Then:
+
+    pip install p4python
+
+TIP: If the above needs to build and fails, then this usually works for Python 3.6: `pip3 install p4python==2017.2.1615960`
+
+Alternatively, refer to https://www.perforce.com/manuals/p4python/Content/P4Python/python.installation.html[P4Python Docs]
+
+If you are on Windows, then look for an appropriate version on the Perforce ftp site (for your Python version), e.g. http://ftp.perforce.com/perforce/r20.1/bin.ntx64/
+
+=== Installing FetchTransfer.py
+
+The easiest thing to do is to download this repo either by:
+
+* running `git clone https://github.com/perforce/p4transfer` 
+* or by downloading https://github.com/perforce/p4transfer/archive/main.zip[the project zip file] and unzipping.
+
+The minimum requirements are the modules `FetchTransfer.py` and `logutils.py`
+
+If you have installed P4Python as above, then check the `requirements.txt` for other modules to install via `pip` or `pip3`.
+
+=== Getting started
+
+Note that if running it on Windows, and especially if the source server has filenames containing say umlauts or other non-ASCII characters, then Python 2.7 may be required currently due to the way Unicode is processed. Python 3.6+ on Mac/Unix should be fine with Unicode as long as you are using P4Python 2017.2+ 
+
+Now initialize the configuration file, by default called `transfer.cfg`. This can be generated by the script:
+
+    python3 FetchTransfer.py –-sample-config > transfer.yaml
+
+Then edit the resulting file, paying attention to the comments.
+
+The password stored in P4Passwd is optional if you do not want to rely on tickets. The tool performs a login if provided with a password, so it should work with `security=3` or `auth_check` trigger set.
+
+Note that although the workspaces are named the same for both servers in this example, they are completely different entities.
+
+A typical run of the tool would produce the following output:
+
+```
+C:\work\> python3 FetchTransfer.py -c transfer.yaml -r
+2014-07-01 15:32:34,356:FetchTransfer:INFO: Transferring 0 changes
+2014-07-01 15:32:34,361:FetchTransfer:INFO: Sleeping for 1 minutes
+```
+
+If there are any changes missing, they will be applied consecutively.
+
+=== Script parameters
+
+FetchTransfer has various options – these are documented via the `-h` or `--help` parameters.
+
+The following text may not display properly if your are viewing this FetchTransfer.adoc file in GitHub. Please refer 
+the the .pdf version instead, or open up link:help.txt[help.txt] file directly.
+
+[source]
+----
+include::help.txt[]
+----
+
+=== Optional Parameters
+
+* `--notransfer` - useful to validate your config file and that you can connect to source/target p4d servers, and report on how many changes might be transferred.
+* `--maximum` - useful to perform a test transfer of a single changelist when you get started (although remember this might be a changelist with a lot of files!)
+* `--end-datetime` - useful to schedule a run of FetchTransfer and have it stop at the desired time (e.g. run overnight and stop when users start work in the morning). Useful for scheduling long running transfers (can be many days) in quiet periods (e.g. together with Linux `at` command)
+
+=== Long running jobs
+
+On Linux, recommend you execute it as a background process, and then monitor the output:
+
+    nohup python3 FetchTransfer.py -c transfer.yaml -r > out1 &
+
+This will run in the background, and poll for new changes (according to `poll_interval` in the config file.)
+
+You can look at the output file for progress, e.g. (avoiding long lines of text which can be output), or grep the log file:
+
+    tail -f out1 | cut -c -140
+
+    grep :INFO: log-FetchTransfer-*.log 
+
+Note that if you edit the configuration file, it will be re-read the next time the script wakes up and polls for input. So you do not need to stop and restart the job.
+
+=== Setting up environment
+
+The following simple setup will allow you to cross check easily source and target servers.
+Assume we are in a directory: `/some/path/FetchTransfer`
+
+    export P4CONFIG=.p4config
+    mkdir source target
+    cd source
+    vi .p4config
+
+and create appropriate values as per your config file for the source server e.g.:
+
+    cat .p4config
+    P4PORT=source-server:1666
+    P4USER=FetchTransfer
+    P4CLIENT=FetchTransfer_client
+
+And similarly create a file in the `target` sub-directory.
+
+This will allow you to quickly and easily `cd` between directories and be able to run commands against respective
+source and target p4d instances.
+
+=== Configuration Options
+
+The comments in the file are mostly self-explanatory. It is important to specify the main values for the `[source]` and `[target]` sections.
+
+    FetchTransfer.py --sample-config > transfer.yaml
+
+    cat transfer.yaml
+
+The following included text may not display correctly when this .adoc file is  viewed in GitHub - instead
+download the PDF version of this doc, or open link:fetch_transfer.yaml[fetch_transfer.yaml] directly.
+
+[source,yaml]
+----
+include::fetch_transfer.yaml[]
+----
+
+==== Changelist comment formatting
+
+TBC
+
+In the `[general]` section, you can customize the `change_description_format` value to decide how transferred change descriptions are formatted.
+
+Keywords in the format string are prefixed with `$`. Use `\n` for newlines. Keywords allowed are: `$sourceDescription`, `$sourceChange`, `$sourcePort`, `$sourceUser`.
+
+Assume the source description is “Original change description”.
+
+Default format:
+
+    $sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange
+
+might produce:
+
+    Original change description
+
+    Transferred from p4://source-server:1667@2342
+
+Custom format:
+
+    Originally $sourceChange by $sourceUser on $sourcePort\n$sourceDescription
+
+might produce:
+
+    Originally 2342 by FBlogs on source-server:1667
+    Original change description
+
+==== Recording a change list mapping file
+
+TBC
+
+There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then FetchTransfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.
+
+    change_map_file = depot/import/change_map.csv
+
+The result change map file might look something like this:
+
+```
+$ head change_map.csv
+sourceP4Port,sourceChangeNo,targetChangeNo
+src-server:1666,1231,12244
+src-server:1666,1232,12245
+src-server:1666,1233,12246
+src_server:1666,1234,12247
+src-server:1666,1235,12248
+```
+
+It is very straight forward to use standard tools such as grep to search this file. Because it is checked in to the target server, you can also use “p4 grep”.
+
+IMPORTANT: You will need to ensure that the change_map filename is properly mapped in the local workspace - thus it must
+include `<depot>` and other pathname components in the path. When you have created your target workspace, run `p4 client -o`
+to check the view mapping.
+
+== Misc Usage Notes
+
+Note that since labeling itself is not versioned no labels or tags are transferred.
+
+=== Setting up as a service on Windows
+
+FetchTransfer can be setup as a service on Windows using `srvinst.exe` and `srvanay.exe` to wrap the Python interpreter, or link:https://nssm.cc/[NSSM - The Non-Sucking Service Manager]
+
+Please contact `consulting@perforce.com` for more details.
+
+
+== Support
+
+Any errors in the script are highly likely to be due to some unusual integration history, which may have been done with an older version of the Perforce server.
+
+If you have an error when running the script, please use summarise_log.sh to create
+a summary log file to send. E.g.
+
+    summarise_log.sh log-FetchTransfer-20141208094716.log > sum.log
+
+If you get an error message in the log file such as:
+
+    P4TLogicException: Replication failure: missing elements in target changelist: /work/FetchTransfer/main/applications/util/Utils.java
+    
+or
+
+    P4TLogicException: Replication failure: src/target content differences found: rev = 1 action = branch type = text depotFile = //depot/main/applications/util/Utils.java
+    
+Then please also send the following:
+
+A Revision Graph screen shot from the source server showing the specified file around the changelist which is being replicated. If
+an integration is involved then it is important to show the source of the integration.
+
+Filelog output for the file in the source Perforce repository, and filelog output for the source of the integrate being performed.
+e.g.
+
+    p4 -ztag filelog /work/FetchTransfer/main/applications/util/Utils.java@12412
+    p4 -ztag filelog /work/FetchTransfer/dev/applications/util/Utils.java@12412
+
+where 12412 is the changelist number being replicated when the problem occurred.
+
+=== Re-running FetchTransfer after an error
+
+When an error has been fixed, you can usually re-start FetchTransfer from where it left off. If the error occurred when validating changelist 
+say 4253 on the target (which was say 12412 on the source) but found to be incorrect, the process is:
+
+    p4 -p target-p4:1666 -u transfer_user -c transfer_workspace obliterate //transfer_workspace/...@4253,4253
+    
+    (re-run the above with the -y flag to actually perform the obliterate)
+
+Ensure that the counter specified in your config file is set to a value less than 4253 such as the changelist
+immediately prior to that changelist.
+Then re-run FetchTransfer as previously.
+
+== Contributor's Guide
+
+Pull Requests are welcome. Code changes should normally be accompanied by tests.
+
+See link:../test/TestFetchTransfer.py[TestFetchTransfer.py] for unit/integration tests.
+
+Most tests generate a new `p4d` repository with source/target servers and run test transfers.
+
+The use the link:http://blog.pallen.co.uk/?p=15["rsh" hack] to avoid having to spawn p4d on a port.
+
+=== Test dependencies
+
+Tests assume there is a valid `p4d` in your current PATH.
+
+=== Running a single test
+
+Pick your single test class (e.g. `testAdd`):
+
+    python3 TestFetchTransfer.py TestFetchTransfer.testAdd
+
+This will:
+
+* generate a single log file: `log-TestFetchTransfer-*.log`
+* create a test sub-directory `_testrun_transfer` with the following structure:
+
+    source/
+        server/         # P4ROOT and other files for server - uses rsh hack for p4d
+        client/         # Root of client used to checkin files
+        .p4config       # Defines P4PORT for source server
+    target/             # Similar structure to source/
+    transfer_client/    # The root of shared transfer client
+
+This test directory is created new for each test, and then left behind in case of test failures. 
+If you want to manually do tests or view results, then `export P4CONFIG=.p4config`, and `cd` into
+the source/target directory to be able to run normal `p4` commands as appropriate.
+
+=== Running all tests
+
+    python3 TestFetchTransfer.py
+
+It will generate many log files (`log-TestFetchTransfer-*.log`) which can be examined in case of failure or removed.

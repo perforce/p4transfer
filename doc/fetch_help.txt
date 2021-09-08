@@ -1,0 +1,47 @@
+usage: FetchTransfer.py [-h] [-c CONFIG] [-n] [-m MAXIMUM] [-r] [-s]
+                        [--sample-config] [-i] [--end-datetime END_DATETIME]
+
+NAME:
+    FetchTransfer.py
+
+DESCRIPTION:
+    This python script (2.7/3.6+ compatible) will transfer Perforce changelists with all contents
+    between independent servers using p4 fetch with a remote spec.
+
+    This script transfers changes in one direction - from a source server to a target server.
+
+    Usage:
+
+        python3 FetchTransfer.py -h
+
+    The script requires a config file, by default transfer.yaml,
+    that provides the Perforce connection information for both servers.
+
+    An initial example can be generated, e.g.
+
+        FetchTransfer.py --sample-config > transfer.yaml
+
+    For full documentation/usage, see project doc:
+
+        https://github.com/perforce/p4transfer/blob/main/doc/FetchTransfer.adoc
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Default is transfer.yaml
+  -n, --notransfer      Validate config file and setup source/target
+                        workspaces but don't transfer anything
+  -m MAXIMUM, --maximum MAXIMUM
+                        Maximum number of changes to transfer
+  -r, --repeat          Repeat transfer in a loop - for continuous transfer as
+                        background task
+  -s, --stoponerror     Stop on any error even if --repeat has been specified
+  --sample-config       Print an example config file and exit
+  -i, --ignore-integrations
+                        Treat integrations as adds and edits
+  --end-datetime END_DATETIME
+                        Time to stop transfers, format: 'YYYY/MM/DD HH:mm' -
+                        useful for automation runs during quiet periods e.g.
+                        run overnight but stop first thing in the morning
+
+Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd

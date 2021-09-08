@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="Asciidoctor 2.0.10">
 <meta name="author" content="Perforce Professional Services">
-<title>P4Transfer - Helix Core Full History Migration Tool</title>
+<title>FetchTransfer - Helix Core Incremental History Migration Tool</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">
 <style>
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
@@ -440,18 +440,18 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </head>
 <body class="book">
 <div id="header">
-<h1>P4Transfer - Helix Core Full History Migration Tool</h1>
+<h1>FetchTransfer - Helix Core Incremental History Migration Tool</h1>
 <div class="details">
 <span id="author" class="author">Perforce Professional Services</span><br>
 <span id="email" class="email"><a href="mailto:consulting@perforce.com">consulting@perforce.com</a></span><br>
 <span id="revnumber">version v2021.1,</span>
-<span id="revdate">2021-06-19</span>
+<span id="revdate">2021-09-08</span>
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#_introduction">1. Introduction</a></li>
-<li><a href="#_p4transfer_vs_helix_native_dvcs_functions">2. P4Transfer vs Helix native DVCS functions</a>
+<li><a href="#_fetchtransfer_vs_helix_native_dvcs_functions">2. FetchTransfer vs Helix native DVCS functions</a>
 <ul class="sectlevel2">
 <li><a href="#_guidance_on_tool_differences">2.1. Guidance on tool differences</a></li>
 </ul>
@@ -463,7 +463,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_setup">4. Setup</a>
 <ul class="sectlevel2">
-<li><a href="#_installing_p4transfer_py">4.1. Installing P4Transfer.py</a></li>
+<li><a href="#_installing_fetchtransfer_py">4.1. Installing FetchTransfer.py</a></li>
 <li><a href="#_getting_started">4.2. Getting started</a></li>
 <li><a href="#_script_parameters">4.3. Script parameters</a></li>
 <li><a href="#_optional_parameters">4.4. Optional Parameters</a></li>
@@ -479,13 +479,12 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </li>
 <li><a href="#_misc_usage_notes">5. Misc Usage Notes</a>
 <ul class="sectlevel2">
-<li><a href="#_integration_recrods">5.1. Integration Recrods</a></li>
-<li><a href="#_setting_up_as_a_service_on_windows">5.2. Setting up as a service on Windows</a></li>
+<li><a href="#_setting_up_as_a_service_on_windows">5.1. Setting up as a service on Windows</a></li>
 </ul>
 </li>
 <li><a href="#_support">6. Support</a>
 <ul class="sectlevel2">
-<li><a href="#_re_running_p4transfer_after_an_error">6.1. Re-running P4Transfer after an error</a></li>
+<li><a href="#_re_running_fetchtransfer_after_an_error">6.1. Re-running FetchTransfer after an error</a></li>
 </ul>
 </li>
 <li><a href="#_contributors_guide">7. Contributor&#8217;s Guide</a>
@@ -503,10 +502,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <h2 id="_introduction">1. Introduction</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The script <a href="../P4Transfer.py">P4Transfer.py</a> solves the problem: how to transfer changes between unrelated and unconnected Perforce Helix Core repositories.</p>
+<p>The script <a href="../FetchTransfer.py">FetchTransfer.py</a> is a wrapper around the underlying <code>p4 fetch</code> to the problem: how to transfer changes between unrelated and unconnected Perforce Helix Core repositories.</p>
 </div>
 <div class="paragraph">
-<p>If you have a 2015.1 or greater Helix Core server then you can use the <a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> commands (<code>p4 clone</code>/<code>p4 fetch</code>/<code>p4 push</code>). If you have a pre-2015.1 version of Helix Core (or very large repository sizes to be transferred), then <code>P4Transfer.py</code> may be your best option! See next section for guidance.</p>
+<p>This requires a 2015.1 or greater Helix Core server with the <a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> commands (<code>p4 clone</code>/<code>p4 fetch</code>/<code>p4 push</code>). If you have a pre-2015.1 version of Helix Core (or very large repository sizes to be transferred), then <code>P4Transfer.py</code> may be your best option! See next section for guidance.</p>
 </div>
 <div class="paragraph">
 <p>While best practice is usually to have only one Perforce Server, the reality is often that many different Perforce Servers are required. A typical example is the Perforce public depot, which sits outside the Perforce Network.</p>
@@ -517,10 +516,13 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_p4transfer_vs_helix_native_dvcs_functions">2. P4Transfer vs Helix native DVCS functions</h2>
+<h2 id="_fetchtransfer_vs_helix_native_dvcs_functions">2. FetchTransfer vs Helix native DVCS functions</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Both Helix native DVCS and P4Transfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.</p>
+<p>See also link:P4Transfer.adoc for reasons when that would be better than FetchTransfer.</p>
+</div>
+<div class="paragraph">
+<p>Both Helix native DVCS and FetchTransfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.</p>
 </div>
 <div class="paragraph">
 <p><a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> has additional functionality, such as creating a personal micro-repo for personal use without a continuously running <code>p4d</code> process.</p>
@@ -532,7 +534,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <i class="fa icon-important" title="Important"></i>
 </td>
 <td class="content">
-When it is an option, using Helix native DVCS is preferred.  But if that can’t be used for some reason, P4Transfer can pretty much always be made to work.
+When it is an option, using Helix native DVCS is preferred.  But if that can’t be used for some reason, FetchTransfer can pretty much always be made to work.
 </td>
 </tr>
 </table>
@@ -540,7 +542,17 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <div class="sect2">
 <h3 id="_guidance_on_tool_differences">2.1. Guidance on tool differences</h3>
 <div class="paragraph">
-<p>Pros for native DVCS:</p>
+<p>Common features:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>FetchTransfer.py</code> is a wrapper around the underlying Helix native DVCS.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Pros for basic native DVCS:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -557,9 +569,6 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>Helix native DVCS requires particular configurables to be setup, and may be viewed as a security concern for the extraction of history (this can be controlled with pre-command triggers)</p>
 </li>
 <li>
-<p>Helix native DVCS has some limitations at larger scales (depends on server RAM as it creates zip files) - won&#8217;t scale to TB requiring to be transferred.</p>
-</li>
-<li>
 <p>Helix native DVCS is generally deemed to produce the highest possible quality data on the target server, as it transfers raw journal data and archive content.</p>
 </li>
 <li>
@@ -574,10 +583,13 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 </ul>
 </div>
 <div class="paragraph">
-<p>When P4Transfer might be a better option:</p>
+<p>When FetchTransfer might be a better option:</p>
 </div>
 <div class="ulist">
 <ul>
+<li>
+<p>Helix native DVCS has some limitations at larger scales (depends on server RAM as it creates zip files) - won&#8217;t scale to TB requiring to be transferred.</p>
+</li>
 <li>
 <p>If Helix native DVCS hits data snags, there may not be an easy way to work around them, unless a new P4D server release address them.</p>
 </li>
@@ -585,37 +597,16 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>Helix native DVCS must be explicitly enabled.  If not already enabled, it requires 'super' access on both Helix Core servers involved in the process.</p>
 </li>
 <li>
-<p>P4Transfer is community supported (and with paid Consulting engagements).</p>
+<p>FetchTransfer is community supported (and with paid Consulting engagements).</p>
 </li>
 <li>
-<p>P4Transfer can make timestamps more accurate if it has 'admin' level access, but does not require it.</p>
+<p>FetchTransfer can make timestamps more accurate if it has 'admin' level access, but does not require it.</p>
 </li>
 <li>
-<p>P4Transfer automates front-door workflows, i.e. it does would a human with a <code>p4</code> command line client, fleet fingers and a lot of time could do.</p>
+<p>FetchTransfer can be run as a service for continuous operation.</p>
 </li>
 <li>
-<p>P4Transfer can work with mismatched server data sets (different case sensitivity, Unicode mode, or P4D settings) <strong>so long as</strong> the actual data to be migrated doesn&#8217;t cause issues.  (For example, if you try to copy paths that actually do have Korean glyphs in the path name to a non-Unicode server, that ain&#8217;t gonna work).</p>
-</li>
-<li>
-<p>If P4Transfer does have issues with importing some data (like the above example with Unicode paths), you can manually work around those snags, and then pick up with the next changelist.  If there aren’t too many snags, this trial and error process is viable.</p>
-</li>
-<li>
-<p>P4Transfer is reasonably fast as a front-door mechanism.</p>
-</li>
-<li>
-<p>P4Transfer can be run as a service for continuous operation, and has successfully run for months or more.</p>
-</li>
-<li>
-<p>P4Transfer data quality is excellent in terms of detail (e.g. integration history, resolve options, etc.).  However, it is an emulation of history rather than a raw replay of  actually history in the native format as done by Helix native DVCS.  The nuance in history differences rarely has practical implications.</p>
-</li>
-<li>
-<p>P4Transfer requires more initial setup than Helix native DVCS.</p>
-</li>
-<li>
-<p>P4Transer requires Python (2.7 or 3.6+).</p>
-</li>
-<li>
-<p>P4Transfer can be interfered with by custom policy enforcement triggers on the target server.</p>
+<p>FetchTransfer requires a little more initial setup than Helix native DVCS.</p>
 </li>
 </ul>
 </div>
@@ -626,78 +617,24 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <h2 id="_implementation">3. Implementation</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The basic idea is to create a client workspace on each Perforce Server that maps the projects to be transferred. Both client workspaces must share the same root directory and client side mapping. For example:</p>
+<p>Like DVCS, FetchTransfer uses a remote spec to specify mappings between source and target servers. For validation of changelist contents, and also submission of change-map files, there are also client workspaces which duplicate the mappings.</p>
 </div>
 <div class="paragraph">
-<p>Source client:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code>Client: workspace_server1
-
-Root: /work/transfer
-
-View:
-    //depot/myproject/dev/... //workspace_server1/depot/myproject/dev/...
-    //depot/other/dev/... //workspace_server1/depot/other/dev/...</code></pre>
-</div>
+<p>The remote spec and the client workspaces are created automatically from the <code>view</code> entries in the config file described below.</p>
 </div>
 <div class="paragraph">
-<p>Target client:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlight"><code>Client: workspace_server2
-
-Root: /work/transfer
-
-View:
-    //import/mycode/... //workspace_server2/depot/myproject/dev/...
-    //import/stuff/... //workspace_server2/depot/other/dev/...</code></pre>
-</div>
+<p>FetchTransfer works uni-directionally. The tool will inquire the changes for the workspace files and compare these to a counter.</p>
 </div>
 <div class="paragraph">
-<p>These client workspaces are created automatically from the <code>view</code> entries in the config file described below.</p>
+<p>FetchTransfer uses a single configuration file that contains the information of both servers as well as the current counter values. The tool maintains its state counter using a Perforce counter on the target server (thus requiring <code>review</code> privilege as well as <code>write</code> privilege – by default it assumes <code>super</code> user privilege is required since it updates changelist owners and date/time to the same as the source – this functionality is controlled by the config file).</p>
 </div>
 <div class="paragraph">
-<p>P4Transfer works uni-directionally. The tool will inquire the changes for the workspace files and compare these to a counter.</p>
-</div>
-<div class="paragraph">
-<p>P4Transfer uses a single configuration file that contains the information of both servers as well as the current counter values. The tool maintains its state counter using a Perforce counter on the target server (thus requiring <code>review</code> privilege as well as <code>write</code> privilege – by default it assumes <code>super</code> user privilege is required since it updates changelist owners and date/time to the same as the source – this functionality is controlled by the config file).</p>
+<p>In addition the configurables <code>server.allowfetch</code> must be set.</p>
 </div>
 <div class="sect2">
 <h3 id="_classiclocal_target_depots_vs_streams_targets">3.1. Classic/local target depots vs Streams targets</h3>
 <div class="paragraph">
-<p>It is now possible to migrate streams to streams. This is done by creating a source workspace which can read any specified stream (it is just a normal workspace since syncing from any stream is possible). The target workspace is a special stream workspace which is a mainline with no <code>share &#8230;&#8203;</code> line in it, but which uses <code>import+</code> to write to all the desired target streams.</p>
-</div>
-<div class="paragraph">
-<p>Notes/restrictions on streams:</p>
-</div>
-<div class="ulist">
-<ul>
-<li>
-<p>Currently supports streams&#8594;streams only (not classic to streams)</p>
-</li>
-<li>
-<p>Takes whole streams rather than allowing filtering of source streams</p>
-</li>
-<li>
-<p>Will auto-create target streams if necessary when you use wildcard matching ('*') in source/target stream names,
-e.g. allowing you to take all <code>//streams_depot/release*</code> streams across easily.</p>
-</li>
-</ul>
-</div>
-<div class="admonitionblock important">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-important" title="Important"></i>
-</td>
-<td class="content">
-Remember that humans should not be writing to the targets of a P4Transfer instance (streams or otherwise) - or the script may fail in strange ways!
-</td>
-</tr>
-</table>
+<p>TBD</p>
 </div>
 </div>
 </div>
@@ -735,7 +672,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <p>If you are on Windows, then look for an appropriate version on the Perforce ftp site (for your Python version), e.g. <a href="http://ftp.perforce.com/perforce/r20.1/bin.ntx64/" class="bare">http://ftp.perforce.com/perforce/r20.1/bin.ntx64/</a></p>
 </div>
 <div class="sect2">
-<h3 id="_installing_p4transfer_py">4.1. Installing P4Transfer.py</h3>
+<h3 id="_installing_fetchtransfer_py">4.1. Installing FetchTransfer.py</h3>
 <div class="paragraph">
 <p>The easiest thing to do is to download this repo either by:</p>
 </div>
@@ -750,7 +687,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </ul>
 </div>
 <div class="paragraph">
-<p>The minimum requirements are the modules <code>P4Transfer.py</code> and <code>logutils.py</code></p>
+<p>The minimum requirements are the modules <code>FetchTransfer.py</code> and <code>logutils.py</code></p>
 </div>
 <div class="paragraph">
 <p>If you have installed P4Python as above, then check the <code>requirements.txt</code> for other modules to install via <code>pip</code> or <code>pip3</code>.</p>
@@ -759,17 +696,14 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <div class="sect2">
 <h3 id="_getting_started">4.2. Getting started</h3>
 <div class="paragraph">
-<p>Note that if running it on Windows, and especially if the source server has filenames containing say umlauts or other non-ASCII characters, then Python 2.7 is required currently due to the way Unicode is processed. Python 3.6+ on Mac/Unix should be fine with Unicode as long as you are using P4Python 2017.2+</p>
-</div>
-<div class="paragraph">
-<p>Create the workspaces for both servers, ensuring that the root directories and client views match.</p>
+<p>Note that if running it on Windows, and especially if the source server has filenames containing say umlauts or other non-ASCII characters, then Python 2.7 may be required currently due to the way Unicode is processed. Python 3.6+ on Mac/Unix should be fine with Unicode as long as you are using P4Python 2017.2+</p>
 </div>
 <div class="paragraph">
 <p>Now initialize the configuration file, by default called <code>transfer.cfg</code>. This can be generated by the script:</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>python3 P4Transfer.py –-sample-config &gt; transfer.yaml</pre>
+<pre>python3 FetchTransfer.py –-sample-config &gt; transfer.yaml</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -786,9 +720,9 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code>C:\work\&gt; python3 P4Transfer.py -c transfer.yaml -r
-2014-07-01 15:32:34,356:P4Transfer:INFO: Transferring 0 changes
-2014-07-01 15:32:34,361:P4Transfer:INFO: Sleeping for 1 minutes</code></pre>
+<pre class="highlight"><code>C:\work\&gt; python3 FetchTransfer.py -c transfer.yaml -r
+2014-07-01 15:32:34,356:FetchTransfer:INFO: Transferring 0 changes
+2014-07-01 15:32:34,361:FetchTransfer:INFO: Sleeping for 1 minutes</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -798,10 +732,10 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 <div class="sect2">
 <h3 id="_script_parameters">4.3. Script parameters</h3>
 <div class="paragraph">
-<p>P4Transfer has various options – these are documented via the <code>-h</code> or <code>--help</code> parameters.</p>
+<p>FetchTransfer has various options – these are documented via the <code>-h</code> or <code>--help</code> parameters.</p>
 </div>
 <div class="paragraph">
-<p>The following text may not display properly if your are viewing this P4Transfer.adoc file in GitHub. Please refer
+<p>The following text may not display properly if your are viewing this FetchTransfer.adoc file in GitHub. Please refer
 the the .pdf version instead, or open up <a href="help.txt">help.txt</a> file directly.</p>
 </div>
 <div class="listingblock">
@@ -869,10 +803,7 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 <p><code>--maximum</code> - useful to perform a test transfer of a single changelist when you get started (although remember this might be a changelist with a lot of files!)</p>
 </li>
 <li>
-<p><code>--keywords</code> - useful to avoid issues with expanding of keywords on a different server. Keywords make it hard to compare source/target results, and make transfers slower due to extra work required.</p>
-</li>
-<li>
-<p><code>--end-datetime</code> - useful to schedule a run of P4Transfer and have it stop at the desired time (e.g. run overnight and stop when users start work in the morning). Useful for scheduling long running transfers (can be many days) in quiet periods (e.g. together with Linux <code>at</code> command)</p>
+<p><code>--end-datetime</code> - useful to schedule a run of FetchTransfer and have it stop at the desired time (e.g. run overnight and stop when users start work in the morning). Useful for scheduling long running transfers (can be many days) in quiet periods (e.g. together with Linux <code>at</code> command)</p>
 </li>
 </ul>
 </div>
@@ -884,7 +815,7 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>nohup python3 P4Transfer.py -c transfer.yaml -r &gt; out1 &amp;</pre>
+<pre>nohup python3 FetchTransfer.py -c transfer.yaml -r &gt; out1 &amp;</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -900,7 +831,7 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>grep :INFO: log-P4Transfer-*.log</pre>
+<pre>grep :INFO: log-FetchTransfer-*.log</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -911,7 +842,7 @@ Copyright (C) 2012-21 Sven Erik Knop/Robert Cowham, Perforce Software Ltd</code>
 <h3 id="_setting_up_environment">4.6. Setting up environment</h3>
 <div class="paragraph">
 <p>The following simple setup will allow you to cross check easily source and target servers.
-Assume we are in a directory: <code>/some/path/p4transfer</code></p>
+Assume we are in a directory: <code>/some/path/FetchTransfer</code></p>
 </div>
 <div class="literalblock">
 <div class="content">
@@ -928,8 +859,8 @@ vi .p4config</pre>
 <div class="content">
 <pre>cat .p4config
 P4PORT=source-server:1666
-P4USER=p4transfer
-P4CLIENT=p4transfer_client</pre>
+P4USER=FetchTransfer
+P4CLIENT=FetchTransfer_client</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -947,7 +878,7 @@ source and target p4d instances.</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>P4Transfer.py --sample-config &gt; transfer.yaml</pre>
+<pre>FetchTransfer.py --sample-config &gt; transfer.yaml</pre>
 </div>
 </div>
 <div class="literalblock">
@@ -957,7 +888,7 @@ source and target p4d instances.</p>
 </div>
 <div class="paragraph">
 <p>The following included text may not display correctly when this .adoc file is  viewed in GitHub - instead
-download the PDF version of this doc, or open <a href="transfer.yaml">transfer.yaml</a> directly.</p>
+download the PDF version of this doc, or open <a href="fetch_transfer.yaml">fetch_transfer.yaml</a> directly.</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -967,10 +898,10 @@ download the PDF version of this doc, or open <a href="transfer.yaml">transfer.y
 #    Name sensibly if you have multiple instances transferring into the same target p4 repository.
 #    The counter value represents the last transferred change number - script will start from next change.
 #    If not set, or 0 then transfer will start from first change.
-counter_name: p4transfer_counter
+counter_name: FetchTransfer_counter
 
-# instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
-instance_name: Perforce Transfer from XYZ
+# instance_name: Name of the instance of FetchTransfer - for emails etc. Spaces allowed.
+instance_name: Perforce Fetch Transfer from XYZ
 
 # For notification - if smtp not available - expects a pre-configured nms FormMail script as a URL
 #   E.g. expects to post using 2 fields: subject, message
@@ -1021,10 +952,6 @@ error_report_interval: 15
 #     Typically some value such as 1 week (10080 = 7 * 24 * 60). Useful if transfer being run with --repeat option.
 summary_report_interval: 7 * 24 * 60
 
-# sync_progress_size_interval (Integer): Size in bytes controlling when syncs are reported to log file.
-#    Useful for keeping an eye on progress for large syncs over slow network links.
-sync_progress_size_interval: 500 * 1000 * 1000
-
 # max_logfile_size (Integer): Max size of file to (in bytes) after which it should be rotated
 #     Typically some value such as 20MB = 20 * 1024 * 1024. Useful if transfer being run with --repeat option.
 max_logfile_size: 20 * 1024 * 1024
@@ -1048,13 +975,6 @@ change_map_file:
 
 # superuser: Set to n if not a superuser (so can't update change times - can just transfer them).
 superuser: y
-
-# ignore_files: An array of regex patterns which are used to ingore any matching files.
-#    Allows you to ignore some issues which cause transfer problems.
-#    E.g.
-#    ignore_files:
-#    - "some/files/to/*ignore$"
-ignore_files:
 
 source:
     # P4PORT to connect to, e.g. some-server:1666 - if this is on localhost and you just
@@ -1089,8 +1009,11 @@ target:
 # workspace_root: Root directory to use for both client workspaces.
 #    This will be used to update the client workspace Root: field for both source/target workspaces
 #    They must be the same.
-#    Make sure there is enough space to hold the largest single changelist that will be transferred!
+#    Only really used by target to check in the map file if specified
 workspace_root: /work/transfer
+
+# target_remote: Name of remote spec to setup - ensure this is unique and only used by this script!
+target_remote: FetchTransfer_remote
 
 # views: An array of source/target view mappings
 #    You are not allowed to specify both 'views' and 'stream_views' - leave one or other blank!!
@@ -1104,39 +1027,14 @@ views:
 - src: //depot/source_path2/...
   targ: //import/target_path2/...
 - src: -//depot/source_path2/exclude/*.tgz
-  targ: //import/target_path2/exclude/*.tgz
-
-# transfer_target_stream: The name of a special target stream to use - IT SHOULD NOT CONTAIN FILES!!
-#    This will be setup as a mainline stream, with no sharing and with import+ mappings
-#    It is in standard stream name format, e.g. //&lt;depot&gt;/&lt;name&gt; or //&lt;depot&gt;/&lt;mid&gt;/&lt;name&gt;
-#    e.g. transfer_target_stream: //targ_streams/transfer_target
-transfer_target_stream:
-
-# stream_views: An array of source/target stream view mappings and other record fields.
-#    You are not allowed to specify both 'views' and 'stream_views' - leave one or other blank
-#    Each src/targ value is a string with '*' p4 wildcards to match stream names (like 'p4 streams //depot/rel*')
-#    Multiple wildcards are allowed, but make sure the number of wildcards matches between source and target.
-#    Please note that target depots must exist.
-#    Target streams will be created as required using the specified type/parent fields.
-#    Field 'type:' has allowed values: mainline, development, release
-#    Field 'parent:' should specify a suitable parent if you are creating development or release streams.
-stream_views:
-- src: //streams_src/main
-  targ: //streams_targ/main
-  type: mainline
-  parent: ''
-- src: //streams_src2/release*
-  targ: //streams_targ2/rel*
-  type: mainline
-  parent: //streams_targ2/main
-- src: //src3_streams/*rel*
-  targ: //targ3_streams/*release*
-  type: mainline
-  parent: //targ3_streams/main</code></pre>
+  targ: //import/target_path2/exclude/*.tgz</code></pre>
 </div>
 </div>
 <div class="sect3">
 <h4 id="_changelist_comment_formatting">4.7.1. Changelist comment formatting</h4>
+<div class="paragraph">
+<p>TBC</p>
+</div>
 <div class="paragraph">
 <p>In the <code>[general]</code> section, you can customize the <code>change_description_format</code> value to decide how transferred change descriptions are formatted.</p>
 </div>
@@ -1188,7 +1086,10 @@ Original change description</pre>
 <div class="sect3">
 <h4 id="_recording_a_change_list_mapping_file">4.7.2. Recording a change list mapping file</h4>
 <div class="paragraph">
-<p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then P4Transfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
+<p>TBC</p>
+</div>
+<div class="paragraph">
+<p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then FetchTransfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
 </div>
 <div class="literalblock">
 <div class="content">
@@ -1237,15 +1138,9 @@ to check the view mapping.
 <p>Note that since labeling itself is not versioned no labels or tags are transferred.</p>
 </div>
 <div class="sect2">
-<h3 id="_integration_recrods">5.1. Integration Recrods</h3>
+<h3 id="_setting_up_as_a_service_on_windows">5.1. Setting up as a service on Windows</h3>
 <div class="paragraph">
-<p>Branching and integrating with is implemented, as long as both source and target are within the workspace view. Otherwise, the integrate action is downgraded to an add or edit.</p>
-</div>
-</div>
-<div class="sect2">
-<h3 id="_setting_up_as_a_service_on_windows">5.2. Setting up as a service on Windows</h3>
-<div class="paragraph">
-<p>P4Transfer can be setup as a service on Windows using <code>srvinst.exe</code> and <code>srvanay.exe</code> to wrap the Python interpreter, or <a href="https://nssm.cc/">NSSM - The Non-Sucking Service Manager</a></p>
+<p>FetchTransfer can be setup as a service on Windows using <code>srvinst.exe</code> and <code>srvanay.exe</code> to wrap the Python interpreter, or <a href="https://nssm.cc/">NSSM - The Non-Sucking Service Manager</a></p>
 </div>
 <div class="paragraph">
 <p>Please contact <code>consulting@perforce.com</code> for more details.</p>
@@ -1265,7 +1160,7 @@ a summary log file to send. E.g.</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>summarise_log.sh log-P4Transfer-20141208094716.log &gt; sum.log</pre>
+<pre>summarise_log.sh log-FetchTransfer-20141208094716.log &gt; sum.log</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1273,7 +1168,7 @@ a summary log file to send. E.g.</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>P4TLogicException: Replication failure: missing elements in target changelist: /work/p4transfer/main/applications/util/Utils.java</pre>
+<pre>P4TLogicException: Replication failure: missing elements in target changelist: /work/FetchTransfer/main/applications/util/Utils.java</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1297,17 +1192,17 @@ e.g.</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>p4 -ztag filelog /work/p4transfer/main/applications/util/Utils.java@12412
-p4 -ztag filelog /work/p4transfer/dev/applications/util/Utils.java@12412</pre>
+<pre>p4 -ztag filelog /work/FetchTransfer/main/applications/util/Utils.java@12412
+p4 -ztag filelog /work/FetchTransfer/dev/applications/util/Utils.java@12412</pre>
 </div>
 </div>
 <div class="paragraph">
 <p>where 12412 is the changelist number being replicated when the problem occurred.</p>
 </div>
 <div class="sect2">
-<h3 id="_re_running_p4transfer_after_an_error">6.1. Re-running P4Transfer after an error</h3>
+<h3 id="_re_running_fetchtransfer_after_an_error">6.1. Re-running FetchTransfer after an error</h3>
 <div class="paragraph">
-<p>When an error has been fixed, you can usually re-start P4Transfer from where it left off. If the error occurred when validating changelist
+<p>When an error has been fixed, you can usually re-start FetchTransfer from where it left off. If the error occurred when validating changelist
 say 4253 on the target (which was say 12412 on the source) but found to be incorrect, the process is:</p>
 </div>
 <div class="literalblock">
@@ -1323,7 +1218,7 @@ say 4253 on the target (which was say 12412 on the source) but found to be incor
 <div class="paragraph">
 <p>Ensure that the counter specified in your config file is set to a value less than 4253 such as the changelist
 immediately prior to that changelist.
-Then re-run P4Transfer as previously.</p>
+Then re-run FetchTransfer as previously.</p>
 </div>
 </div>
 </div>
@@ -1335,7 +1230,7 @@ Then re-run P4Transfer as previously.</p>
 <p>Pull Requests are welcome. Code changes should normally be accompanied by tests.</p>
 </div>
 <div class="paragraph">
-<p>See <a href="../test/TestP4Transfer.py">TestP4Transfer.py</a> for unit/integration tests.</p>
+<p>See <a href="../test/TestFetchTransfer.py">TestFetchTransfer.py</a> for unit/integration tests.</p>
 </div>
 <div class="paragraph">
 <p>Most tests generate a new <code>p4d</code> repository with source/target servers and run test transfers.</p>
@@ -1356,7 +1251,7 @@ Then re-run P4Transfer as previously.</p>
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>python3 TestP4Transfer.py TestP4Transfer.testAdd</pre>
+<pre>python3 TestFetchTransfer.py TestFetchTransfer.testAdd</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1365,7 +1260,7 @@ Then re-run P4Transfer as previously.</p>
 <div class="ulist">
 <ul>
 <li>
-<p>generate a single log file: <code>log-TestP4Transfer-*.log</code></p>
+<p>generate a single log file: <code>log-TestFetchTransfer-*.log</code></p>
 </li>
 <li>
 <p>create a test sub-directory <code>_testrun_transfer</code> with the following structure:</p>
@@ -1392,11 +1287,11 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <h3 id="_running_all_tests">7.3. Running all tests</h3>
 <div class="literalblock">
 <div class="content">
-<pre>python3 TestP4Transfer.py</pre>
+<pre>python3 TestFetchTransfer.py</pre>
 </div>
 </div>
 <div class="paragraph">
-<p>It will generate many log files (<code>log-TestP4Transfer-*.log</code>) which can be examined in case of failure or removed.</p>
+<p>It will generate many log files (<code>log-TestFetchTransfer-*.log</code>) which can be examined in case of failure or removed.</p>
 </div>
 </div>
 </div>
@@ -1405,7 +1300,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-09-01 17:43:28 +0100
+Last updated 2021-09-08 15:08:23 +0100
 </div>
 </div>
 </body>
