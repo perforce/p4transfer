@@ -1279,7 +1279,7 @@ class P4Target(P4Base):
         targFileRevs = []
         filesToLog = {}
         if newChangeId:
-            change = self.p4cmd('describe', newChangeId)[0]
+            change = self.p4cmd('describe', '-s', newChangeId)[0]
             for (n, rev) in enumerate(change['rev']):
                 localFile = self.localmap.translate(change['depotFile'][n])
                 if localFile and len(localFile) > 0:
