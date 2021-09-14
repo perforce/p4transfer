@@ -50,4 +50,4 @@ jobs:
       run: |
         cd test
         python TestP4Transfer.py
-        python TestP4ZipTransfer.py
+        python TestFetchTransfer.py
