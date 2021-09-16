@@ -585,16 +585,22 @@ class P4Base(object):
         self.p4cmd('sync', '//%s/...#none' % self.p4.P4CLIENT)
 
     def createClientWorkspace(self, isSource):
-        "Create or adjust client workspace for source or target"
+        """Create or adjust client workspace for source or target
+        Note that for target workspace, we don't actually create with view since that results in
+        Auto-syncing as part of a fetch - which takes too long. Instead we record localmap but
+        set the workspace view to allow only the change_map file to be submitted.
+        """
         clientspec = self.p4.fetch_client(self.p4.client)
         logOnce(self.logger, "orig %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
 
         self.root = self.options.workspace_root
         clientspec._root = self.root
+        clientspec["Options"] = clientspec["Options"].replace("normdir", "rmdir")
         clientspec["LineEnd"] = "unix"
-        clientspec._view = []
-        exclude = ''
+        clientView = []
+        dummyView = ''   # Dummy map line
         for v in self.options.views:
+            exclude = ''
             lhs = v['src']
             if lhs[0] == '-':
                 exclude = '-'
@@ -604,9 +610,19 @@ class P4Base(object):
                 line = "%s%s //%s/%s" % (exclude, lhs, self.p4.client, srcPath)
             else:
                 line = "%s%s //%s/%s" % (exclude, v['targ'], self.p4.client, srcPath)
-            clientspec._view.append(line)
+                if not dummyView and not exclude:
+                    try:
+                        depot = v['targ'][2:].split("/")[0]
+                    except:
+                        pass
+                    dummyView = ["//%s/__dummy__ //%s/__dummy__" % (depot, self.p4.client)]
+            clientView.append(line)
 
-        self.clientmap = P4.Map(clientspec._view)
+        if isSource:
+            clientspec._view = clientView
+        else:
+            clientspec._view = dummyView
+        self.clientmap = P4.Map(clientView)
         self.clientspec = clientspec
         self.p4.save_client(clientspec)
         logOnce(self.logger, "updated %s:%s:%s" % (self.p4id, self.p4.client, pprint.pformat(clientspec)))
@@ -660,9 +676,9 @@ class P4Source(P4Base):
 class P4Target(P4Base):
     "Functionality for transferring changes to target Perforce repository"
 
-    def __init__(self, section, options, src):
+    def __init__(self, section, options, source):
         super(P4Target, self).__init__(section, options, 'targ')
-        self.src = src
+        self.source = source
         self.filesToIgnore = []
 
     def createRemoteSpec(self, source):
@@ -749,6 +765,11 @@ class P4Target(P4Base):
                 newChangeId = result['renamedChange']
         if newChangeId:
             self.logger.info("source = {} : target  = {}".format(change['change'], newChangeId))
+            description = self.formatChangeDescription(
+                sourceDescription=change['desc'],
+                sourceChange=change['change'], sourcePort=self.source.p4.port,
+                sourceUser=change['user'])
+            self.updateChange(newChangeId=newChangeId, description=description)
         else:
             self.logger.error("failed to replicate change {}".format(change['change']))
         self.validateSubmittedChange(srcFileRevs, newChangeId)
@@ -770,15 +791,12 @@ class P4Target(P4Base):
         if not result[0]:
             raise P4TLogicException(result[1])
 
-    def updateChange(self, change, newChangeId):
+    def updateChange(self, newChangeId, description):
         # need to update the user and time stamp - but only if a superuser
         if not self.options.superuser == "y":
             return
         newChange = self.p4.fetch_change(newChangeId)
-        newChange._user = change['user']
-        # date in change is in epoch time, we need it in canonical form
-        newDate = datetime.utcfromtimestamp(int(change['time'])).strftime("%Y/%m/%d %H:%M:%S")
-        newChange._date = newDate
+        newChange._description = description
         self.p4.save_change(newChange, '-f')
 
     def getCounter(self):

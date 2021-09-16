@@ -483,42 +483,42 @@ class TestFetchTransfer(unittest.TestCase):
     #     self.assertRegex(msg, "Wildcards need to match")
     #     self.assertRegex(msg, "Stream type 'new' is not one of allowed values")
 
-    # def testChangeFormatting(self):
-    #     "Formatting options for change descriptions"
-    #     self.setupTransfer()
-    #     inside = localDirectory(self.source.client_root, "inside")
-    #     inside_file1 = os.path.join(inside, "inside_file1")
-    #     create_file(inside_file1, 'Test content')
+    def testChangeFormatting(self):
+        "Formatting options for change descriptions"
+        self.setupTransfer()
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
 
-    #     self.source.p4cmd('add', inside_file1)
-    #     desc = 'inside_file1 added'
-    #     self.source.p4cmd('submit', '-d', desc)
-    #     self.run_FetchTransfer()
-    #     self.assertCounters(1, 1)
-    #     changes = self.target.p4cmd('changes', '-l', '-m1')
-    #     self.assertRegex(changes[0]['desc'], "%s\n\nTransferred from p4://rsh:.*@1\n$" % desc)
+        self.source.p4cmd('add', inside_file1)
+        desc = 'inside_file1 added'
+        self.source.p4cmd('submit', '-d', desc)
+        self.run_FetchTransfer()
+        self.assertCounters(1, 1)
+        changes = self.target.p4cmd('changes', '-l', '-m1')
+        self.assertRegex(changes[0]['desc'], "%s\n\nTransferred from p4://rsh:.*@1\n$" % desc)
 
-    #     options = self.getDefaultOptions()
-    #     options["change_description_format"] = "Originally $sourceChange by $sourceUser"
-    #     self.createConfigFile(options=options)
-    #     self.source.p4cmd('edit', inside_file1)
-    #     desc = 'inside_file1 edited'
-    #     self.source.p4cmd('submit', '-d', desc)
-    #     self.run_FetchTransfer()
-    #     self.assertCounters(2, 2)
-    #     changes = self.target.p4cmd('changes', '-l', '-m1')
-    #     self.assertRegex(changes[0]['desc'], "Originally 2 by %s" % P4USER)
+        options = self.getDefaultOptions()
+        options["change_description_format"] = "Originally $sourceChange by $sourceUser"
+        self.createConfigFile(options=options)
+        self.source.p4cmd('edit', inside_file1)
+        desc = 'inside_file1 edited'
+        self.source.p4cmd('submit', '-d', desc)
+        self.run_FetchTransfer()
+        self.assertCounters(2, 2)
+        changes = self.target.p4cmd('changes', '-l', '-m1')
+        self.assertRegex(changes[0]['desc'], "Originally 2 by %s" % P4USER)
 
-    #     options = self.getDefaultOptions()
-    #     options["change_description_format"] = "Was $sourceChange by $sourceUser $fred\n$sourceDescription"
-    #     self.createConfigFile(options=options)
-    #     self.source.p4cmd('edit', inside_file1)
-    #     desc = 'inside_file1 edited again'
-    #     self.source.p4cmd('submit', '-d', desc)
-    #     self.run_FetchTransfer()
-    #     self.assertCounters(3, 3)
-    #     changes = self.target.p4cmd('changes', '-l', '-m1')
-    #     self.assertEqual(changes[0]['desc'], "Was 3 by %s $fred\n%s\n" % (P4USER, desc))
+        options = self.getDefaultOptions()
+        options["change_description_format"] = "Was $sourceChange by $sourceUser $fred\n$sourceDescription"
+        self.createConfigFile(options=options)
+        self.source.p4cmd('edit', inside_file1)
+        desc = 'inside_file1 edited again'
+        self.source.p4cmd('submit', '-d', desc)
+        self.run_FetchTransfer()
+        self.assertCounters(3, 3)
+        changes = self.target.p4cmd('changes', '-l', '-m1')
+        self.assertEqual(changes[0]['desc'], "Was 3 by %s $fred\n%s\n" % (P4USER, desc))
 
     # def testBatchSize(self):
     #     "Set batch size appropriately - make sure logging switches"
