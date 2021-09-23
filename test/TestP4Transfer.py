@@ -977,6 +977,8 @@ class TestP4Transfer(unittest.TestCase):
 
     @unittest.skipIf(python3 and (platform.system().lower() == "windows"),
                      "Unicode not supported in Python3 on Windows yet - works on Mac/Unix...")
+    @unittest.skipIf(not python3 and platform.system().lower() == 'darwin',
+                     'undecodable name cannot always be decoded on macOS')
     def testUnicode(self):
         "Adding of files with Unicode filenames"
         self.setupTransfer()
@@ -1718,6 +1720,35 @@ class TestP4Transfer(unittest.TestCase):
 
         self.run_P4Transfer()
         self.assertCounters(5, 5)
+
+    def testBranchEditBinary(self):
+        "Branch and edit binary file"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', '-tbinary', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integ', inside_file1, inside_file2)
+        self.source.p4cmd('edit', inside_file2)
+        append_to_file(inside_file2, "\nmore")
+        self.source.p4cmd('submit', '-d', 'inside_file2 created')
+
+        filelog = self.source.p4cmd('filelog', '//...')
+        self.assertEqual(2, len(filelog))
+        self.assertNotEqual(filelog[0]['digest'][0], filelog[1]['digest'][0])
+        self.assertNotEqual(filelog[0]['fileSize'][0], filelog[1]['fileSize'][0])
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4cmd('filelog', '//...')
+        self.assertEqual(2, len(filelog))
+        self.assertNotEqual(filelog[0]['digest'][0], filelog[1]['digest'][0])
+        self.assertNotEqual(filelog[0]['fileSize'][0], filelog[1]['fileSize'][0])
 
     def testSimpleIntegrate(self):
         "Simple integration options - inside client workspace view"

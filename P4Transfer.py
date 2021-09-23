@@ -575,6 +575,10 @@ class ChangeRevision:
         "Integration source with end rev"
         return "%s#%d" % (self._integrations[index].file, self._integrations[index].erev)
 
+    def integSyncSourceWithoutRev(self, index=0):
+        "Integration source without env rev"
+        return "%s" % (self._integrations[index].file)
+
     def setLocalFile(self, localFile):
         self.localFile = localFile
         localFile = localFile.replace("%40", "@")
@@ -1465,12 +1469,12 @@ class P4Target(P4Base):
         "Is the source of integrated different to target"
         fileSize, digest = 0, ""
         if fileContentComparisonPossible(file.type):
-            if file.integSyncSource() not in self.srcFileLogs:
+            if file.integSyncSourceWithoutRev() not in self.srcFileLogs:
                 return False
-            filelog = self.srcFileLogs[file.integSyncSource()]
-            if filelog and 'digest' in filelog[0] and 'fileSize' in filelog[0]:
-                fileSize = filelog[0]['fileSize'][0]
-                digest = filelog[0]['digest'][0]
+            filelog = self.srcFileLogs[file.integSyncSourceWithoutRev()]
+            if filelog and filelog.revisions[0].digest is not None and filelog.revisions[0].fileSize is not None:
+                fileSize = filelog.revisions[0].fileSize
+                digest = filelog.revisions[0].digest
                 return (fileSize, digest) != (file.fileSize, file.digest)
             else:
                 return False
