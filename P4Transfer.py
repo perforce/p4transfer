@@ -539,6 +539,12 @@ class ChangeRevision:
                 return True
         return False
 
+    def hasOnlyIgnoreIntegrations(self):
+        for integ in self._integrations:
+            if integ.how not in ["ignored"]:
+                return False
+        return True
+
     def integrations(self):
         "Yield in reverse order so that we replay correctly"
         for ind, integ in reversed(list(enumerate(self._integrations))):
@@ -670,7 +676,7 @@ class ChangelistComparer(object):
         diffs = srcfiles.difference(targfiles)
         if diffs:
             # Check for no filesize or digest present - indicating "p4 verify -qu" should be run
-            new_diffs = [r for r in diffs if r.fileSize is None or r.digest is None]
+            new_diffs = [r for r in diffs if r.fileSize and r.digest]
             if not new_diffs:
                 self.logger.debug("Ignoring differences due to lack of fileSize/digest")
                 return (True, "")
@@ -1405,7 +1411,8 @@ class P4Target(P4Base):
     def replicateBranch(self, file, dirty=False):
         # An integration where source has been obliterated will not have integrations
         self.logger.debug('replicateBranch')
-        if not self.options.ignore_integrations and file.hasIntegrations() and file.getIntegration().localFile:
+        if not self.options.ignore_integrations and not file.hasOnlyIgnoreIntegrations() and \
+            file.hasIntegrations() and file.getIntegration().localFile:
             afterAdd = False
             if not self.currentFileContent and os.path.exists(file.fixedLocalFile):
                 self.currentFileContent = readContents(file.fixedLocalFile)
@@ -1464,6 +1471,11 @@ class P4Target(P4Base):
             if diskFileContentModified(file):
                 self.logger.warning('Resyncing add due to file content changes')
                 self.src.p4cmd('sync', '-f', file.localFileRev())
+            if file.hasIntegrations() and file.hasOnlyIgnoreIntegrations():
+                self.logger.debug('processing:0235 ignores')
+                for ind, integ in file.integrations():
+                    self.doIntegrate(file.localIntegSource(ind), file.localFile)
+                    self.p4cmd('resolve', '-ay', file.fixedLocalFile)
 
     def integrateContentsChanged(self, file):
         "Is the source of integrated different to target"
