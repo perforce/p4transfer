@@ -1,7 +1,7 @@
 = FetchTransfer - Helix Core Incremental History Migration Tool
 Perforce Professional Services <consulting@perforce.com>
 :revnumber: v2021.1
-:revdate: 2021-09-08
+:revdate: 2021-09-17
 :doctype: book
 :icons: font
 :toc:
@@ -22,7 +22,7 @@ Sometimes you start a project on one server and then realize that it would be ni
 
 == FetchTransfer vs Helix native DVCS functions
 
-See also link:P4Transfer.adoc for reasons when that would be better than FetchTransfer.
+See also link:P4Transfer.html[P4Transfer] for reasons when that would be better than FetchTransfer.
 
 Both Helix native DVCS and FetchTransfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.
 
