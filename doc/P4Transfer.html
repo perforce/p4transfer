@@ -445,7 +445,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <span id="author" class="author">Perforce Professional Services</span><br>
 <span id="email" class="email"><a href="mailto:consulting@perforce.com">consulting@perforce.com</a></span><br>
 <span id="revnumber">version v2021.1,</span>
-<span id="revdate">2021-06-19</span>
+<span id="revdate">2021-09-28</span>
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
@@ -537,6 +537,18 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 </tr>
 </table>
 </div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+The new <a href="FetchTransfer.html">FetchTransfer.py</a> script is a wrapper around the DVCS <code>p4 fetch</code> command with some advantages over P4Transfer.
+</td>
+</tr>
+</table>
+</div>
 <div class="sect2">
 <h3 id="_guidance_on_tool_differences">2.1. Guidance on tool differences</h3>
 <div class="paragraph">
@@ -569,7 +581,7 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>Helix native DVCS has no external dependencies.</p>
 </li>
 <li>
-<p>Helix native DVCS bypasses triggers.</p>
+<p>Helix native DVCS bypasses submit triggers which can interfere with P4Transfer.</p>
 </li>
 </ul>
 </div>
@@ -616,6 +628,12 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 </li>
 <li>
 <p>P4Transfer can be interfered with by custom policy enforcement triggers on the target server.</p>
+</li>
+<li>
+<p>P4Transfer is subject to submit triggers that may block its operation, possibly intentionally.</p>
+</li>
+<li>
+<p>Helix native DVCS requires a direct connection betwen the related p4d servers, whereas P4Transfer requires only a connection from a client machine to each of the p4d servers. Thus, P4Transfer can operate as long as it operates in an environment where it can reach each of the target p4d servers, even of those p4d servers cannot communicate directly with each other, e.g. due to network firewalls.</p>
 </li>
 </ul>
 </div>
@@ -769,7 +787,7 @@ If the above needs to build and fails, then this usually works for Python 3.6: <
 </div>
 <div class="literalblock">
 <div class="content">
-<pre>python3 P4Transfer.py –-sample-config &gt; transfer.yaml</pre>
+<pre>python3 P4Transfer.py --sample-config &gt; transfer.yaml</pre>
 </div>
 </div>
 <div class="paragraph">
@@ -1405,7 +1423,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-09-01 17:43:28 +0100
+Last updated 2021-09-28 21:36:09 +0100
 </div>
 </div>
 </body>

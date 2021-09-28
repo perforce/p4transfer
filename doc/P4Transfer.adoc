@@ -28,6 +28,8 @@ https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html[Helix native D
 
 IMPORTANT: When it is an option, using Helix native DVCS is preferred.  But if that can’t be used for some reason, P4Transfer can pretty much always be made to work.
 
+TIP: The new xref:FetchTransfer.adoc[FetchTransfer.py] script is a wrapper around the DVCS `p4 fetch` command with some advantages over P4Transfer.
+
 === Guidance on tool differences
 
 Pros for native DVCS:

@@ -445,13 +445,13 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <span id="author" class="author">Perforce Professional Services</span><br>
 <span id="email" class="email"><a href="mailto:consulting@perforce.com">consulting@perforce.com</a></span><br>
 <span id="revnumber">version v2021.1,</span>
-<span id="revdate">2021-09-08</span>
+<span id="revdate">2021-09-28</span>
 </div>
 <div id="toc" class="toc">
 <div id="toctitle">Table of Contents</div>
 <ul class="sectlevel1">
 <li><a href="#_introduction">1. Introduction</a></li>
-<li><a href="#_fetchtransfer_vs_helix_native_dvcs_functions">2. FetchTransfer vs Helix native DVCS functions</a>
+<li><a href="#_fetchtransfer_vs_p4transfer_vs_helix_native_dvcs_functions">2. FetchTransfer vs P4Transfer vs Helix native DVCS functions</a>
 <ul class="sectlevel2">
 <li><a href="#_guidance_on_tool_differences">2.1. Guidance on tool differences</a></li>
 </ul>
@@ -516,13 +516,13 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </div>
 </div>
 <div class="sect1">
-<h2 id="_fetchtransfer_vs_helix_native_dvcs_functions">2. FetchTransfer vs Helix native DVCS functions</h2>
+<h2 id="_fetchtransfer_vs_p4transfer_vs_helix_native_dvcs_functions">2. FetchTransfer vs P4Transfer vs Helix native DVCS functions</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>See also link:P4Transfer.adoc for reasons when that would be better than FetchTransfer.</p>
+<p>See also <a href="P4Transfer.html">P4Transfer</a> for reasons when that would be better than FetchTransfer.</p>
 </div>
 <div class="paragraph">
-<p>Both Helix native DVCS and FetchTransfer enable migration of detailed file history from a set of paths on one Helix Core server into another server.</p>
+<p>FetchTransfer wraps the Helix native DVCS <code>p4 fetch</code> command.</p>
 </div>
 <div class="paragraph">
 <p><a href="https://www.perforce.com/manuals/dvcs/Content/DVCS/Home-dvcs.html">Helix native DVCS</a> has additional functionality, such as creating a personal micro-repo for personal use without a continuously running <code>p4d</code> process.</p>
@@ -534,7 +534,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <i class="fa icon-important" title="Important"></i>
 </td>
 <td class="content">
-When it is an option, using Helix native DVCS is preferred.  But if that can’t be used for some reason, FetchTransfer can pretty much always be made to work.
+When it is an option, using Helix native DVCS (or FetchTransfer) is preferred to P4Transfer.  But if that can’t be used for some reason, P4Transfer can pretty much always be made to work.
 </td>
 </tr>
 </table>
@@ -547,7 +547,7 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <div class="ulist">
 <ul>
 <li>
-<p><code>FetchTransfer.py</code> is a wrapper around the underlying Helix native DVCS.</p>
+<p><code>FetchTransfer.py</code> is a wrapper around the underlying Helix native DVCS, so in comparison to P4Transfer it has most of the similar pros and cons.</p>
 </li>
 </ul>
 </div>
@@ -560,13 +560,7 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>Helix native DVCS is a fully supported product feature.</p>
 </li>
 <li>
-<p>Helix native DVCS requires consistency among the Helix Core servers: Same case sensitivity setting, same Unicode mode, and same P4D version (with some exceptions).</p>
-</li>
-<li>
 <p>Helix native DVCS is easy to setup and use.</p>
-</li>
-<li>
-<p>Helix native DVCS requires particular configurables to be setup, and may be viewed as a security concern for the extraction of history (this can be controlled with pre-command triggers)</p>
 </li>
 <li>
 <p>Helix native DVCS is generally deemed to produce the highest possible quality data on the target server, as it transfers raw journal data and archive content.</p>
@@ -583,10 +577,19 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 </ul>
 </div>
 <div class="paragraph">
-<p>When FetchTransfer might be a better option:</p>
+<p>Cons for basic native DVCS:</p>
 </div>
 <div class="ulist">
 <ul>
+<li>
+<p>Helix native DVCS requires consistency among the Helix Core servers: Same case sensitivity setting, same Unicode mode, and same P4D version (with some exceptions).</p>
+</li>
+<li>
+<p>Helix native DVCS requires particular configurables to be setup, and may be viewed as a security concern for the extraction of history (this can be controlled with pre-command triggers)</p>
+</li>
+<li>
+<p>Helix native DVCS must be explicitly enabled.  If not already enabled, it requires 'super' access on both Helix Core servers involved in the process.</p>
+</li>
 <li>
 <p>Helix native DVCS has some limitations at larger scales (depends on server RAM as it creates zip files) - won&#8217;t scale to TB requiring to be transferred.</p>
 </li>
@@ -594,19 +597,33 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>If Helix native DVCS hits data snags, there may not be an easy way to work around them, unless a new P4D server release address them.</p>
 </li>
 <li>
-<p>Helix native DVCS must be explicitly enabled.  If not already enabled, it requires 'super' access on both Helix Core servers involved in the process.</p>
+<p>When cloning or fetching many changelists with lots of data, locks can escalated to table leve on both source and target servers!</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>When FetchTransfer might be a better option than just native DVCS:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>By fetching changelist by changelist, it reduces locking and table level locks.</p>
 </li>
 <li>
-<p>FetchTransfer is community supported (and with paid Consulting engagements).</p>
-</li>
-<li>
-<p>FetchTransfer can make timestamps more accurate if it has 'admin' level access, but does not require it.</p>
+<p>FetchTransfer handles changelist formatting in the target for noting source changelists.</p>
 </li>
 <li>
 <p>FetchTransfer can be run as a service for continuous operation.</p>
 </li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Note also:</p>
+</div>
+<div class="ulist">
+<ul>
 <li>
-<p>FetchTransfer requires a little more initial setup than Helix native DVCS.</p>
+<p>FetchTransfer requires a little more initial setup than Helix native DVCS (config file, Python dependencies - see below)</p>
 </li>
 </ul>
 </div>
@@ -629,12 +646,15 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <p>FetchTransfer uses a single configuration file that contains the information of both servers as well as the current counter values. The tool maintains its state counter using a Perforce counter on the target server (thus requiring <code>review</code> privilege as well as <code>write</code> privilege – by default it assumes <code>super</code> user privilege is required since it updates changelist owners and date/time to the same as the source – this functionality is controlled by the config file).</p>
 </div>
 <div class="paragraph">
-<p>In addition the configurables <code>server.allowfetch</code> must be set.</p>
+<p>In addition the configurable <code>server.allowfetch</code> must be set.</p>
 </div>
 <div class="sect2">
 <h3 id="_classiclocal_target_depots_vs_streams_targets">3.1. Classic/local target depots vs Streams targets</h3>
 <div class="paragraph">
 <p>TBD</p>
+</div>
+<div class="paragraph">
+<p>At the moment, FetchTransfer will transfer the depot files only. It works for local/streams depots as sources and targets, but does not create target depots, or any target streams.</p>
 </div>
 </div>
 </div>
@@ -652,18 +672,6 @@ When it is an option, using Helix native DVCS is preferred.  But if that can’t
 <div class="content">
 <pre>pip install p4python</pre>
 </div>
-</div>
-<div class="admonitionblock tip">
-<table>
-<tr>
-<td class="icon">
-<i class="fa icon-tip" title="Tip"></i>
-</td>
-<td class="content">
-If the above needs to build and fails, then this usually works for Python 3.6: <code>pip3 install p4python==2017.2.1615960</code>
-</td>
-</tr>
-</table>
 </div>
 <div class="paragraph">
 <p>Alternatively, refer to <a href="https://www.perforce.com/manuals/p4python/Content/P4Python/python.installation.html">P4Python Docs</a></p>
@@ -740,33 +748,32 @@ the the .pdf version instead, or open up <a href="help.txt">help.txt</a> file di
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlight"><code>usage: P4Transfer.py [-h] [-c CONFIG] [-n] [-m MAXIMUM] [-k] [-r] [-s]
-                     [--sample-config] [-i] [--end-datetime END_DATETIME]
+<pre class="highlight"><code>usage: FetchTransfer.py [-h] [-c CONFIG] [-n] [-m MAXIMUM] [-r] [-s]
+                        [--sample-config] [-i] [--end-datetime END_DATETIME]
 
 NAME:
-    P4Transfer.py
+    FetchTransfer.py
 
 DESCRIPTION:
     This python script (2.7/3.6+ compatible) will transfer Perforce changelists with all contents
-    between independent servers when no remote depots are possible, and P4 DVCS commands
-    (such as p4 clone/fetch/zip/unzip) are not an option.
+    between independent servers using p4 fetch with a remote spec.
 
     This script transfers changes in one direction - from a source server to a target server.
 
     Usage:
 
-        python3 P4Transfer.py -h
+        python3 FetchTransfer.py -h
 
     The script requires a config file, by default transfer.yaml,
     that provides the Perforce connection information for both servers.
 
     An initial example can be generated, e.g.
 
-        P4Transfer.py --sample-config &gt; transfer.yaml
+        FetchTransfer.py --sample-config &gt; transfer.yaml
 
     For full documentation/usage, see project doc:
 
-        https://github.com/perforce/p4transfer/blob/main/doc/P4Transfer.adoc
+        https://github.com/perforce/p4transfer/blob/main/doc/FetchTransfer.adoc
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -776,7 +783,6 @@ optional arguments:
                         workspaces but don't transfer anything
   -m MAXIMUM, --maximum MAXIMUM
                         Maximum number of changes to transfer
-  -k, --nokeywords      Do not expand keywords and remove +k from filetype
   -r, --repeat          Repeat transfer in a loop - for continuous transfer as
                         background task
   -s, --stoponerror     Stop on any error even if --repeat has been specified
@@ -1033,9 +1039,6 @@ views:
 <div class="sect3">
 <h4 id="_changelist_comment_formatting">4.7.1. Changelist comment formatting</h4>
 <div class="paragraph">
-<p>TBC</p>
-</div>
-<div class="paragraph">
 <p>In the <code>[general]</code> section, you can customize the <code>change_description_format</code> value to decide how transferred change descriptions are formatted.</p>
 </div>
 <div class="paragraph">
@@ -1086,7 +1089,7 @@ Original change description</pre>
 <div class="sect3">
 <h4 id="_recording_a_change_list_mapping_file">4.7.2. Recording a change list mapping file</h4>
 <div class="paragraph">
-<p>TBC</p>
+<p>TBD - this is not yet implemented.</p>
 </div>
 <div class="paragraph">
 <p>There is an option in the configuration file to specify a change_map_file. If you set this option (default is blank), then FetchTransfer will append rows to the specified CSV file showing the relationship between source and target changelists, and will automatically check that file in after every process.</p>
@@ -1135,7 +1138,7 @@ to check the view mapping.
 <h2 id="_misc_usage_notes">5. Misc Usage Notes</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Note that since labeling itself is not versioned no labels or tags are transferred.</p>
+<p>Note that since labeling itself is not versioned no labels or tags are transferred. As noted above, no target streams (stream specs) are created.</p>
 </div>
 <div class="sect2">
 <h3 id="_setting_up_as_a_service_on_windows">5.1. Setting up as a service on Windows</h3>
@@ -1152,16 +1155,7 @@ to check the view mapping.
 <h2 id="_support">6. Support</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Any errors in the script are highly likely to be due to some unusual integration history, which may have been done with an older version of the Perforce server.</p>
-</div>
-<div class="paragraph">
-<p>If you have an error when running the script, please use summarise_log.sh to create
-a summary log file to send. E.g.</p>
-</div>
-<div class="literalblock">
-<div class="content">
-<pre>summarise_log.sh log-FetchTransfer-20141208094716.log &gt; sum.log</pre>
-</div>
+<p>Any errors in the script which are the result of a specific <code>p4 fetch</code> command can be reported to <a href="mailto:support@perforce.com">support@perforce.com</a> for help.</p>
 </div>
 <div class="paragraph">
 <p>If you get an error message in the log file such as:</p>
@@ -1217,8 +1211,10 @@ say 4253 on the target (which was say 12412 on the source) but found to be incor
 </div>
 <div class="paragraph">
 <p>Ensure that the counter specified in your config file is set to a value less than 4253 such as the changelist
-immediately prior to that changelist.
-Then re-run FetchTransfer as previously.</p>
+immediately prior to that changelist.</p>
+</div>
+<div class="paragraph">
+<p>Then re-run FetchTransfer as previously.</p>
 </div>
 </div>
 </div>
@@ -1236,7 +1232,7 @@ Then re-run FetchTransfer as previously.</p>
 <p>Most tests generate a new <code>p4d</code> repository with source/target servers and run test transfers.</p>
 </div>
 <div class="paragraph">
-<p>The use the <a href="http://blog.pallen.co.uk/?p=15">"rsh" hack</a> to avoid having to spawn p4d on a port.</p>
+<p>The tests use the <a href="http://blog.pallen.co.uk/?p=15">"rsh" hack</a> to avoid having to spawn p4d on a port.</p>
 </div>
 <div class="sect2">
 <h3 id="_test_dependencies">7.1. Test dependencies</h3>
@@ -1300,7 +1296,7 @@ the source/target directory to be able to run normal <code>p4</code> commands as
 <div id="footer">
 <div id="footer-text">
 Version v2021.1<br>
-Last updated 2021-09-08 15:08:23 +0100
+Last updated 2021-09-28 21:39:44 +0100
 </div>
 </div>
 </body>
