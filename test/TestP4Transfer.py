@@ -305,12 +305,17 @@ class TestP4Transfer(unittest.TestCase):
             yaml.dump(config, f)
 
     def run_P4Transfer(self, *args):
+        self.logger.debug("-----------------------------Starting P4Transfer")
         base_args = ['-c', self.transfer_cfg, '-s']
         if args:
             base_args.extend(args)
         pt = P4Transfer.P4Transfer(*base_args)
         result = pt.replicate()
         return result
+
+    def setTargetCounter(self, value):
+        "Set's the target counter to specified value"
+        self.target.p4.run('counter', TEST_COUNTER_NAME, str(value))
 
     def assertCounters(self, sourceValue, targetValue):
         sourceCounter = self.target.getCounter()
@@ -1839,6 +1844,112 @@ class TestP4Transfer(unittest.TestCase):
 
         self.run_P4Transfer()
         self.assertCounters(8, 8)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
+        self.logger.debug(filelog)
+        self.assertEqual(len(filelog[0].revisions), 4)
+        self.assertEqual(len(filelog[0].revisions[1].integrations), 1)
+        self.assertEqual(filelog[0].revisions[0].integrations[0].how, "copy from")
+
+    def testHistoricalStartSimple(self):
+        "Simple integration options for historical start mode transfer"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        contents = ["0"] * 10
+        contents2 = contents[:]
+        create_file(file1, "\n".join(contents) + "\n")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'file1 added')
+
+        file2 = os.path.join(inside, "file2")
+        self.source.p4cmd('integrate', file1, file2)
+        self.source.p4cmd('submit', '-d', 'file1 -> file2')
+
+        self.source.p4cmd('edit', file1)
+        self.source.p4cmd('edit', file2)
+        contents[0] = "file1"
+        create_file(file1, "\n".join(contents) + "\n")
+        contents2[5] = "file2"
+        create_file(file2, "\n".join(contents2) + "\n")
+        self.source.p4cmd('submit', '-d', 'file1 edited')
+
+        self.source.p4cmd('integrate', file1, file2)
+        self.source.p4.run_resolve('-am')
+        self.source.p4cmd('submit', '-d', 'file1 -> file2 (merge)')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file2')
+        self.assertEqual("merge from", filelog[0].revisions[0].integrations[0].how)
+
+        # In HistoricalStart mode we don't start from first change
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '4'
+        self.createConfigFile(options=config)
+
+        self.run_P4Transfer()
+        self.assertCounters(4, 1)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file2')
+        self.assertEqual(1, len(filelog[0].revisions))
+        self.assertEqual(0, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("add", filelog[0].revisions[0].action)
+
+    def testHistoricalStartSimple2(self):
+        "Simple integration options for historical start mode transfer"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        inside_file2 = os.path.join(inside, "inside_file2")
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2')
+
+        # In HistoricalStart mode we don't start from first change
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '3'
+        self.createConfigFile(options=config)
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "More content")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4.run_resolve('-at')
+        self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2 (copy)')
+
+        self.run_P4Transfer()
+        self.assertCounters(4, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
+        self.assertEqual(1, len(filelog[0].revisions))
+        self.assertEqual(1, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("branch from", filelog[0].revisions[0].integrations[0].how)
+
+        self.logger.debug("========================================== Incremental change")
+        # Now make 2 changes and integrate them one at a time.
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "More content2")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, "More content3")
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('integrate', inside_file1 + "#3", inside_file2)
+        self.source.p4.run_resolve('-at')
+        self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2 (copy)')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4.run_resolve('-at')
+        self.source.p4cmd('submit', '-d', 'inside_file1 -> inside_file2 (copy)')
+
+        self.run_P4Transfer()
+        self.assertCounters(8, 6)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
         self.logger.debug(filelog)

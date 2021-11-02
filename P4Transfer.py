@@ -138,6 +138,17 @@ DEFAULT_CONFIG = yaml.load(r"""
 #    If not set, or 0 then transfer will start from first change.
 counter_name: p4transfer_counter
 
+# historical_start_change: Set this if you require P4Transfer to start with this changelist.
+#    A historical start is useful if you have 100,000 changelists in source server and want to only
+#    transfer the last 10,000. Set this value to the first change to be transferred.
+#    Once you have set this value and started a transfer DO NOT MODIFY IT or you will potentially
+#    mess up integration history etc!!!!!
+#    IMPORTANT NOTE: setting this value causes extra work to be done for every integration to adjust
+#    revision ranges - thus slowing down transfers.
+#    If not set, or 0 then transfer starts from the value of counter_name above, and assumes that ALL HISTORY
+#    of included files is transferred.
+historical_start_change:
+
 # instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
 instance_name: "Perforce Transfer from XYZ"
 
@@ -529,6 +540,11 @@ class ChangeRevision:
 
     def hasIntegrations(self):
         return len(self._integrations)
+    
+    def deleteIntegrations(self, integsToDelete):
+        "Delete specified indexes - which are in reverse order"
+        for ind in integsToDelete:
+            del self._integrations[ind]
 
     def numIntegrations(self):
         return len(self._integrations)
@@ -1013,6 +1029,30 @@ class P4Source(P4Base):
             msg += "    \n".join(["%s@%s,%s" % (x, change, change) for x in unsyncableFiles])
             raise P4TException(msg)
 
+    def adjustHistoricalIntegrations(self, fileRevs):
+        """Remove any integration records from before start, and adjust start/end rev ranges"""
+        startChange = self.options.historical_start_change
+        fileLogCache = {}
+        for chRev in fileRevs:
+            if not chRev.hasIntegrations():
+                continue
+            integsToDelete = []
+            for ind, integ in chRev.integrations():
+                # Find the earliest revision valid as of startChange
+                if integ.file not in fileLogCache:
+                    srcLogs = self.p4.run_filelog('-m1', "%s@%d,now" % (integ.file, startChange))
+                    if srcLogs:
+                        fileLogCache[integ.file] = srcLogs[0]
+                #  'integrations': [{'erev': 2, 'file': '//depot/inside/file1', 'how': 'merge from', 'srev': 1}],
+                if integ.file not in fileLogCache:
+                    integsToDelete.append(ind)
+                    self.logger.warning("Removing historical integration %s" % str(integ))
+                else:
+                    pass
+                    # integ = fileLogCache[]
+                    # .localFile = self.localmap.translate(integ.file)
+            chRev.deleteIntegrations(integsToDelete)
+
     def getChange(self, changeNum):
         """Expects change number as a string, and returns list of filerevs and list of virtual branches"""
 
@@ -1067,7 +1107,7 @@ class P4Source(P4Base):
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
         filelogs = []
         if fpaths:
-            # Get 2 filelogs pre rev
+            # Get 2 filelogs per rev
             filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
             if len(filelogs) < 1000:
                 self.logger.debug('filelogs:', filelogs)
@@ -1108,6 +1148,8 @@ class P4Source(P4Base):
                 chRev = filesToLog[flog.depotFile]
                 chRev.updateDigest()
         self.abortIfUnsyncableUTF16FilesExist(syncCallback, changeNum)  # May raise exception
+        if self.options.historical_start_change: # Extra processing required on integration records
+            self.adjustHistoricalIntegrations(fileRevs)
         return fileRevs, filelogs
 
 
@@ -1720,6 +1762,10 @@ class P4Target(P4Base):
                 # that is not being transferred.
                 self.logger.warning("Ignoring deleted revision: %s#%s" % (file.depotFile, file.rev))
                 self.filesToIgnore.append(file.localFile)
+            elif self.options.historical_start_change and not file.hasIntegrations():
+                self.logger.debug('processing:0375 edit turned into historical add')
+                self.src.p4cmd('sync', '-f', file.localFileRev())
+                self.p4cmd('add', file.localFile)
             else:
                 self.logger.debug('processing:0380 else')
                 self.p4cmd('sync', '-k', file.localFile)
@@ -1729,10 +1775,13 @@ class P4Target(P4Base):
 
     def getCounter(self):
         "Returns value of counter as integer"
+        val = 0
         result = self.p4cmd('counter', self.options.counter_name)
         if result and 'counter' in result[0]:
-            return int(result[0]['value'])
-        return 0
+            val = int(result[0]['value'])
+        if val == 0 and self.options.historical_start_change > 0:
+            val = self.options.historical_start_change - 1
+        return val
 
     def setCounter(self, value):
         "Set's the counter to specified value"
@@ -1866,6 +1915,7 @@ class P4Transfer(object):
         self.options.counter_name = self.getOption(GENERAL_SECTION, "counter_name")
         if not self.options.counter_name:
             errors.append("Option counter_name must be specified")
+        self.options.historical_start_change = self.getIntOption(GENERAL_SECTION, "historical_start_change", 0)
         self.options.instance_name = self.getOption(GENERAL_SECTION, "instance_name", self.options.counter_name)
         self.options.mail_form_url = self.getOption(GENERAL_SECTION, "mail_form_url")
         self.options.mail_to = self.getOption(GENERAL_SECTION, "mail_to")
