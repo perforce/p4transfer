@@ -1900,6 +1900,51 @@ class TestP4Transfer(unittest.TestCase):
         self.setupTransfer()
 
         inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        contents = ["0"] * 10
+        contents2 = contents[:]
+        create_file(file1, "\n".join(contents) + "\n")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'file1 added')
+
+        file2 = os.path.join(inside, "file2")
+        self.source.p4cmd('integrate', file1, file2)
+        self.source.p4cmd('submit', '-d', 'file1 -> file2')
+
+        self.source.p4cmd('edit', file1)
+        self.source.p4cmd('edit', file2)
+        contents[0] = "file1"
+        create_file(file1, "\n".join(contents) + "\n")
+        contents2[5] = "file2"
+        create_file(file2, "\n".join(contents2) + "\n")
+        self.source.p4cmd('submit', '-d', 'file1 edited')
+
+        self.source.p4cmd('integrate', file1, file2)
+        self.source.p4.run_resolve('-am')
+        self.source.p4cmd('submit', '-d', 'file1 -> file2 (merge)')
+
+        filelog = self.source.p4.run_filelog('//depot/inside/file2')
+        self.assertEqual("merge from", filelog[0].revisions[0].integrations[0].how)
+
+        # In HistoricalStart mode we don't start from first change
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '3'
+        self.createConfigFile(options=config)
+
+        self.run_P4Transfer()
+        self.assertCounters(4, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file2')
+        self.assertEqual(2, len(filelog[0].revisions))
+        self.assertEqual(1, len(filelog[0].revisions[0].integrations))
+        self.assertEqual(0, len(filelog[0].revisions[1].integrations))
+        self.assertEqual("integrate", filelog[0].revisions[0].action)
+
+    def testHistoricalStartSimple3(self):
+        "Simple integration options for historical start mode transfer"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
         inside_file1 = os.path.join(inside, "inside_file1")
         create_file(inside_file1, "Test content")
         self.source.p4cmd('add', inside_file1)
