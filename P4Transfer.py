@@ -1032,24 +1032,36 @@ class P4Source(P4Base):
     def adjustHistoricalIntegrations(self, fileRevs):
         """Remove any integration records from before start, and adjust start/end rev ranges"""
         startChange = self.options.historical_start_change
-        fileLogCache = {}
+        srcFileLogCache = {}
         for chRev in fileRevs:
             if not chRev.hasIntegrations():
                 continue
             integsToDelete = []
             for ind, integ in chRev.integrations():
                 # Find the earliest revision valid as of startChange
-                if integ.file not in fileLogCache:
-                    srcLogs = self.p4.run_filelog('-m1', "%s@%d,now" % (integ.file, startChange))
+                if integ.file not in srcFileLogCache:
+                    srcLogs = self.p4.run_filelog('-m1', "%s@=%d" % (integ.file, startChange))
                     if srcLogs:
-                        fileLogCache[integ.file] = srcLogs[0]
-                #  'integrations': [{'erev': 2, 'file': '//depot/inside/file1', 'how': 'merge from', 'srev': 1}],
-                if integ.file not in fileLogCache:
+                        srcFileLogCache[integ.file] = srcLogs[0]
+                if integ.file not in srcFileLogCache:
                     integsToDelete.append(ind)
                     self.logger.warning("Removing historical integration %s" % str(integ))
                 else:
-                    pass
-                    # integ = fileLogCache[]
+                    srclog = srcFileLogCache[integ.file]
+                    srcrev = srclog.revisions[0].rev - 1
+                    oldErev = integ.erev
+                    oldSrev = integ.srev
+                    integ.erev -= srcrev
+                    if integ.erev <= 0:
+                        integsToDelete.append(ind)
+                    else:
+                        integ.srev -= srcrev
+                        if integ.srev < 0:
+                            integ.srev = 0
+                    if oldErev != integ.erev or oldSrev != integ.srev:
+                        self.logger.warning("Adjusting erev/srev from %d/%d to %d/%d" % (
+                            oldErev, oldSrev, integ.erev, integ.srev
+                        ))
                     # .localFile = self.localmap.translate(integ.file)
             chRev.deleteIntegrations(integsToDelete)
 
@@ -1701,7 +1713,9 @@ class P4Target(P4Base):
                     if integ.how == 'copy from':
                         self.logger.debug('processing:0320 copy from')
                         self.p4cmd('resolve', '-at')
-                        if not editedFrom and diskFileContentModified(file):
+                        if self.options.historical_start_change:
+                            pass
+                        elif not editedFrom and diskFileContentModified(file):
                             self.logger.warning('File copied but content changed')
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                     elif integ.how == 'ignored':
@@ -1763,9 +1777,16 @@ class P4Target(P4Base):
                 self.logger.warning("Ignoring deleted revision: %s#%s" % (file.depotFile, file.rev))
                 self.filesToIgnore.append(file.localFile)
             elif self.options.historical_start_change and not file.hasIntegrations():
-                self.logger.debug('processing:0375 edit turned into historical add')
-                self.src.p4cmd('sync', '-f', file.localFileRev())
-                self.p4cmd('add', file.localFile)
+                self.logger.debug('processing:0375 - historical change')
+                newAction = 'edit'
+                self.p4cmd('sync', '-k', file.localFile)
+                if self.p4.warnings and self.re_no_such_file.search("\n".join(self.p4.warnings)):
+                    newAction = 'add'
+                    # self.src.p4cmd('sync', '-f', file.localFileRev())
+                    self.p4cmd('add', file.localFile)
+                else:
+                    self.p4cmd('edit', file.localFile)
+                self.logger.debug('processing:0375 %s turned into historical %s' % (file.action, newAction))
             else:
                 self.logger.debug('processing:0380 else')
                 self.p4cmd('sync', '-k', file.localFile)
