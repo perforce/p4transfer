@@ -1040,12 +1040,12 @@ class P4Source(P4Base):
             for ind, integ in chRev.integrations():
                 # Find the earliest revision valid as of startChange
                 if integ.file not in srcFileLogCache:
-                    srcLogs = self.p4.run_filelog('-m1', "%s@=%d" % (integ.file, startChange))
-                    if srcLogs:
+                    srcLogs = self.p4.run_filelog('-m1', "%s@%d" % (integ.file, startChange))
+                    if srcLogs and srcLogs[0].revisions and srcLogs[0].revisions[0].change >= startChange:
                         srcFileLogCache[integ.file] = srcLogs[0]
                 if integ.file not in srcFileLogCache:
                     integsToDelete.append(ind)
-                    self.logger.warning("Removing historical integration %s" % str(integ))
+                    self.logger.debug("Removing historical integration %s" % str(integ))
                 else:
                     srclog = srcFileLogCache[integ.file]
                     srcrev = srclog.revisions[0].rev - 1
@@ -1059,7 +1059,7 @@ class P4Source(P4Base):
                         if integ.srev < 0:
                             integ.srev = 0
                     if oldErev != integ.erev or oldSrev != integ.srev:
-                        self.logger.warning("Adjusting erev/srev from %d/%d to %d/%d" % (
+                        self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
                             oldErev, oldSrev, integ.erev, integ.srev
                         ))
                     # .localFile = self.localmap.translate(integ.file)
@@ -1406,6 +1406,7 @@ class P4Target(P4Base):
                 self.logger.warning('Resyncing source due to file content changes')
                 self.src.p4cmd('sync', '-f', file.localFileRev())
         else:
+            self.logger.debug('processing:0105 move/add converted to add')
             self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
 
     def updateChange(self, change, newChangeId):

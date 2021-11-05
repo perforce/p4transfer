@@ -1250,7 +1250,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "adding original file")
 
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('move', original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
         self.source.p4cmd('obliterate', '-y', "%s#1" % original_file)
@@ -1270,7 +1270,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "adding original file")
 
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('move', original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
         self.source.p4cmd('obliterate', '-y', original_file)
@@ -1290,7 +1290,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "adding original file")
 
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('move', original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
         self.run_P4Transfer()
@@ -1308,7 +1308,7 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(change['action'][1], 'move/delete')
 
         self.source.p4cmd('edit', renamed_file)
-        self.source.p4.run_move(renamed_file, original_file)
+        self.source.p4cmd('move', renamed_file, original_file)
         self.source.p4cmd('submit', '-d', "renaming file back")
 
         self.run_P4Transfer()
@@ -1330,7 +1330,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "adding original file")
 
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('move', original_file, renamed_file)
         self.source.p4cmd('integ', '-f', other_file, renamed_file)
         self.source.p4cmd('resolve', '-at')
         self.source.p4cmd('submit', '-d', "renaming file with copy")
@@ -1364,7 +1364,7 @@ class TestP4Transfer(unittest.TestCase):
     #     self.source.p4cmd('submit', '-d', "editing original file")
     #
     #     self.source.p4cmd('edit', original_file)
-    #     self.source.p4.run_move(original_file, renamed_file)
+    #     self.source.p4cmd('move', original_file, renamed_file)
     #     self.source.p4cmd('submit', '-d', "renaming file")
     #
     #     # Now we partially transfer
@@ -1389,7 +1389,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "adding original file")
 
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('move', original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
         self.run_P4Transfer()
@@ -1407,7 +1407,7 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(change['action'][1], 'move/delete')
 
         self.source.p4cmd('edit', renamed_file)
-        self.source.p4.run_move(renamed_file, original_file)
+        self.source.p4cmd('move', renamed_file, original_file)
         self.source.p4cmd('submit', '-d', "renaming file back")
 
         self.run_P4Transfer()
@@ -1423,7 +1423,7 @@ class TestP4Transfer(unittest.TestCase):
         # Now move inside to outside
         outside_file = os.path.join(outside, 'outside_file')
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, outside_file)
+        self.source.p4cmd('move', original_file, outside_file)
         self.source.p4cmd('submit', '-d', "moving file outside")
 
         self.run_P4Transfer()
@@ -1436,7 +1436,7 @@ class TestP4Transfer(unittest.TestCase):
 
         # Now move outside to inside
         self.source.p4cmd('edit', outside_file)
-        self.source.p4.run_move(outside_file, original_file)
+        self.source.p4cmd('move', outside_file, original_file)
         self.source.p4cmd('submit', '-d', "moving file from outside back to inside")
 
         self.run_P4Transfer()
@@ -1446,6 +1446,43 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(len(change['depotFile']), 1)
         self.assertEqual(change['depotFile'][0], '//depot/import/original/original_file')
         self.assertEqual(change['action'][0], 'add')
+
+    def testMoveCopyCombo(self):
+        """Test for Move where the add also has a copy"""
+        self.setupTransfer()
+        inside = localDirectory(self.source.client_root, "inside")
+        original_file = os.path.join(inside, 'original', 'original_file')
+        renamed_file = os.path.join(inside, 'new', 'new_file')
+        file2 = os.path.join(inside, 'new', 'file2')
+        create_file(original_file, "Some content\n")
+        create_file(file2, "Other content\n")
+        self.source.p4cmd('add', original_file, file2)
+        self.source.p4cmd('submit', '-d', "adding original files")
+
+        self.source.p4cmd('edit', original_file)
+        append_to_file(original_file, 'More\n')
+        self.source.p4cmd('submit', '-d', "editing original file")
+
+        self.source.p4cmd('edit', original_file)
+        self.source.p4cmd('move', original_file, renamed_file)
+        self.source.p4cmd('integ', file2, renamed_file)
+        self.source.p4cmd('resolve', '-at', renamed_file)
+        self.source.p4cmd('submit', '-d', "renaming and copying file")
+
+        self.run_P4Transfer()
+        self.assertCounters(3, 3)
+
+        change = self.target.p4.run_describe('3')[0]
+        self.assertEqual(2, len(change['depotFile']))
+        self.assertEqual('//depot/import/new/new_file', change['depotFile'][0])
+        self.assertEqual('//depot/import/original/original_file', change['depotFile'][1])
+        self.assertEqual('move/add', change['action'][0])
+        self.assertEqual('move/delete', change['action'][1])
+        filelog = self.target.p4.run_filelog('//depot/import/new/new_file')
+        self.assertEqual(2, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("copy from", filelog[0].revisions[0].integrations[0].how)
+        self.assertEqual("moved from", filelog[0].revisions[0].integrations[1].how)
+
 
     def testOldStyleMove(self):
         """Old style move - a branch and delete"""
@@ -1494,7 +1531,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "branching file")
 
         self.source.p4cmd('edit', original_file)
-        self.source.p4.run_move(original_file, renamed_file)
+        self.source.p4cmd('move', original_file, renamed_file)
         self.source.p4cmd('submit', '-d', "renaming file")
 
         self.source.p4cmd('integrate', '//depot/inside/main/...', '//depot/inside/branch/...')
@@ -1502,7 +1539,7 @@ class TestP4Transfer(unittest.TestCase):
         self.source.p4cmd('submit', '-d', "branching rename and rename back file")
 
         self.source.p4cmd('edit', renamed_file)
-        self.source.p4.run_move(renamed_file, original_file)
+        self.source.p4cmd('move', renamed_file, original_file)
         self.source.p4cmd('submit', '-d', "renaming file back")
 
         # Copy the individual move/add and move/delete files, which become add and delete like this
@@ -3386,7 +3423,6 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
-
     def testIntegCopyAndRenameAsAddFromOutside(self):
         """Test for integrating a copy and move into single target - when copy is from outside view."""
         self.setupTransfer()
@@ -4301,7 +4337,7 @@ class TestP4Transfer(unittest.TestCase):
 
         inside_file2 = os.path.join(inside, "inside_file2")
         self.source.p4cmd('edit', inside_file1)
-        self.source.p4.run_move(inside_file1, inside_file2)
+        self.source.p4cmd('move', inside_file1, inside_file2)
         self.source.p4cmd('submit', '-d', 'moved inside_file1 to inside_file2')
 
         self.source.p4.run_sync('-f', '%s#1' % inside_file1)
