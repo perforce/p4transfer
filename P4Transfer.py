@@ -979,12 +979,38 @@ class MoveTracker(object):
         return results
 
 
+class SyncOutput(P4.OutputHandler):
+    "Log sync progress"
+
+    def __init__(self, p4id, logger, progress):
+        P4.OutputHandler.__init__(self)
+        self.p4id = p4id
+        self.logger = logger
+        self.progress = progress
+        self.msgs = []
+
+    def outputStat(self, stat):
+        if 'fileSize' in stat:
+            self.progress.ReportFileSync(int(stat['fileSize']))
+        return P4.OutputHandler.HANDLED
+
+    def outputInfo(self, info):
+        self.logger.debug(self.p4id, ":", info)
+        return P4.OutputHandler.HANDLED
+
+    def outputMessage(self, msg):
+        self.logger.warning(self.p4id, ":sync-msg", msg)
+        self.msgs.append(str(msg))
+        return P4.OutputHandler.HANDLED
+
+
 class P4Source(P4Base):
     "Functionality for reading from source Perforce repository"
 
     def __init__(self, section, options):
         super(P4Source, self).__init__(section, options, 'src')
         self.re_content_translation_failed = re.compile("Translation of file content failed near line 1 file (.*)")
+        self.srcFileLogCache = {}
 
     def missingChanges(self, counter):
         revRange = '//{client}/...@{rev},#head'.format(client=self.P4CLIENT, rev=counter + 1)
@@ -995,7 +1021,7 @@ class P4Source(P4Base):
                 maxChanges = self.options.change_batch_size
             if self.options.maximum and self.options.maximum < maxChanges:
                 maxChanges = self.options.maximum
-            args = ['changes', '-l', '-r']
+            args = ['changes', '-l', '-r', '-s', 'submitted']
             if maxChanges > 0:
                 args.extend(['-m', maxChanges])
             args.append(revRange)
@@ -1032,22 +1058,23 @@ class P4Source(P4Base):
     def adjustHistoricalIntegrations(self, fileRevs):
         """Remove any integration records from before start, and adjust start/end rev ranges"""
         startChange = self.options.historical_start_change
-        srcFileLogCache = {}
         for chRev in fileRevs:
             if not chRev.hasIntegrations():
                 continue
             integsToDelete = []
             for ind, integ in chRev.integrations():
                 # Find the earliest revision valid as of startChange
-                if integ.file not in srcFileLogCache:
+                if integ.file not in self.srcFileLogCache:
                     srcLogs = self.p4.run_filelog('-m1', "%s@%d" % (integ.file, startChange))
-                    if srcLogs and srcLogs[0].revisions and srcLogs[0].revisions[0].change >= startChange:
-                        srcFileLogCache[integ.file] = srcLogs[0]
-                if integ.file not in srcFileLogCache:
+                    if srcLogs and srcLogs[0].revisions:
+                        rev = srcLogs[0].revisions[0]
+                        if integ.how == "moved from" or rev.change >= startChange:
+                            self.srcFileLogCache[integ.file] = srcLogs[0]
+                if integ.file not in self.srcFileLogCache:
                     integsToDelete.append(ind)
                     self.logger.debug("Removing historical integration %s" % str(integ))
                 else:
-                    srclog = srcFileLogCache[integ.file]
+                    srclog = self.srcFileLogCache[integ.file]
                     srcrev = srclog.revisions[0].rev - 1
                     oldErev = integ.erev
                     oldSrev = integ.srev
@@ -1066,31 +1093,7 @@ class P4Source(P4Base):
             chRev.deleteIntegrations(integsToDelete)
 
     def getChange(self, changeNum):
-        """Expects change number as a string, and returns list of filerevs and list of virtual branches"""
-
-        class SyncOutput(P4.OutputHandler):
-            "Log sync progress"
-
-            def __init__(self, p4id, logger, progress):
-                P4.OutputHandler.__init__(self)
-                self.p4id = p4id
-                self.logger = logger
-                self.progress = progress
-                self.msgs = []
-
-            def outputStat(self, stat):
-                if 'fileSize' in stat:
-                    self.progress.ReportFileSync(int(stat['fileSize']))
-                return P4.OutputHandler.HANDLED
-
-            def outputInfo(self, info):
-                self.logger.debug(self.p4id, ":", info)
-                return P4.OutputHandler.HANDLED
-
-            def outputMessage(self, msg):
-                self.logger.warning(self.p4id, ":sync-msg", msg)
-                self.msgs.append(str(msg))
-                return P4.OutputHandler.HANDLED
+        """Expects change number as a string, and returns list of filerevs and list of filelog output"""
 
         self.progress.ReportChangeSync()
         change = self.p4cmd('describe', '-s', changeNum)[0]
@@ -1163,6 +1166,15 @@ class P4Source(P4Base):
         if self.options.historical_start_change: # Extra processing required on integration records
             self.adjustHistoricalIntegrations(fileRevs)
         return fileRevs, filelogs
+
+    def getFirstChange(self):
+        """Expects change number as a string, and syncs the first historical change"""
+
+        if not self.options.historical_start_change: # Extra processing required on integration records
+            return
+        self.progress.ReportChangeSync()
+        syncCallback = SyncOutput(self.p4id, self.logger, self.progress)
+        self.p4cmd('sync', '//{}/...@{}'.format(self.P4CLIENT, self.options.historical_start_change), handler=syncCallback)
 
 
 class P4Target(P4Base):
@@ -1335,6 +1347,44 @@ class P4Target(P4Base):
 
         self.logger.info("source = {} : target = {}".format(change['change'], newChangeId))
         self.validateSubmittedChange(newChangeId, fileRevs)
+        return newChangeId
+
+    def replicateFirstChange(self, sourcePort):
+        """Replicate first change when historical start specified"""
+
+        newChangeId = None
+        openedFiles = self.p4cmd('reconcile', '-mead', '//%s/...' % self.p4.client)
+        lenOpenedFiles = len(openedFiles)
+        if lenOpenedFiles > 0:
+            description = self.formatChangeDescription(
+                sourceDescription='Replicating historical start change',
+                sourceChange=str(self.options.historical_start_change), sourcePort=sourcePort,
+                sourceUser='historical')
+            result = None
+            try:
+                # Debug for larger changelists
+                if lenOpenedFiles > 1000:
+                    self.logger.debug("About to fetch change")
+                chg = self.p4.fetch_change()
+                chg['Description'] = description
+                if lenOpenedFiles > 1000:
+                    self.logger.debug("About to submit")
+                result = self.p4.save_submit(chg)
+                if lenOpenedFiles > 1000:
+                    self.logger.debug("submitted")
+                self.logger.debug(self.p4id, result)
+                self.checkWarnings()
+            except P4.P4Exception as e:
+                raise e
+
+            # the submit information can be followed by refreshFile lines
+            # need to go backwards to find submittedChange
+            a = -1
+            while 'submittedChange' not in result[a]:
+                a -= 1
+            newChangeId = result[a]['submittedChange']
+            # self.updateChange(change, newChangeId)
+        self.logger.info("source = {} : target = {}".format(self.options.historical_start_change, newChangeId))
         return newChangeId
 
     def validateSubmittedChange(self, newChangeId, srcFileRevs):
@@ -2022,11 +2072,22 @@ class P4Transfer(object):
         self.target.connect('target replicate')
         self.source.createClientWorkspace(True)
         self.target.createClientWorkspace(False, self.source.matchingStreams)
-        changes = self.source.missingChanges(self.target.getCounter())
+        counterVal = self.target.getCounter()
+        changes = self.source.missingChanges(counterVal)
         if self.options.notransfer:
             self.logger.info("Would transfer %d changes - stopping due to --notransfer" % len(changes))
             return 0
         self.logger.info("Transferring %d changes" % len(changes))
+        if self.options.historical_start_change and counterVal < self.options.historical_start_change:
+            self.logger.info("Transferring first historical change: %d" % self.options.historical_start_change)
+            self.source.progress = ReportProgress(self.source.p4, changes, self.logger, self.source.P4CLIENT)
+            self.source.progress.SetSyncProgressSizeInterval(self.options.sync_progress_size_interval)
+            self.source.getFirstChange()
+            targetChange = self.target.replicateFirstChange(self.source.p4.port)
+            self.target.setCounter(self.options.historical_start_change)
+            # We may have already transferred the first change
+            if int(changes[0]['change']) == self.options.historical_start_change:
+                del changes[0]
         changesTransferred = 0
         if len(changes) > 0:
             self.target.initChangeMapFile()
