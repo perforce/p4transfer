@@ -1189,6 +1189,7 @@ class P4Target(P4Base):
         self.re_cant_integ_without_i = re.compile(r" can't integrate .* without -i flag")
         self.re_cant_branch_without_Dt = re.compile(r" can't branch from .* without -d or -Dt flag")
         self.re_resolve_skipped = re.compile(r" \- resolve skipped.")
+        self.re_must_sync_resolve = re.compile(r" must sync/resolve .* before submitting")
         self.re_resolve_tampered = re.compile(r" tampered with before resolve - edit or revert")
         self.re_edit_of_deleted_file = re.compile(r"warning: edit of deleted file")
         self.re_all_revisions_already_integrated = re.compile(r" all revision\(s\) already integrated")
@@ -1448,6 +1449,10 @@ class P4Target(P4Base):
             output = self.p4cmd('edit', source)
             if len(output) > 1 and self.re_edit_of_deleted_file.search(output[-1]):
                 self.renameOfDeletedFileEncountered = True
+            if len(output) > 1 and self.re_must_sync_resolve.search(output[-1]):
+                # Can happen with historical start and manual BBI imports
+                self.p4cmd('sync', source)
+                self.p4cmd('resolve', '-ay', source)
             if os.path.exists(file.fixedLocalFile) or os.path.islink(file.fixedLocalFile):
                 self.p4cmd('move', '-k', source, file.localFile)
             else:
