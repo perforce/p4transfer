@@ -1331,7 +1331,11 @@ class P4Target(P4Base):
                 re_resubmit = re.compile("Out of date files must be resolved or reverted.\n.*p4 submit -c ([0-9]+)")
                 m = re_resubmit.search(self.p4.errors[0])
                 if m and (self.renameOfDeletedFileEncountered or self.resolveDeleteEncountered):
-                    self.p4cmd("sync")
+                    cmd = ['sync']
+                    for ofile in openedFiles:
+                        cmd.append(ofile['depotFile'])
+                    self.logger.debug("Resyncing out of date files")
+                    self.p4.run(cmd)
                     result = self.p4cmd("submit", "-c", m.group(1))
                 else:
                     raise e
@@ -1839,9 +1843,9 @@ class P4Target(P4Base):
                 if self.p4.warnings and self.re_no_such_file.search("\n".join(self.p4.warnings)):
                     newAction = 'add'
                     # self.src.p4cmd('sync', '-f', file.localFileRev())
-                    self.p4cmd('add', file.localFile)
+                    self.p4cmd('add', '-t', file.type, file.localFile)
                 else:
-                    self.p4cmd('edit', file.localFile)
+                    self.p4cmd('edit', '-t', file.type, file.localFile)
                     if self.p4.warnings and self.re_file_not_on_client.search("\n".join(self.p4.warnings)):
                         self.p4cmd('add', file.localFile)
                 self.logger.debug('processing:0376 %s turned into historical %s' % (file.action, newAction))
