@@ -1844,7 +1844,9 @@ class P4Target(P4Base):
                     self.p4cmd('edit', file.localFile)
                     if self.p4.warnings and self.re_file_not_on_client.search("\n".join(self.p4.warnings)):
                         self.p4cmd('add', file.localFile)
-                self.logger.debug('processing:0375 %s turned into historical %s' % (file.action, newAction))
+                self.logger.debug('processing:0376 %s turned into historical %s' % (file.action, newAction))
+                if diskFileContentModified(file):
+                    self.src.p4cmd('sync', '-f', file.localFileRev())
             else:
                 self.logger.debug('processing:0380 else')
                 self.p4cmd('sync', '-k', file.localFile)
