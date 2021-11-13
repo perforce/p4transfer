@@ -686,7 +686,7 @@ class ChangelistComparer(object):
         targfiles = set([chRev.localFile for chRev in targlist])
         diffs = srcfiles.difference(targfiles)
         if diffs:
-            return (False, "Replication failure: missing elements in target changelist: %s" % ", ".join([str(r) for r in diffs]))
+            return (False, "Replication failure: missing elements in target changelist:\n%s" % "\n    ".join([str(r) for r in diffs]))
         srcfiles = set(chRev for chRev in srclist if chRev.localFile not in filesToIgnore)
         targfiles = set(chRev for chRev in targlist)
         diffs = srcfiles.difference(targfiles)
