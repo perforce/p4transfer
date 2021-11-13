@@ -138,6 +138,10 @@ DEFAULT_CONFIG = yaml.load(r"""
 #    If not set, or 0 then transfer will start from first change.
 counter_name: p4transfer_counter
 
+# case_sensitive: Set this to True if source/target servers are both case sensitive.
+#    Otherwise case inconsistencies can cause problems when conversion runs on Linux
+case_sensitive: True
+
 # historical_start_change: Set this if you require P4Transfer to start with this changelist.
 #    A historical start is useful if you have 100,000 changelists in source server and want to only
 #    transfer the last 10,000. Set this value to the first change to be transferred.
@@ -212,7 +216,7 @@ max_logfile_size: "20 * 1024 * 1024"
 # change_description_format: The standard format for transferred changes.
 #    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
 #     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
-change_description_format: "$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange"
+change_description_format: \"$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange\"
 
 # change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists.
 #    If this is blank (DEFAULT) then no mapping file is created.
@@ -324,6 +328,7 @@ class SourceTargetTextComparison(object):
     targetVersion = None
     sourceP4DVersion = None
     targetP4DVersion = None
+    caseSensitive = False
 
     def _getServerString(self, server):
         return server.p4cmd("info", "-s")[0]["serverVersion"]
@@ -336,7 +341,8 @@ class SourceTargetTextComparison(object):
         parts = serverString.split("/")
         return parts[2]
 
-    def setup(self, src, targ):
+    def setup(self, src, targ, caseSensitive=True):
+        self.caseSensitive = caseSensitive
         svrString = self._getServerString(src)
         self.sourceVersion = self._getOS(svrString)
         self.sourceP4DVersion = self._getP4DVersion(svrString)
@@ -658,10 +664,14 @@ class ChangeRevision:
         else:
             return self.type
 
-    def __eq__(self, other):
+    def __eq__(self, other, caseSensitive=True):
         "For comparisons between source and target after transfer"
-        if self.localFile != other.localFile:   # Check filename
-            return False
+        if caseSensitive:
+            if self.localFile != other.localFile:   # Check filename
+                return False
+        else:
+            if self.localFile.lower() != other.localFile.lower():
+                return False
         # Purge means filetype +Sn - so no comparison possible
         if self.action == 'purge' or other.action == 'purge':
             return True
@@ -677,13 +687,17 @@ class ChangeRevision:
 class ChangelistComparer(object):
     "Compare two lists of filerevisions"
 
-    def __init__(self, logger):
+    def __init__(self, logger, caseSensitive=True):
         self.logger = logger
+        self.caseSensitive = caseSensitive
 
     def listsEqual(self, srclist, targlist, filesToIgnore):
         "Compare two lists of changes, with an ignore list"
         srcfiles = set([chRev.localFile for chRev in srclist if chRev.localFile not in filesToIgnore])
         targfiles = set([chRev.localFile for chRev in targlist])
+        if not self.caseSensitive:
+            srcfiles = set([x.lower() for x in srcfiles])
+            targfiles = set([x.lower() for x in targfiles])
         diffs = srcfiles.difference(targfiles)
         if diffs:
             return (False, "Replication failure: missing elements in target changelist:\n%s" % "\n    ".join([str(r) for r in diffs]))
@@ -1425,7 +1439,7 @@ class P4Target(P4Base):
                             chRev.addIntegrationInfo(integ)
                             break
                 movetracker.trackAdd(chRev, flog.depotFile, chRev.getIntegration().file)
-        cc = ChangelistComparer(self.logger)
+        cc = ChangelistComparer(self.logger, caseSensitive=self.options.case_sensitive)
         targFileRevs.extend(movetracker.getMoves())
         result = cc.listsEqual(srcFileRevs, targFileRevs, self.filesToIgnore)
         if not result[0]:
@@ -2000,6 +2014,7 @@ class P4Transfer(object):
         self.options.counter_name = self.getOption(GENERAL_SECTION, "counter_name")
         if not self.options.counter_name:
             errors.append("Option counter_name must be specified")
+        self.options.case_sensitive = self.getIntOption(GENERAL_SECTION, "case_sensitive", 0)
         self.options.historical_start_change = self.getIntOption(GENERAL_SECTION, "historical_start_change", 0)
         self.options.instance_name = self.getOption(GENERAL_SECTION, "instance_name", self.options.counter_name)
         self.options.mail_form_url = self.getOption(GENERAL_SECTION, "mail_form_url")
@@ -2236,7 +2251,7 @@ class P4Transfer(object):
         self.source.createClientWorkspace(True)
         self.target.createClientWorkspace(False, self.source.matchingStreams)
         self.logger.debug("connected to source and target")
-        sourceTargetTextComparison.setup(self.source, self.target)
+        sourceTargetTextComparison.setup(self.source, self.target, self.options.case_sensitive)
         self.validateClientWorkspaces()
 
     def writeLogHeader(self):
