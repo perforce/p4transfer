@@ -723,7 +723,8 @@ class ChangelistComparer(object):
                     return (True, "")
                 for chRev in targlist:
                     targlookup[chRev.localFile] = chRev
-                new_diffs = [r for r in diffs2 if r != targlookup[r.localFile]]
+                # For case insenstive, focus on digest rather than fileSize
+                new_diffs = [r for r in diffs2 if r != targlookup[r.localFile] and r.digest != targlookup[r.localFile].digest]
                 if not new_diffs:
                     return (True, "")
                 return (False, "Replication failure (case insensitive): src/target content differences found\nsrc:%s\ntarg:%s" % (
