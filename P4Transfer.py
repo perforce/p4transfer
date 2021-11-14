@@ -723,7 +723,7 @@ class ChangelistComparer(object):
                     return (True, "")
                 for chRev in targlist:
                     targlookup[chRev.localFile] = chRev
-                return (False, "Replication failure: src/target content differences found\nsrc:%s\ntarg:%s" % (
+                return (False, "Replication failure (case insensitive): src/target content differences found\nsrc:%s\ntarg:%s" % (
                     "\n    ".join([str(r) for r in diffs]),
                     "\n    ".join([str(targlookup[r.localFile]) for r in diffs])))
             for chRev in targlist:
