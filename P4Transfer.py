@@ -711,6 +711,21 @@ class ChangelistComparer(object):
                 self.logger.debug("Ignoring differences due to lack of fileSize/digest")
                 return (True, "")
             targlookup = {}
+            # Cross check again for case insensitive servers - note that this will update the lists!
+            if not self.caseSensitive:
+                for chRev in srcfiles:
+                    chRev.localFile = chRev.localFile.lower()
+                for chRev in targfiles:
+                    chRev.localFile = chRev.localFile.lower()
+                new_diffs = [r for r in diffs if  r.fileSize and r.digest]
+                diffs = srcfiles.difference(targfiles)
+                if not diffs:
+                    return (True, "")
+                for chRev in targlist:
+                    targlookup[chRev.localFile] = chRev
+                return (False, "Replication failure: src/target content differences found\nsrc:%s\ntarg:%s" % (
+                    "\n    ".join([str(r) for r in diffs]),
+                    "\n    ".join([str(targlookup[r.localFile]) for r in diffs])))
             for chRev in targlist:
                 targlookup[chRev.localFile] = chRev
             return (False, "Replication failure: src/target content differences found\nsrc:%s\ntarg:%s" % (
