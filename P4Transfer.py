@@ -1488,6 +1488,9 @@ class P4Target(P4Base):
             output = self.p4cmd('edit', source)
             if len(output) > 1 and self.re_edit_of_deleted_file.search(output[-1]):
                 self.renameOfDeletedFileEncountered = True
+            if self.p4.warnings and self.re_file_not_on_client.search("\n".join(self.p4.warnings)):
+                self.p4cmd('sync', '-f', file.localIntegSourceFile(ind))
+                output = self.p4cmd('edit', source)
             if len(output) > 1 and self.re_must_sync_resolve.search(output[-1]):
                 # Can happen with historical start and manual BBI imports
                 self.p4cmd('sync', source)
