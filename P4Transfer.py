@@ -1103,6 +1103,8 @@ class P4Source(P4Base):
                         rev = srcLogs[0].revisions[0]
                         if integ.how == "moved from" or rev.change >= startChange:
                             self.srcFileLogCache[integ.file] = srcLogs[0]
+                if integ.how == "moved from" and integ.file not in self.srcFileLogCache:
+                    continue  # This is a rename after start
                 if integ.file not in self.srcFileLogCache:
                     integsToDelete.append(ind)
                     self.logger.debug("Removing historical integration %s" % str(integ))
