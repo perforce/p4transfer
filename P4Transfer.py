@@ -1274,7 +1274,7 @@ class P4Target(P4Base):
                     self.logger.warning('Edit turned into Add due to previous revision not available')
                 if diskFileContentModified(f):
                     self.logger.warning('Resyncing source due to file content changes')
-                self.src.p4cmd('sync', '-f', f.localFileRev())
+                    self.src.p4cmd('sync', '-f', f.localFileRev())
             elif f.action == 'add' or f.action == 'import':
                 if f.hasMoveIntegrations():
                     self.moveAdd(f)
