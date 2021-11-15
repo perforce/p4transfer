@@ -1878,7 +1878,7 @@ class P4Target(P4Base):
                 if self.p4.warnings and self.re_no_such_file.search("\n".join(self.p4.warnings)):
                     newAction = 'add'
                     # self.src.p4cmd('sync', '-f', file.localFileRev())
-                    self.p4cmd('add', '-ft', file.type, file.localFile)
+                    self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
                 else:
                     self.p4cmd('edit', '-t', file.type, file.localFile)
                     if self.p4.warnings and self.re_file_not_on_client.search("\n".join(self.p4.warnings)):
