@@ -561,6 +561,12 @@ class ChangeRevision:
                 return True
         return False
 
+    def hasOnlyMovedFromIntegrations(self):
+        for integ in self._integrations:
+            if integ.how not in ["moved from"]:
+                return False
+        return True
+
     def hasOnlyIgnoreIntegrations(self):
         for integ in self._integrations:
             if integ.how not in ["ignored"]:
@@ -1286,7 +1292,7 @@ class P4Target(P4Base):
                     self.logger.debug('processing:0020 add')
                     self.p4cmd('add', '-ft', f.type, f.fixedLocalFile)
             elif f.action == 'delete':
-                if f.hasIntegrations():
+                if f.hasIntegrations() and not f.hasOnlyMovedFromIntegrations():
                     self.replicateIntegration(f)
                 else:
                     self.logger.debug('processing:0030 delete')
