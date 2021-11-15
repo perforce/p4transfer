@@ -1781,7 +1781,7 @@ class P4Target(P4Base):
                 if ind > startInd:
                     continue
                 if integ.how in ['add from', 'moved from']:
-                    assert(afterAdd)
+                    # assert(afterAdd)
                     continue        # We ignore these
                 if integ.localFile is None:
                     # Happens with integrations on top of a move from outside source client view
