@@ -1626,8 +1626,8 @@ class P4Target(P4Base):
                         self.src.p4cmd('sync', '-f', file.localFileRev())
         else:
             self.logger.debug('processing:0230 add')
-            self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
-            if self.p4.warnings and self.re_cant_add_existing_file.search("\n".join(self.p4.warnings)):
+            output = self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
+            if len(output) > 0 and self.re_cant_add_existing_file.search(output[-1]):
                 self.p4cmd('edit', '-t', file.type, file.fixedLocalFile)
             if diskFileContentModified(file):
                 self.logger.warning('Resyncing add due to file content changes')
