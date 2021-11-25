@@ -1229,6 +1229,7 @@ class P4Target(P4Base):
         self.re_cant_integ_without_d = re.compile("can't delete from .* without -d or -Ds flag")
         self.re_cant_integ_without_i = re.compile(r" can't integrate .* without -i flag")
         self.re_cant_branch_without_Dt = re.compile(r" can't branch from .* without -d or -Dt flag")
+        self.re_cant_add_existing_file = re.compile(r" can't add existing file")
         self.re_resolve_skipped = re.compile(r" \- resolve skipped.")
         self.re_must_sync_resolve = re.compile(r" must sync/resolve .* before submitting")
         self.re_resolve_tampered = re.compile(r" tampered with before resolve - edit or revert")
@@ -1626,6 +1627,8 @@ class P4Target(P4Base):
         else:
             self.logger.debug('processing:0230 add')
             self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
+            if self.p4.warnings and self.re_cant_add_existing_file.search("\n".join(self.p4.warnings)):
+                self.p4cmd('edit', '-t', file.type, file.fixedLocalFile)
             if diskFileContentModified(file):
                 self.logger.warning('Resyncing add due to file content changes')
                 self.src.p4cmd('sync', '-f', file.localFileRev())
