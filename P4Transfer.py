@@ -1627,7 +1627,7 @@ class P4Target(P4Base):
         else:
             self.logger.debug('processing:0230 add')
             output = self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
-            if len(output) > 0 and self.re_cant_add_existing_file.search(output[-1]):
+            if len(output) > 0 and self.re_cant_add_existing_file.search(str(output[-1])):
                 self.p4cmd('sync', '-k', file.fixedLocalFile)
                 self.p4cmd('edit', '-t', file.type, file.fixedLocalFile)
             if diskFileContentModified(file):
