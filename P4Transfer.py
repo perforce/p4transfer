@@ -1816,9 +1816,7 @@ class P4Target(P4Base):
                     if integ.how == 'copy from':
                         self.logger.debug('processing:0320 copy from')
                         self.p4cmd('resolve', '-at')
-                        if self.options.historical_start_change:
-                            pass
-                        elif not editedFrom and diskFileContentModified(file):
+                        if not editedFrom and diskFileContentModified(file):
                             self.logger.warning('File copied but content changed')
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                     elif integ.how == 'ignored':
