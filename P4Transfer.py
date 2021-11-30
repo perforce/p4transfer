@@ -1109,28 +1109,23 @@ class P4Source(P4Base):
                         rev = srcLogs[0].revisions[0]
                         if integ.how == "moved from" or rev.change >= startChange:
                             self.srcFileLogCache[integ.file] = srcLogs[0]
-                if integ.how == "moved from" and integ.file not in self.srcFileLogCache:
-                    continue  # This is a rename after start
                 if integ.file not in self.srcFileLogCache:
+                    continue  # This is a rename after start
+                srclog = self.srcFileLogCache[integ.file]
+                srcrev = srclog.revisions[0].rev - 1
+                oldErev = integ.erev
+                oldSrev = integ.srev
+                integ.erev -= srcrev
+                if integ.erev <= 0:
                     integsToDelete.append(ind)
-                    self.logger.debug("Removing historical integration %s" % str(integ))
                 else:
-                    srclog = self.srcFileLogCache[integ.file]
-                    srcrev = srclog.revisions[0].rev - 1
-                    oldErev = integ.erev
-                    oldSrev = integ.srev
-                    integ.erev -= srcrev
-                    if integ.erev <= 0:
-                        integsToDelete.append(ind)
-                    else:
-                        integ.srev -= srcrev
-                        if integ.srev < 0:
-                            integ.srev = 0
-                    if oldErev != integ.erev or oldSrev != integ.srev:
-                        self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
-                            oldErev, oldSrev, integ.erev, integ.srev
-                        ))
-                    # .localFile = self.localmap.translate(integ.file)
+                    integ.srev -= srcrev
+                    if integ.srev < 0:
+                        integ.srev = 0
+                if oldErev != integ.erev or oldSrev != integ.srev:
+                    self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
+                        oldErev, oldSrev, integ.erev, integ.srev
+                    ))
             chRev.deleteIntegrations(integsToDelete)
 
     def getChange(self, changeNum):
