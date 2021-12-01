@@ -2270,6 +2270,65 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual("copy from", filelog[0].revisions[0].integrations[0].how)
         self.assertEqual("branch from", filelog[0].revisions[1].integrations[0].how)
 
+    def testHistoricalTooManyTargetRevs(self):
+        "Historical integration where target has extra revs so wrong one is picked"
+        self.setupTransfer()
+
+        _ = self.source.p4.fetch_change() # Create change no
+        # In HistoricalStart mode we don't start from first change
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '2'
+        self.createConfigFile(options=config)
+        self.setTargetCounter('1')
+        
+        inside = localDirectory(self.source.client_root, "inside")
+        timport = localDirectory(self.target.client_root, "import")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        tfile1 = os.path.join(timport, "file1")
+        tfile2 = os.path.join(timport, "file2")
+        
+        create_file(file1, "Test content\n")
+        create_file(tfile1, "Test targ content\n")
+
+        # Add pre-existing target files
+        self.target.p4cmd('add', tfile1)
+        self.target.p4cmd('submit', '-d', '1: file1 added')
+
+        self.target.p4cmd('integrate', tfile1, tfile2)
+        self.target.p4cmd('submit', '-d', '2: file1 -> file2')
+
+        self.target.p4cmd('delete', tfile1, tfile2)
+        self.target.p4cmd('submit', '-d', '3: delete both')
+
+        # Now source files we want to replicate
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', '2: file1 added')
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 4)
+
+        self.target.p4cmd('obliterate', '-y', '@1,3')
+
+        self.source.p4cmd('integrate', file1, file2)
+        self.source.p4cmd('submit', '-d', '3: file1 -> file2')
+
+        self.source.p4cmd('edit', file1)
+        append_to_file(file1, "More again\n")
+        self.source.p4cmd('submit', '-d', '4: file1 edited')
+
+        self.source.p4cmd('integrate', file1, file2)
+        self.source.p4cmd('resolve', "-as")
+        self.source.p4cmd('submit', '-d', '5: file1 -> file2')
+
+        self.run_P4Transfer()
+        self.assertCounters(4, 6)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file2')
+        self.assertEqual(1, len(filelog[0].revisions))
+        self.assertEqual(1, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("branch", filelog[0].revisions[0].action)
+
     def testComplexIntegrate(self):
         "More complex integrations with various resolve options"
         self.setupTransfer()

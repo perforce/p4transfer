@@ -1104,13 +1104,13 @@ class P4Source(P4Base):
             for ind, integ in chRev.integrations():
                 # Find the earliest revision valid as of startChange
                 if integ.file not in self.srcFileLogCache:
-                    srcLogs = self.p4.run_filelog('-m1', "%s@%d" % (integ.file, startChange))
+                    srcLogs = self.p4.run_filelog('-m1', "%s@%d" % (integ.file, startChange - 1))
                     if srcLogs and srcLogs[0].revisions:
                         rev = srcLogs[0].revisions[0]
                         if integ.how == "moved from" or rev.change >= startChange:
                             self.srcFileLogCache[integ.file] = srcLogs[0]
                 if integ.file not in self.srcFileLogCache:
-                    continue  # This is a rename after start
+                    continue
                 srclog = self.srcFileLogCache[integ.file]
                 srcrev = srclog.revisions[0].rev - 1
                 oldErev = integ.erev
@@ -1236,6 +1236,7 @@ class P4Target(P4Base):
         self.re_move_delete_needs_move_add = re.compile(r"move/delete\(s\) must be integrated along with matching move/add\(s\)")
         self.re_file_remapped = re.compile(r" \(remapped from ")
         self.filesToIgnore = []
+        self.targStartRevCache = {}
 
     def formatChangeDescription(self, **kwargs):
         """Format using specified format options - see call in replicateChange"""
@@ -1254,6 +1255,46 @@ class P4Target(P4Base):
                 return True
         return False
 
+    def adjustTargetHistoricalIntegrations(self, chRev):
+        """Remove any integration records from before start, and adjust start/end rev ranges
+        This is a version like the source function but tweaks target for those times when revs have been purged"""
+        if not chRev.hasIntegrations():
+            return
+        integsToDelete = []
+        for ind, integ in chRev.integrations():
+            # Check for purged start revs indicating some fudging is required
+            depotFile = self.depotmap.translate(chRev.localIntegSourceFile(ind))
+            if not depotFile or len(depotFile) == 0:
+                continue
+            if depotFile not in self.targStartRevCache:
+                # Find earliest revision known about this file on the target if not 1 then adjust
+                targLogs = self.p4.run_filelog(depotFile)
+                if targLogs and targLogs[0].revisions:
+                    startRev = targLogs[0].revisions[-1]
+                    if startRev.rev == 1:
+                        continue
+                    endRev = targLogs[0].revisions[0]
+                    self.targStartRevCache[depotFile] = (startRev.rev, endRev.rev)
+            if depotFile not in self.targStartRevCache:
+                continue
+            srev, erev = self.targStartRevCache[depotFile]
+            offset = srev - 1
+            oldErev = integ.erev
+            oldSrev = integ.srev
+            integ.erev += offset
+            integ.srev += offset
+            if integ.erev < srev:
+                integsToDelete.append(ind)
+            elif integ.erev > erev:
+                integ.erev = erev
+            if integ.srev < srev:
+                integ.srev = srev
+            if oldErev != integ.erev or oldSrev != integ.srev:
+                self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
+                    oldErev, oldSrev, integ.erev, integ.srev
+                ))
+        chRev.deleteIntegrations(integsToDelete)
+
     def processChangeRevs(self, fileRevs, srcFileLogs):
         "Process all revisions in the change"
         self.srcFileLogs = {}
@@ -1263,6 +1304,8 @@ class P4Target(P4Base):
             self.logger.debug('targ:', f)
             self.currentFileContent = None
 
+            if self.options.historical_start_change:
+                self.adjustTargetHistoricalIntegrations(f)
             if self.ignoreFile(f.localFile):
                 self.logger.warning("Ignoring file: %s#%s" % (f.depotFile, f.rev))
                 self.filesToIgnore.append(f.localFile)
@@ -2142,7 +2185,7 @@ class P4Transfer(object):
             targetChange = self.target.replicateFirstChange(self.source.p4.port)
             self.target.setCounter(self.options.historical_start_change)
             # We may have already transferred the first change
-            if int(changes[0]['change']) == self.options.historical_start_change:
+            if changes and int(changes[0]['change']) == self.options.historical_start_change:
                 del changes[0]
         changesTransferred = 0
         if len(changes) > 0:
