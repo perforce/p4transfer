@@ -1290,7 +1290,7 @@ class P4Target(P4Base):
             if integ.srev < srev:
                 integ.srev = srev
             if oldErev != integ.erev or oldSrev != integ.srev:
-                self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
+                self.logger.debug("Adjusting obliterated erev/srev from %d/%d to %d/%d" % (
                     oldErev, oldSrev, integ.erev, integ.srev
                 ))
         chRev.deleteIntegrations(integsToDelete)
