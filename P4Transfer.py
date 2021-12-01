@@ -1818,6 +1818,7 @@ class P4Target(P4Base):
                         self.p4cmd('resolve', '-at')
                         if not editedFrom and diskFileContentModified(file):
                             self.logger.warning('File copied but content changed')
+                            self.p4cmd('edit', file.localFile)
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                     elif integ.how == 'ignored':
                         self.logger.debug('processing:0330 ignored')
