@@ -1102,26 +1102,27 @@ class P4Source(P4Base):
                 continue
             integsToDelete = []
             for ind, integ in chRev.integrations():
-                # Find the earliest revision valid as of startChange
+                # Find the earliest revision valid as of startChange, and then use that to calculate offset
                 if integ.file not in self.srcFileLogCache:
+                    if integ.how == "moved from":
+                        continue
                     srcLogs = self.p4.run_filelog('-m1', "%s@%d" % (integ.file, startChange - 1))
                     if srcLogs and srcLogs[0].revisions:
                         rev = srcLogs[0].revisions[0]
-                        if integ.how == "moved from" or rev.change >= startChange:
-                            self.srcFileLogCache[integ.file] = srcLogs[0]
+                        if rev.change < startChange:
+                            self.srcFileLogCache[integ.file] = rev.rev
                 if integ.file not in self.srcFileLogCache:
                     continue
-                srclog = self.srcFileLogCache[integ.file]
-                srcrev = srclog.revisions[0].rev - 1
+                startRev = self.srcFileLogCache[integ.file]
+                offset = startRev - 1
                 oldErev = integ.erev
                 oldSrev = integ.srev
-                integ.erev -= srcrev
+                integ.erev -= offset
+                integ.srev -= offset
                 if integ.erev <= 0:
                     integsToDelete.append(ind)
-                else:
-                    integ.srev -= srcrev
-                    if integ.srev < 0:
-                        integ.srev = 0
+                if integ.srev < 0:
+                    integ.srev = 0
                 if oldErev != integ.erev or oldSrev != integ.srev:
                     self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
                         oldErev, oldSrev, integ.erev, integ.srev
