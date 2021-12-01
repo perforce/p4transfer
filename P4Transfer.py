@@ -1124,8 +1124,8 @@ class P4Source(P4Base):
                 if integ.srev < 0:
                     integ.srev = 0
                 if oldErev != integ.erev or oldSrev != integ.srev:
-                    self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d" % (
-                        oldErev, oldSrev, integ.erev, integ.srev
+                    self.logger.debug("Adjusting erev/srev from %d/%d to %d/%d for %s" % (
+                        oldErev, oldSrev, integ.erev, integ.srev, integ.file
                     ))
             chRev.deleteIntegrations(integsToDelete)
 
