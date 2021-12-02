@@ -1097,6 +1097,7 @@ class P4Source(P4Base):
     def adjustHistoricalIntegrations(self, fileRevs):
         """Remove any integration records from before start, and adjust start/end rev ranges"""
         startChange = self.options.historical_start_change
+        self.logger.debug("Historical integrations adjustments for %d files" % len(fileRevs))
         for chRev in fileRevs:
             if not chRev.hasIntegrations():
                 continue
