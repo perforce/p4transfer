@@ -1785,8 +1785,9 @@ class P4Target(P4Base):
         flags = []
         doCopy = False
         fileIgnored = False
+        srcname = srcFile.localIntegSource(srcInd)
         while 1 == 1:
-            outputDict, outputStr = self.integrateWithFlags(srcFile.localIntegSource(srcInd), destname, flags)
+            outputDict, outputStr = self.integrateWithFlags(srcname, destname, flags)
             if self.re_cant_integ_without_d.search(outputStr) and "-d" not in flags:
                 flags.append("-d")
             elif self.re_cant_integ_without_Di.search(outputStr) and "-Di" not in flags:
@@ -1795,6 +1796,17 @@ class P4Target(P4Base):
                 flags.append('-Dt')
             elif self.re_all_revisions_already_integrated.search(outputStr) and "-f" not in flags:
                 flags.append("-f")
+            elif self.re_no_revisions_above_that_revision.search(outputStr):
+                # Happens rarely when deletions have occurred. If there are source revs specified we try with one less rev
+                m = re.search("(.*)#(\d+),(\d+)$", srcname)
+                if m:
+                    r1 = int(m.group(2)) - 1
+                    r2 = int(m.group(3)) - 1
+                    newSrc = "%s#%d,%d" % (m.group(1), r1, r2)
+                    self.logger.warning("Trying to integrate previous rev '%s'" % newSrc)
+                    srcname = newSrc
+                else:
+                    break
             elif self.re_all_revisions_already_integrated.search(outputStr) and "-f" in flags:
                 # Can't integrate a delete on to a delete
                 self.logger.warning("Ignoring integrate:", destname)
