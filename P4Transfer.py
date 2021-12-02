@@ -1285,17 +1285,19 @@ class P4Target(P4Base):
             offset = srev - 1
             oldErev = integ.erev
             oldSrev = integ.srev
+            rdiff = integ.erev - integ.srev
             integ.erev += offset
             integ.srev += offset
             if integ.erev < srev:
                 integsToDelete.append(ind)
             elif integ.erev > erev:
                 integ.erev = erev
+                integ.srev = erev - rdiff
             if integ.srev < srev:
                 integ.srev = srev
             if oldErev != integ.erev or oldSrev != integ.srev:
-                self.logger.debug("Adjusting obliterated erev/srev from %d/%d to %d/%d" % (
-                    oldErev, oldSrev, integ.erev, integ.srev
+                self.logger.debug("Adjusting obliterated erev/srev from %d/%d to %d/%d for %s" % (
+                    oldErev, oldSrev, integ.erev, integ.srev, depotFile
                 ))
         chRev.deleteIntegrations(integsToDelete)
 
