@@ -1267,7 +1267,10 @@ class P4Target(P4Base):
         integsToDelete = []
         for ind, integ in chRev.integrations():
             # Check for purged start revs indicating some fudging is required
-            depotFile = self.depotmap.translate(chRev.localIntegSourceFile(ind))
+            srcFile = chRev.localIntegSourceFile(ind)
+            if not srcFile:
+                continue
+            depotFile = self.depotmap.translate(srcFile)
             if not depotFile or len(depotFile) == 0:
                 continue
             if depotFile not in self.targStartRevCache:
