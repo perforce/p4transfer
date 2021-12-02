@@ -1115,6 +1115,8 @@ class P4Source(P4Base):
                     continue
                 startRev = self.srcFileLogCache[integ.file]
                 offset = startRev - 1
+                if offset > 0:
+                    offset -= 1 # TODO: Fudge factor for extra revs to seed branches
                 oldErev = integ.erev
                 oldSrev = integ.srev
                 integ.erev -= offset
