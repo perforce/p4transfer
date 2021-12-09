@@ -185,13 +185,10 @@ class CopySnapshot():
                 rev.setLocalFile(localFile)
                 result[fname] = rev
             else:
-                result = self.srcp4.run_where(rev.depotFile)
-                if result:
-                    where = result[0]
-                    rev.depotFile = where['depotFile']
-                    rev.setLocalFile(where['path'])
-                else:
-                    print("Ignoring source: %s" % rev.depotFile)
+                where = self.srcp4.run_where(rev.depotFile)[0]
+                rev.depotFile = where['depotFile']
+                rev.setLocalFile(where['path'])
+                result[fname] = rev
         return result
     
     def run(self):
