@@ -195,8 +195,11 @@ class CopySnapshot():
         srcFiles = self.getFiles(srcFstat)    
         print("Found source files: %d" % len(srcFiles))
         print("Checking sync of source files")
-        self.srcp4.run('sync', self.options.source)
+        with self.srcp4.at_exception_level(P4.P4.RAISE_ERROR):
+            self.srcp4.run('sync', self.options.source)
         # Create a target change to open files in
+        with self.targp4.at_exception_level(P4.P4.RAISE_ERROR):
+            self.targp4.run('revert', '-k', '//...')
         chg = self.targp4.fetch_change()
         chg['Description'] = "Import of snapshot %s" % self.options.source
         output = self.targp4.save_change(chg)[0]
