@@ -76,8 +76,12 @@ class FileRev:
         self.rev = f['headRev']
         self.change = f['headChange']
         self.type = f['headType']
-        
+        self.localFile = ""
+        self.fixedLocalFile = ""
+
     def setLocalFile(self, localFile):
+        if not localFile:
+            return
         self.localFile = localFile
         localFile = localFile.replace("%40", "@")
         localFile = localFile.replace("%23", "#")
@@ -176,8 +180,12 @@ class CopySnapshot():
             if not caseSensitive:
                 fname = fname.lower()
             rev = FileRev(f)
-            rev.setLocalFile(self.mapToLocal.translate(rev.depotFile))
-            result[fname] = rev
+            localFile = self.mapToLocal.translate(rev.depotFile)
+            if localFile:
+                rev.setLocalFile(localFile)
+                result[fname] = rev
+            else:
+                print("Ignoring source: %s" % rev.depotFile)
         return result
     
     def run(self):
