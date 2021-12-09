@@ -186,6 +186,9 @@ class CopySnapshot():
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
         srcFiles = self.getFiles(srcFstat)    
         print("Found source files: %d" % len(srcFiles))
+        print("Checking sync of source files")
+        self.srcp4.run('sync', self.options.source)
+        # Create a target change to open files in
         chg = self.targp4.fetch_change()
         chg['Description'] = "Import of snapshot %s" % self.options.source
         output = self.targp4.save_change(chg)[0]
@@ -198,7 +201,7 @@ class CopySnapshot():
             if 'delete' not in v.action:
                 localPath = fixer.fixCase(v.fixedLocalFile)
                 self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
-        print("All files opened in changelist: %d" % chgno)
+        print("All files opened in changelist: %s" % chgno)
         print("Recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
         print("Then monitor the output for completion.")
 
