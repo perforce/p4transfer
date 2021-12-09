@@ -121,6 +121,7 @@ class CaseFixer:
         localPath = localPath.replace("/samples/", "/Samples/")
         localPath = localPath.replace("/QAGAME/", "/QAGame/")
         localPath = localPath.replace("/qagame/", "/QAGame/")
+        localPath = localPath.replace("/engineTest/", "/EngineTest/")
         if not os.path.exists(localPath):
             raise Exception("Failed to fix: %s" % localPath)
         return localPath
