@@ -195,7 +195,7 @@ class CopySnapshot():
         fixer = CaseFixer()
         for _, v in srcFiles.items():
             if 'delete' not in v.action:
-                localPath = fixer.fixCase(v.fixedLocalPath)
+                localPath = fixer.fixCase(v.fixedLocalFile)
                 self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
         print("All files opened in changelist: %d" % chgno)
         print("Recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
