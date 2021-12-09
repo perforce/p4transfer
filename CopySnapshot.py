@@ -52,6 +52,7 @@ DESCRIPTION:
 import P4
 import os
 import re
+import sys
 import argparse
 import textwrap
 from ruamel.yaml import YAML
@@ -110,6 +111,21 @@ class FileRev:
         return True
 
 
+class CaseFixer:
+    "Class to fix case names - for now hard coded fixes"
+    
+    def fixCase(self, localPath):
+        if os.path.exists(localPath):
+            return localPath
+        localPath = localPath.replace("/engine/", "/Engine/")
+        localPath = localPath.replace("/samples/", "/Samples/")
+        localPath = localPath.replace("/QAGAME/", "/QAGame/")
+        localPath = localPath.replace("/qagame/", "/QAGame/")
+        if not os.path.exists(localPath):
+            raise Exception("Failed to fix: %s" % localPath)
+        return localPath
+
+
 class CopySnapshot():
     
     def __init__(self) -> None:
@@ -126,8 +142,10 @@ class CopySnapshot():
         parser.add_argument('-t', '--target', help="Perforce path for target repo, e.g. //depot/targ/...@123")
         self.options = parser.parse_args()
 
-        if not os.path.exists(self.options.config):
-            raise Exception("No config file was specified!")
+        if not self.options.config or not os.path.exists(self.options.config):
+            parser.print_help()
+            print("\nNo config file was specified or it doesn't exist!\nSee help above.")
+            sys.exit(1)
         with open(self.options.config) as f:
             self.config = yaml.load(f)
 
@@ -174,12 +192,15 @@ class CopySnapshot():
         if not m:
             raise Exception("Failed to create changelist")
         chgno = m.group(1)
+        fixer = CaseFixer()
         for _, v in srcFiles.items():
             if 'delete' not in v.action:
-                self.targp4.run('add', '-c', chgno, '-ft', v.type, v.fixedLocalFile)
+                localPath = fixer.fixCase(v.fixedLocalPath)
+                self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
         print("All files opened in changelist: %d" % chgno)
         print("Recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
         print("Then monitor the output for completion.")
+
 
 if __name__ == '__main__':
     obj = CopySnapshot()
