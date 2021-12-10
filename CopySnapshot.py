@@ -79,17 +79,6 @@ class FileRev:
         self.localFile = ""
         self.fixedLocalFile = ""
 
-    # def setLocalFile(self, localFile):
-    #     if not localFile:
-    #         return
-    #     self.localFile = localFile
-    #     localFile = localFile.replace("%40", "@")
-    #     localFile = localFile.replace("%23", "#")
-    #     localFile = localFile.replace("%2A", "*")
-    #     localFile = localFile.replace("%25", "%")
-    #     localFile = localFile.replace("/", os.sep)
-    #     self.fixedLocalFile = localFile
-
     def __repr__(self):
         return 'depotFile={depotfile} rev={rev} action={action} type={type} size={size} digest={digest}' .format(
             rev=self.rev,
@@ -113,22 +102,6 @@ class FileRev:
         if (self.fileSize, self.digest) != (other.fileSize, other.digest):
             return False
         return True
-
-
-# class CaseFixer:
-#     "Class to fix case names - for now hard coded fixes"
-    
-#     def fixCase(self, localPath):
-#         if os.path.exists(localPath):
-#             return localPath
-#         localPath = localPath.replace("/engine/", "/Engine/")
-#         localPath = localPath.replace("/samples/", "/Samples/")
-#         localPath = localPath.replace("/QAGAME/", "/QAGame/")
-#         localPath = localPath.replace("/qagame/", "/QAGame/")
-#         localPath = localPath.replace("/engineTest/", "/EngineTest/")
-#         if not os.path.exists(localPath):
-#             raise Exception("Failed to fix: %s" % localPath)
-#         return localPath
 
 
 class CopySnapshot():
@@ -218,23 +191,27 @@ class CopySnapshot():
         if not m:
             raise Exception("Failed to create changelist")
         chgno = m.group(1)
-        # fixer = CaseFixer()
+        count = 0
         for _, v in srcFiles.items():
+            count += 1
+            if count % 10000 == 0:
+                print("Processed %d files" % count)
+                sys.stdout.flush()
             k = v.depotFile
             if not caseSensitive:
                 k = k.lower()
             localPath = localFiles[k]
-            if not os.path.exists(localPath):
-                print("WARNING: file not found: %s" % localPath)
-                sys.stdout.flush()
+            # Could check if os.path.exists(localPath) - but quite expensive - hopefully caught by add result check below
             output = self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
             if not (output and len(output) == 1 and isinstance(output[0], dict) and 'depotFile' in output[0]):
                 print("WARNING: %s" % str(output))
                 sys.stdout.flush()
         opened = self.targp4.run('opened', '-c', chgno)
-        if len(opened) != len(srcFiles):
+        if len(opened) == len(srcFiles):
+            print("Count of opened files is as expected: %d" % (len(opened)))
+        else:
             print("ERROR missing some files: %d opened, %d expected" % (len(opened), len(srcFiles)))
-        print("All files opened in changelist: %s" % chgno)
+        print("All files are opened in changelist: %s" % chgno)
         print("If no warnings/errors, then recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
         print("Then monitor the output for completion.")
 
