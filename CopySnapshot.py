@@ -197,6 +197,7 @@ class CopySnapshot():
         with self.srcp4.at_exception_level(P4.P4.RAISE_ERROR):
             self.srcp4.run('sync', self.options.source)
         print("Getting have data")
+        sys.stdout.flush()
         haveSource = self.options.source
         if "@" in haveSource:
             haveSource = haveSource.split("@")[0]
@@ -219,17 +220,22 @@ class CopySnapshot():
         chgno = m.group(1)
         # fixer = CaseFixer()
         for _, v in srcFiles.items():
-            localPath = localFiles[v.depotFile]
+            k = v.depotFile
+            if not caseSensitive:
+                k = k.lower()
+            localPath = localFiles[k]
             if not os.path.exists(localPath):
                 print("WARNING: file not found: %s" % localPath)
+                sys.stdout.flush()
             output = self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
             if not (output and len(output) == 1 and isinstance(output[0], dict) and 'depotFile' in output[0]):
                 print("WARNING: %s" % str(output))
+                sys.stdout.flush()
         opened = self.targp4.run('opened', '-c', chgno)
         if len(opened) != len(srcFiles):
             print("ERROR missing some files: %d opened, %d expected" % (len(opened), len(srcFiles)))
         print("All files opened in changelist: %s" % chgno)
-        print("Recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
+        print("If no warnings/errors, then recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
         print("Then monitor the output for completion.")
 
 
