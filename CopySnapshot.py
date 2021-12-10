@@ -197,7 +197,10 @@ class CopySnapshot():
         with self.srcp4.at_exception_level(P4.P4.RAISE_ERROR):
             self.srcp4.run('sync', self.options.source)
         print("Getting have data")
-        haveList = self.srcp4.run('have', self.options.source)
+        haveSource = self.options.source
+        if "@" in haveSource:
+            haveSource = haveSource.split("@")[0]
+        haveList = self.srcp4.run('have', haveSource)
         localFiles = {}
         for f in haveList:
             k = f['depotFile']
