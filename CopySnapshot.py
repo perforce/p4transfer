@@ -79,16 +79,16 @@ class FileRev:
         self.localFile = ""
         self.fixedLocalFile = ""
 
-    def setLocalFile(self, localFile):
-        if not localFile:
-            return
-        self.localFile = localFile
-        localFile = localFile.replace("%40", "@")
-        localFile = localFile.replace("%23", "#")
-        localFile = localFile.replace("%2A", "*")
-        localFile = localFile.replace("%25", "%")
-        localFile = localFile.replace("/", os.sep)
-        self.fixedLocalFile = localFile
+    # def setLocalFile(self, localFile):
+    #     if not localFile:
+    #         return
+    #     self.localFile = localFile
+    #     localFile = localFile.replace("%40", "@")
+    #     localFile = localFile.replace("%23", "#")
+    #     localFile = localFile.replace("%2A", "*")
+    #     localFile = localFile.replace("%25", "%")
+    #     localFile = localFile.replace("/", os.sep)
+    #     self.fixedLocalFile = localFile
 
     def __repr__(self):
         return 'depotFile={depotfile} rev={rev} action={action} type={type} size={size} digest={digest}' .format(
@@ -115,25 +115,25 @@ class FileRev:
         return True
 
 
-class CaseFixer:
-    "Class to fix case names - for now hard coded fixes"
+# class CaseFixer:
+#     "Class to fix case names - for now hard coded fixes"
     
-    def fixCase(self, localPath):
-        if os.path.exists(localPath):
-            return localPath
-        localPath = localPath.replace("/engine/", "/Engine/")
-        localPath = localPath.replace("/samples/", "/Samples/")
-        localPath = localPath.replace("/QAGAME/", "/QAGame/")
-        localPath = localPath.replace("/qagame/", "/QAGame/")
-        localPath = localPath.replace("/engineTest/", "/EngineTest/")
-        if not os.path.exists(localPath):
-            raise Exception("Failed to fix: %s" % localPath)
-        return localPath
+#     def fixCase(self, localPath):
+#         if os.path.exists(localPath):
+#             return localPath
+#         localPath = localPath.replace("/engine/", "/Engine/")
+#         localPath = localPath.replace("/samples/", "/Samples/")
+#         localPath = localPath.replace("/QAGAME/", "/QAGame/")
+#         localPath = localPath.replace("/qagame/", "/QAGame/")
+#         localPath = localPath.replace("/engineTest/", "/EngineTest/")
+#         if not os.path.exists(localPath):
+#             raise Exception("Failed to fix: %s" % localPath)
+#         return localPath
 
 
 class CopySnapshot():
     
-    def __init__(self) -> None:
+    def __init__(self, *args) -> None:
         desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
             description=desc,
@@ -144,8 +144,11 @@ class CopySnapshot():
         parser.add_argument('-c', '--config', help="Config file as used by P4Transfer - to read source/target info")
         parser.add_argument('-w', '--workspace', help="Source workspace to use (otherwise will use the one in the config file)")
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
-        parser.add_argument('-t', '--target', help="Perforce path for target repo, e.g. //depot/targ/...@123")
-        self.options = parser.parse_args()
+        
+        if list(args):
+            self.options = parser.parse_args(list(args))
+        else:
+            self.options = parser.parse_args()
 
         if not self.options.config or not os.path.exists(self.options.config):
             parser.print_help()
@@ -173,21 +176,14 @@ class CopySnapshot():
         ctr = P4.Map('//"' + srcClient._client + '/..."   "' + srcClient._root + '/..."')
         self.mapToLocal = P4.Map.join(self.clientmap, ctr)
 
-    def getFiles(self, fstat):
+    def getFilesToAdd(self, fstat):
         result = {}
         for f in fstat:
             fname = f['depotFile']
             if not caseSensitive:
                 fname = fname.lower()
             rev = FileRev(f)
-            localFile = self.mapToLocal.translate(rev.depotFile)
-            if localFile:
-                rev.setLocalFile(localFile)
-                result[fname] = rev
-            else:
-                where = self.srcp4.run_where(rev.depotFile)[0]
-                rev.depotFile = where['depotFile']
-                rev.setLocalFile(where['path'])
+            if 'delete' not in rev.action:
                 result[fname] = rev
         return result
     
@@ -195,11 +191,19 @@ class CopySnapshot():
         srcFiles = {}
         print("Collecting source files")
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
-        srcFiles = self.getFiles(srcFstat)    
-        print("Found source files: %d" % len(srcFiles))
+        srcFiles = self.getFilesToAdd(srcFstat)    
+        print("Found source files to add: %d" % len(srcFiles))
         print("Checking sync of source files")
         with self.srcp4.at_exception_level(P4.P4.RAISE_ERROR):
             self.srcp4.run('sync', self.options.source)
+        print("Getting have data")
+        haveList = self.srcp4.run('have', self.options.source)
+        localFiles = {}
+        for f in haveList:
+            k = f['depotFile']
+            if not caseSensitive:
+                k = k.lower()
+            localFiles[k] = f['path']
         # Create a target change to open files in
         with self.targp4.at_exception_level(P4.P4.RAISE_ERROR):
             self.targp4.run('revert', '-k', '//...')
@@ -210,11 +214,17 @@ class CopySnapshot():
         if not m:
             raise Exception("Failed to create changelist")
         chgno = m.group(1)
-        fixer = CaseFixer()
+        # fixer = CaseFixer()
         for _, v in srcFiles.items():
-            if 'delete' not in v.action:
-                localPath = fixer.fixCase(v.fixedLocalFile)
-                self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
+            localPath = localFiles[v.depotFile]
+            if not os.path.exists(localPath):
+                print("WARNING: file not found: %s" % localPath)
+            output = self.targp4.run('add', '-c', chgno, '-ft', v.type, localPath)
+            if not (output and len(output) == 1 and isinstance(output[0], dict) and 'depotFile' in output[0]):
+                print("WARNING: %s" % str(output))
+        opened = self.targp4.run('opened', '-c', chgno)
+        if len(opened) != len(srcFiles):
+            print("ERROR missing some files: %d opened, %d expected" % (len(opened), len(srcFiles)))
         print("All files opened in changelist: %s" % chgno)
         print("Recommend running: nohup p4 submit -c %s > sub.out &" % chgno)
         print("Then monitor the output for completion.")
