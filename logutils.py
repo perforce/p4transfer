@@ -199,7 +199,7 @@ class ArgLogger(logging.getLoggerClass()):
             self.saved_output = []
         if self.mail_form_url:
             return notify_users_by_form(self.mail_form_url, subject, body)
-        else:
+        if self.mail_server and self.mail_from and self.mail_to:
             notify_users_by_email(self.mail_from, self.mail_to, self.mail_server, subject, body)
 
 
