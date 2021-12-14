@@ -112,7 +112,7 @@ class RepoComparer():
 
         parser.add_argument('-c', '--config', help="Config file as used by P4Transfer - to read source/target info")
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
-        parser.add_argument('-t', '--target', help="Perforce path for target repo, e.g. //depot/targ/...@123")
+        parser.add_argument('-t', '--target', help="Optional: Perforce path for target repo, e.g. //depot/targ/...@123 [or without rev for #head]. If not specified then assumes --source value with no revision specifier")
         self.options = parser.parse_args()
 
         if not os.path.exists(self.options.config):
@@ -120,6 +120,13 @@ class RepoComparer():
         with open(self.options.config) as f:
             self.config = yaml.load(f)
 
+        if not self.options.target:
+            if "@" in self.options.source:
+                parts = self.options.source.split("@")
+                if len(parts) > 1:
+                    self.options.target = parts[0]
+        if not self.options.target:
+            raise Exception("Please specify --target or a changelist for source, e.g. --source //some/path/...@12345")
         self.srcp4 = P4.P4()
         self.srcp4.port = self.config['source']['p4port']
         self.srcp4.user = self.config['source']['p4user']
