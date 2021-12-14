@@ -1833,8 +1833,12 @@ class P4Target(P4Base):
             self.logger.debug('processing:0270 copy of delete')
             self.p4cmd('copy', srcFile.localIntegSyncSource(srcInd), destname)
         elif not fileIgnored:
-            self.logger.debug('processing:0280 delete')
-            self.p4cmd('resolve', '-at')
+            if outputStr and self.re_no_such_file.search(outputStr):
+                self.logger.debug('processing:0275 delete')
+                self.p4cmd('delete', '-v', destname)
+            else:
+                self.logger.debug('processing:0280 delete')
+                self.p4cmd('resolve', '-at')
 
     def replicateIntegration(self, file, afterAdd=False, startInd=None):
         self.logger.debug('replicateIntegration')
