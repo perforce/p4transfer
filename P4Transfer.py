@@ -1694,10 +1694,15 @@ class P4Target(P4Base):
             if file.integSyncSourceWithoutRev() not in self.srcFileLogs:
                 return False
             filelog = self.srcFileLogs[file.integSyncSourceWithoutRev()]
-            if filelog and filelog.revisions[0].digest is not None and filelog.revisions[0].fileSize is not None:
-                fileSize = filelog.revisions[0].fileSize
-                digest = filelog.revisions[0].digest
-                return (fileSize, digest) != (file.fileSize, file.digest)
+            # Find revision which is not a delete
+            if filelog:
+                for rev in filelog.revisions:
+                    if "delete" not in rev.action:
+                        break
+                if rev.digest is not None and rev.fileSize is not None:
+                    return (rev.fileSize, rev.digest) != (file.fileSize, file.digest)
+                else:
+                    return False
             else:
                 return False
         return True
