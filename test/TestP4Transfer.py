@@ -2039,6 +2039,48 @@ class TestP4Transfer(unittest.TestCase):
         # self.assertEqual(0, len(filelog[0].revisions[1].integrations))
         self.assertEqual("move/add", filelog[0].revisions[0].action)
 
+    def testHistoricalAddDelete(self):
+        "Old style rename for historical start mode transfer"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        file3 = os.path.join(inside, "file3")
+        contents = ["0"] * 10
+        create_file(file1, "\n".join(contents) + "\n")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', '1: file1 added')
+
+        self.source.p4cmd('integ', file1, file2)
+        self.source.p4cmd('submit', '-d', '2: file1 -> file2')
+
+        chg = self.source.p4.fetch_change()
+        chg._description = "Test desc"
+        self.source.p4.save_change(chg)
+
+        self.source.p4cmd('integ', file2, file3)
+        self.source.p4cmd('delete', file2)
+        self.source.p4cmd('submit', '-d', '4: file2 delete/copy')
+
+        # In HistoricalStart mode we don't start from first change
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '3'
+        self.createConfigFile(options=config)
+
+        self.run_P4Transfer()
+        self.assertCounters(4, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file2')
+        self.assertEqual(2, len(filelog[0].revisions))
+        self.assertEqual(0, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("delete", filelog[0].revisions[0].action)
+
+        filelog = self.target.p4.run_filelog('//depot/import/file3')
+        self.assertEqual(1, len(filelog[0].revisions))
+        self.assertEqual(1, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("branch", filelog[0].revisions[0].action)
+
     def testHistoricalRenameAdd(self):
         "Rename with subsequent add for historical start mode transfer"
         self.setupTransfer()

@@ -1173,10 +1173,11 @@ class P4Source(P4Base):
                     chRev = filesToLog[flog.depotFile]
                     revision = flog.revisions[0]
                     if len(revision.integrations) > 0:
-                        for integ in revision.integrations:
-                            if 'from' in integ.how or integ.how == "ignored":
-                                integ.localFile = self.localmap.translate(integ.file)
-                                chRev.addIntegrationInfo(integ)
+                        if not self.options.historical_start_change or revision.change >= self.options.historical_start_change:
+                            for integ in revision.integrations:
+                                if 'from' in integ.how or integ.how == "ignored":
+                                    integ.localFile = self.localmap.translate(integ.file)
+                                    chRev.addIntegrationInfo(integ)
                     if chRev.action == 'move/add':
                         if not chRev.hasIntegrations():
                             # This is move/add with obliterated source
