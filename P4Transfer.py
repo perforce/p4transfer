@@ -1068,7 +1068,7 @@ class P4Source(P4Base):
             changes = self.p4cmd(args)
             self.logger.debug('found %d changes' % len(changes))
         else:
-            self.logger.debug('reading changes: ', revRange)
+            self.logger.debug('reading changes: %s' % revRange)
             changes = self.p4cmd('changes', '-l', revRange)
             self.logger.debug('found %d changes' % len(changes))
             changes.reverse()
@@ -1158,14 +1158,14 @@ class P4Source(P4Base):
             else:
                 excludedFiles.append(change['depotFile'][n])
         if excludedFiles:
-            self.logger.debug('excluded:', excludedFiles)
+            self.logger.debug('excluded: %s' % excludedFiles)
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
         filelogs = []
         if fpaths:
             # Get 2 filelogs per rev
             filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
             if len(filelogs) < 1000:
-                self.logger.debug('filelogs:', filelogs)
+                self.logger.debug('filelogs: %s' % filelogs)
             else:
                 self.logger.debug('filelogs count: %d' % len(filelogs))
             for flog in filelogs:
@@ -1311,7 +1311,7 @@ class P4Target(P4Base):
         for f in srcFileLogs:
             self.srcFileLogs[f.depotFile] = f
         for f in fileRevs:
-            self.logger.debug('targ:', f)
+            self.logger.debug('targ: %s' % f)
             self.currentFileContent = None
 
             if self.options.historical_start_change:
@@ -1504,7 +1504,7 @@ class P4Target(P4Base):
         if fpaths:
             filelogs = self.p4.run_filelog('-m1', *fpaths)
             if filelogs:
-                self.logger.debug('filelogs:', filelogs)
+                self.logger.debug('filelogs: %s' % filelogs)
             for flog in filelogs:
                 chRev = filesToLog[flog.depotFile]
                 revision = flog.revisions[0]
@@ -1609,7 +1609,7 @@ class P4Target(P4Base):
             return
         self.p4cmd('sync', '-k', "%s#1" % file.localFile)
         if self.p4.warnings and self.re_no_such_file.search("\n".join(self.p4.warnings)):
-            self.logger.warning("Ignoring deleted rev:", file.localFile)
+            self.logger.warning("Ignoring deleted rev: %s" % file.localFile)
             self.filesToIgnore.append(file.localFile)
             return
         self.p4cmd('delete', '-v', file.localFile)
@@ -1783,7 +1783,7 @@ class P4Target(P4Base):
                 flags.append("-2")
             elif self.re_all_revisions_already_integrated.search(outputStr) and "-f" in flags:
                 # Can't integrate a delete on to a delete
-                self.logger.warning("Ignoring integrate:", destname)
+                self.logger.warning("Ignoring integrate: %s" % destname)
                 self.filesToIgnore.append(destname)
                 break
             else:
@@ -1820,7 +1820,7 @@ class P4Target(P4Base):
                     break
             elif self.re_all_revisions_already_integrated.search(outputStr) and "-f" in flags:
                 # Can't integrate a delete on to a delete
-                self.logger.warning("Ignoring integrate:", destname)
+                self.logger.warning("Ignoring integrate: %s" % destname)
                 self.filesToIgnore.append(destname)
                 fileIgnored = True
                 break
@@ -1866,7 +1866,7 @@ class P4Target(P4Base):
                     # Happens with integrations on top of a move from outside source client view
                     self.logger.warning('Ignoring non existent source file')
                     continue
-                self.logger.debug('processing:0300 integ:', integ.how)
+                self.logger.debug('processing:0300 integ: %s' % integ.how)
                 if integ.how == 'edit from':
                     self.logger.debug('processing:0305 edit from')
                     if afterAdd:

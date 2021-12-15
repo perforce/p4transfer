@@ -670,7 +670,7 @@ class P4Source(P4Base):
             else:
                 excludedFiles.append(change['depotFile'][n])
         if excludedFiles:
-            self.logger.debug('excluded:', excludedFiles)
+            self.logger.debug('excluded: %s' % excludedFiles)
         return fileRevs
 
 class P4Target(P4Base):

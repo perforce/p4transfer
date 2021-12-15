@@ -184,7 +184,7 @@ class ArgLogger(logging.getLoggerClass()):
 
     def report_exception(self):
         "Notify users that we have had a problem"
-        self.notify("Exception in %s" % self.instance_name, "", use_log=True)
+        self.notify("Exception in %s" % self.instance_name, "", include_log=True)
 
     def notify(self, subject, body, include_output=True, include_log=False):
         "Notify users of a message"

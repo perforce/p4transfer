@@ -62,7 +62,7 @@ caseSensitive = True
 
 
 class FileRev:
-    def __init__(self, f) -> None:
+    def __init__(self, f):
         self.depotFile = f['depotFile']
         self.action = f['headAction']
         self.digest = ""
@@ -85,24 +85,10 @@ class FileRev:
             depotfile=self.depotFile,
         )
 
-    def __eq__(self, other):
-        "For comparisons between source and target after transfer"
-        if caseSensitive:
-            if self.localFile != other.localFile:   # Check filename
-                return False
-        else:
-            if self.localFile.lower() != other.localFile.lower():
-                return False
-        if "delete" in self.action and "delete" in other.action:
-            return True
-        if (self.fileSize, self.digest) != (other.fileSize, other.digest):
-            return False
-        return True
-
 
 class RepoComparer():
     
-    def __init__(self) -> None:
+    def __init__(self):
         desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
             description=desc,
