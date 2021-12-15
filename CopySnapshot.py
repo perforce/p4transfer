@@ -64,7 +64,7 @@ caseSensitive = True
 
 
 class FileRev:
-    def __init__(self, f) -> None:
+    def __init__(self, f):
         self.depotFile = f['depotFile']
         self.action = f['headAction']
         self.digest = ""
@@ -106,7 +106,7 @@ class FileRev:
 
 class CopySnapshot():
     
-    def __init__(self, *args) -> None:
+    def __init__(self, *args):
         desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
             description=desc,
