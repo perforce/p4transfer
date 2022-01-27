@@ -715,6 +715,8 @@ class ChangelistComparer(object):
             new_diffs = [r for r in diffs if r.fileSize and r.digest]
             if not new_diffs:
                 self.logger.debug("Ignoring differences due to lack of fileSize/digest")
+                debugDiffs = [r for r in diffs if not r.fileSize or not r.digest]
+                self.logger.debug("Missing deleted elements in target changelist:\n%s" % "\n    ".join([str(r) for r in debugDiffs]))
                 return (True, "")
             targlookup = {}
             # Cross check again for case insensitive servers - note that this will update the lists!
