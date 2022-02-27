@@ -1925,6 +1925,9 @@ class P4Target(P4Base):
                                 self.p4cmd('revert', file.localFile)
                             self.editFrom(file, self.currentFileContent, afterAdd=afterAdd)
                             editedFrom = True
+                            if afterAdd:
+                                self.logger.debug('Redoing add to avoid problems after forced integrate')
+                                self.p4cmd('add', '-d', file.localFile)
                         elif self.re_resolve_tampered.search(str(resolve_result)):
                             self.p4cmd('edit', file.localFile)
                             self.src.p4cmd('sync', '-f', file.localFileRev())
