@@ -1937,6 +1937,9 @@ class P4Target(P4Base):
                             if not afterAdd:
                                 self.p4cmd('revert', file.localFile)
                             self.editFrom(file, self.currentFileContent)
+                            if afterAdd:
+                                self.logger.debug('Redoing add to avoid problems after forced integrate')
+                                self.p4cmd('add', '-d', file.localFile)
                     elif integ.how == 'branch from':
                         self.logger.debug('processing:0355 branch from - interactive -at')
                         self.p4.run_resolve(resolver=EditAcceptTheirs())

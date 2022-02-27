@@ -1483,7 +1483,6 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual("copy from", filelog[0].revisions[0].integrations[0].how)
         self.assertEqual("moved from", filelog[0].revisions[0].integrations[1].how)
 
-
     def testOldStyleMove(self):
         """Old style move - a branch and delete"""
         self.setupTransfer()
@@ -1732,6 +1731,35 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(len(change['depotFile']), 1)
         self.assertEqual(change['depotFile'][0], '//depot/import/branch/new_file')
         self.assertEqual(change['action'][0], 'branch')
+
+    def testMoveAndIntegrate(self):
+        """Test for Move with a merge - requires add -d"""
+        self.setupTransfer()
+        inside = localDirectory(self.source.client_root, "inside")
+
+        original_file = os.path.join(inside, 'original', 'original_file')
+        renamed_file = os.path.join(inside, 'new', 'new_file')
+        other_file = os.path.join(inside, 'branch', 'new_file')
+        create_file(original_file, "Some content")
+        create_file(other_file, "Some content\nnew")
+        self.source.p4cmd('add', original_file, other_file)
+        self.source.p4cmd('submit', '-d', "adding original and other file")
+
+        self.source.p4cmd('edit', original_file)
+        self.source.p4cmd('move', original_file, renamed_file)
+        self.source.p4cmd('integ', '-f', other_file, renamed_file)
+        self.source.p4cmd('resolve', '-am', renamed_file)
+        self.source.p4cmd('submit', '-d', "renaming file")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        change = self.target.p4.run_describe('2')[0]
+        self.assertEqual(len(change['depotFile']), 2)
+        self.assertEqual(change['depotFile'][0], '//depot/import/new/new_file')
+        self.assertEqual(change['depotFile'][1], '//depot/import/original/original_file')
+        self.assertEqual(change['action'][0], 'move/add')
+        self.assertEqual(change['action'][1], 'move/delete')
 
     def testUndo(self):
         "Simple undo of add/edit"
