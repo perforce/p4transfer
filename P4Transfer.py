@@ -1894,6 +1894,9 @@ class P4Target(P4Base):
                             self.logger.warning('File copied but content changed')
                             self.p4cmd('edit', file.localFile)
                             self.src.p4cmd('sync', '-f', file.localFileRev())
+                        if afterAdd:
+                            self.logger.debug('Redoing add to avoid problems after forced integrate')
+                            self.p4cmd('add', '-d', file.localFile)
                     elif integ.how == 'ignored':
                         self.logger.debug('processing:0330 ignored')
                         if 'action' in integResult and integResult['action'] == 'delete':
