@@ -1483,6 +1483,47 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual("copy from", filelog[0].revisions[0].integrations[0].how)
         self.assertEqual("moved from", filelog[0].revisions[0].integrations[1].how)
 
+    def testMoveCopyIgnoreCombo(self):
+        """Test for Move where the add also has a copy and an ignore"""
+        self.setupTransfer()
+        inside = localDirectory(self.source.client_root, "inside")
+        original_file = os.path.join(inside, 'original', 'original_file')
+        renamed_file = os.path.join(inside, 'new', 'new_file')
+        file2 = os.path.join(inside, 'new', 'file2')
+        file3 = os.path.join(inside, 'new', 'file3')
+        create_file(original_file, "Some content\n")
+        create_file(file2, "Other content\n")
+        create_file(file3, "Some Other content\n")
+        self.source.p4cmd('add', original_file, file2, file3)
+        self.source.p4cmd('submit', '-d', "adding original files")
+
+        self.source.p4cmd('edit', original_file)
+        append_to_file(original_file, 'More\n')
+        self.source.p4cmd('submit', '-d', "editing original file")
+
+        self.source.p4cmd('edit', original_file)
+        self.source.p4cmd('move', original_file, renamed_file)
+        self.source.p4cmd('integ', file3, renamed_file)
+        self.source.p4cmd('resolve', '-ay', renamed_file)
+        self.source.p4cmd('integ', file2, renamed_file)
+        self.source.p4cmd('resolve', '-at', renamed_file)
+        self.source.p4cmd('submit', '-d', "rename/copy/ignore file")
+
+        self.run_P4Transfer()
+        self.assertCounters(3, 3)
+
+        change = self.target.p4.run_describe('3')[0]
+        self.assertEqual(2, len(change['depotFile']))
+        self.assertEqual('//depot/import/new/new_file', change['depotFile'][0])
+        self.assertEqual('//depot/import/original/original_file', change['depotFile'][1])
+        self.assertEqual('move/add', change['action'][0])
+        self.assertEqual('move/delete', change['action'][1])
+        filelog = self.target.p4.run_filelog('//depot/import/new/new_file')
+        self.assertEqual(3, len(filelog[0].revisions[0].integrations))
+        self.assertEqual("copy from", filelog[0].revisions[0].integrations[0].how)
+        self.assertEqual("ignored", filelog[0].revisions[0].integrations[1].how)
+        self.assertEqual("moved from", filelog[0].revisions[0].integrations[2].how)
+
     def testOldStyleMove(self):
         """Old style move - a branch and delete"""
         self.setupTransfer()

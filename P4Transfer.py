@@ -994,7 +994,7 @@ class MoveTracker(object):
         self.adds = {}       # Key is depotFile for matching delete
         self.deletes = {}    # Key is depotFile for delete
 
-    def trackAdd(self, chRev, addDepotFile, deleteDepotFile):
+    def trackAdd(self, chRev, deleteDepotFile):
         "Remember the move/add or move/delete so we can match them up"
         assert(deleteDepotFile not in self.adds)
         self.adds[deleteDepotFile] = TrackedAdd(chRev, deleteDepotFile)
@@ -1003,18 +1003,18 @@ class MoveTracker(object):
         "Track a move/delete"
         self.deletes[chRev.depotFile] = chRev
 
-    def getMoves(self):
+    def getMoves(self, msg):
         "Return orphaned moves, or the move/add from add/delete pairs"
         for depotFile in self.adds:
             if depotFile in self.deletes:
-                self.logger.debug("Matched move add/delete '%s'" % depotFile)
+                self.logger.debug("%s: Matched move add/delete '%s'" % (msg, depotFile))
                 del self.deletes[depotFile]
             else:
-                self.logger.warning("Action move/add changed to add")
+                self.logger.debug("%s: Action move/add changed to add '%s'" % (msg, depotFile))
                 self.adds[depotFile].chRev.action = "add"
         results = [self.adds[k].chRev for k in self.adds]
         for k in self.deletes:
-            self.logger.debug("Action move/delete changed to delete")
+            self.logger.debug("%s: Action move/delete changed to delete '%s'" % (msg, k))
             self.deletes[k].action = 'delete'
         results.extend([self.deletes[k] for k in self.deletes])
         return results
@@ -1178,7 +1178,7 @@ class P4Source(P4Base):
                                 if 'from' in integ.how or integ.how == "ignored":
                                     integ.localFile = self.localmap.translate(integ.file)
                                     chRev.addIntegrationInfo(integ)
-                    if chRev.action == 'move/add':
+                    if chRev.action == 'move/add' or (chRev.action == 'add' and chRev.hasMoveIntegrations()):
                         if not chRev.hasIntegrations():
                             # This is move/add with obliterated source
                             fileRevs.append(chRev)
@@ -1188,7 +1188,7 @@ class P4Source(P4Base):
                             for integ in revision.integrations:
                                 if integ.how == 'moved from':
                                     found = True
-                                    movetracker.trackAdd(chRev, flog.depotFile, integ.file)
+                                    movetracker.trackAdd(chRev, integ.file)
                             if not found:
                                 self.logger.warning(u"Failed to find integ record for move/add {}".format(flog.depotFile))
                     else:
@@ -1196,7 +1196,7 @@ class P4Source(P4Base):
                 # else:
                 #     self.logger.error(u"Failed to retrieve filelog for {}#{}".format(flog.depotFile,
                 #                       flog.rev))
-        fileRevs.extend(movetracker.getMoves())
+        fileRevs.extend(movetracker.getMoves("getChange"))
         syncCallback = SyncOutput(self.p4id, self.logger, self.progress)
         self.p4cmd('sync', '//{}/...@={}'.format(self.P4CLIENT, changeNum), handler=syncCallback)
         for flog in filelogs:
@@ -1514,9 +1514,14 @@ class P4Target(P4Base):
                             integ.localFile = self.localmap.translate(integ.file)
                             chRev.addIntegrationInfo(integ)
                             break
-                movetracker.trackAdd(chRev, flog.depotFile, chRev.getIntegration().file)
+                    # Possible that there is a move/add as well as another integration - rare but happens
+                    found = False
+                    for integ in revision.integrations:
+                        if integ.how == 'moved from':
+                            found = True
+                            movetracker.trackAdd(chRev, integ.file)
         cc = ChangelistComparer(self.logger, caseSensitive=self.options.case_sensitive)
-        targFileRevs.extend(movetracker.getMoves())
+        targFileRevs.extend(movetracker.getMoves("validate"))
         result = cc.listsEqual(srcFileRevs, targFileRevs, self.filesToIgnore)
         if not result[0]:
             raise P4TLogicException(result[1])
@@ -1894,9 +1899,9 @@ class P4Target(P4Base):
                             self.logger.warning('File copied but content changed')
                             self.p4cmd('edit', file.localFile)
                             self.src.p4cmd('sync', '-f', file.localFileRev())
-                        if afterAdd:
-                            self.logger.debug('Redoing add to avoid problems after forced integrate')
-                            self.p4cmd('add', '-d', file.localFile)
+                        # if afterAdd:
+                        #     self.logger.debug('Redoing add to avoid problems after forced integrate')
+                        #     self.p4cmd('add', '-d', file.localFile)
                     elif integ.how == 'ignored':
                         self.logger.debug('processing:0330 ignored')
                         if 'action' in integResult and integResult['action'] == 'delete':
