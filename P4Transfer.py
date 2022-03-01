@@ -115,7 +115,7 @@ class P4TException(Exception):
     pass
 
 
-class P4TLogicException(Exception):
+class P4TLogicException(P4TException):
     pass
 
 
