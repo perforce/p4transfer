@@ -1162,7 +1162,8 @@ class P4Source(P4Base):
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
         filelogs = []
         if fpaths:
-            # Get 2 filelogs per rev
+            processedRevs = {}
+            # Get 2 filelogs per rev - saves time
             filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
             if len(filelogs) < 1000:
                 self.logger.debug('filelogs: %s' % filelogs)
@@ -1171,6 +1172,9 @@ class P4Source(P4Base):
             for flog in filelogs:
                 if flog.depotFile in filesToLog:
                     chRev = filesToLog[flog.depotFile]
+                    if chRev.depotFile in processedRevs:    # Only process once
+                        continue
+                    processedRevs[chRev.depotFile] = 1
                     revision = flog.revisions[0]
                     if len(revision.integrations) > 0:
                         if not self.options.historical_start_change or revision.change >= self.options.historical_start_change:
