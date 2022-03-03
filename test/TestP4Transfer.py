@@ -3559,6 +3559,140 @@ class TestP4Transfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[1].how, "ignored")
         self.assertEqual(filelog.revisions[0].integrations[2].how, "ignored")
 
+    # Only works for p4d.21.1 or later
+    def testIntegAndRenamePrevious(self):
+        """Test for copying while renaming older file."""
+        self.setupTransfer()
+        
+        # $ p4 describe -s 19027676 | grep Square.png
+        # ... //UE5/RES/Tut/Square.png#2 branch
+        # ... //UE5/RES/GuidedTut/Square.png#1 move/add
+
+        # //UE5/Main/Tut/Square.png
+        # ... #1 change 13149436 branch on 2020/05/04 by Ben.Marsh@Ben.Marsh_T3245_UE5 (binary+l) 'Merging from //UE4/Private-Star'
+        # ... ... moved into //UE5/Main/GuidedTut/Square.png#1
+        # ... ... branch into //UE5/RES/Tut/Square.png#1
+
+        # $ p4 filelog -m2 //UE5/RES/Tut/Square.png#2
+        # //UE5/RES/Tut/Square.png
+        # ... #2 change 19027676 branch on 2022/02/16 by Marc.Audy@Marc.Audy_UE5_RES (binary+l) 'Update RES f'
+        # ... ... branch from //UE5/Main/Tut/Square.png#3
+        # ... #1 change 13667922 branch on 2020/06/11 by Marc.Audy@Marc.Audy_Z2487 (binary+l) 'Initial branch of files from Ma'
+        # ... ... branch from //UE5/Main/Tut/Square.png#1
+        # ... ... moved into //UE5/RES/GuidedTut/Square.png#1
+
+        # $ p4 filelog -m1 //UE5/RES/GuidedTut/Square.png#1
+        # //UE5/RES/GuidedTut/Square.png
+        # ... #1 change 19027676 move/add on 2022/02/16 by Marc.Audy@Marc.Audy_UE5_RES (binary+l) 'Update RES f'
+        # ... ... copy from //UE5/Main/GuidedTut/Square.png#1
+        # ... ... moved from //UE5/RES/Tut/Square.png#1
+
+        # add A1
+        # branch A1 B1
+        # branch A1 C1
+        # move A1 A2
+        # add A1
+        # copy A... B...
+
+        inside = localDirectory(self.source.client_root, "inside")
+        mfile1 = os.path.join(inside, "main", "file1")
+        mfile2 = os.path.join(inside, "main", "file2")
+        rfile1 = os.path.join(inside, "rel", "file1")
+        rfile2 = os.path.join(inside, "rel", "file2")
+        
+        create_file(mfile1, "Test content")
+        self.source.p4cmd('add', mfile1)
+        self.source.p4cmd('submit', '-d', 'mfile1 added')
+
+        self.source.p4cmd('integ', mfile1, rfile1)
+        self.source.p4cmd('submit', '-d', 'mfile1 and rfile1 added')
+
+        self.source.p4cmd('edit', mfile1)
+        self.source.p4cmd('move', mfile1, mfile2)
+        self.source.p4cmd('submit', '-d', 'mfile2 added')
+
+        create_file(mfile1, "Test content2")
+        self.source.p4cmd('add', mfile1)
+        self.source.p4cmd('submit', '-d', 'mfile1 added back')
+
+        self.source.p4cmd('copy', "//depot/inside/main/...", "//depot/inside/rel/...")
+        self.source.p4cmd('submit', '-d', 'mfile1 added back')
+
+        # self.source.p4cmd('edit', rfile1)
+        # self.source.p4cmd('move', rfile1, rfile2)
+        # self.source.p4cmd('add', '-d', rfile2)
+        # self.source.p4cmd('revert', rfile1)
+        # self.source.p4cmd('copy', mfile1, rfile1)
+        # # self.source.p4cmd('resolve', '-at')
+        # self.source.p4cmd('integ', '-f', mfile2, rfile2)
+        # self.source.p4cmd('resolve', '-at')
+        # self.source.p4cmd('add', rfile2)
+        # self.source.p4cmd('submit', '-d', 'rfile2 added with rename and rfile1')
+
+        filelogs = self.source.p4.run_filelog("@=5")
+        self.logger.debug(filelogs)
+        self.assertEqual(3, len(filelogs))
+        self.assertEqual(1, len(filelogs[0].revisions[0].integrations))
+        self.assertEqual("branch from", filelogs[0].revisions[0].integrations[0].how)
+        self.assertEqual(2, len(filelogs[1].revisions[0].integrations))
+        self.assertEqual("copy from", filelogs[1].revisions[0].integrations[0].how)
+        self.assertEqual("moved from", filelogs[1].revisions[0].integrations[1].how)
+        
+        # # We can't move onto 
+        # recs = self.dumpDBFiles("db.integed")
+        # self.logger.debug(recs)
+
+        # # Convert ignored -> moved from - can't be done through front end
+        # newrecs = []
+        # for rec in recs:
+        #     if "@db.integed@ @//depot/inside/rel/file1@ @//depot/inside/rel/file2@ 0 1 0 1 10 5" in rec:
+        #         rec = rec.replace("10 5", "15 5")     # 10->15
+        #         rec = rec.replace("@pv@", "@rv@")
+        #         newrecs.append(rec)
+        #     if "@db.integed@ @//depot/inside/rel/file2@ @//depot/inside/rel/file1@ 0 1 0 1 6 5" in rec:
+        #         rec = rec.replace("6 5", "14 5")     # 6->14
+        #         rec = rec.replace("@pv@", "@rv@")
+        #         newrecs.append(rec)
+        #     if "@db.integed@ @//depot/import/rel/file2@ @//depot/import/main/file1@ 2 3 0 1 6 5" in rec:
+        #         rec = rec.replace("@pv@", "@dv@")
+        #         newrecs.append(rec)
+        #     if "@db.integed@ @//depot/import/main/file1@ @//depot/import/rel/file2@ 0 1 2 3 10 5" in rec:
+        #         rec = rec.replace("@pv@", "@dv@")
+        #         newrecs.append(rec)
+        #     # if "@db.integed@ @//depot/inside/main/file2@ @//depot/inside/rel/file2@ 0 1 0 1 10 5" in rec:
+        #     #     rec = rec.replace("10 5", "15 5")     # 10->15
+        #     #     rec = rec.replace("@pv@", "@rv@")
+        #     #     newrecs.append(rec)
+        #     # if "@db.integed@ @//depot/inside/rel/file2@ @//depot/inside/rel/file1@ 0 1 0 1 6 5" in rec:
+        #     #     rec = rec.replace("6 5", "14 5")     # 6->14
+        #     #     rec = rec.replace("@pv@", "@rv@")
+        #     #     newrecs.append(rec)
+        # self.logger.debug("Newrecs:", "\n".join(newrecs))
+        # self.applyJournalPatch("\n".join(newrecs))
+        # recs = self.dumpDBFiles("db.integed")
+        # self.logger.debug(recs)
+
+        # filelogs = self.source.p4.run_filelog("@=5")
+        # self.logger.debug(filelogs)
+        # self.assertEqual(3, len(filelogs))
+        # self.assertEqual(1, len(filelogs[0].revisions[0].integrations))
+        # self.assertEqual("copy from", filelogs[0].revisions[0].integrations[0].how)
+        # self.assertEqual(2, len(filelogs[1].revisions[0].integrations))
+        # self.assertEqual("copy from", filelogs[1].revisions[0].integrations[0].how)
+        # self.assertEqual("moved from", filelogs[1].revisions[0].integrations[1].how)
+
+        self.run_P4Transfer()
+        self.assertCounters(5, 5)
+
+        filelogs = self.target.p4.run_filelog("@=5")
+        self.logger.debug(filelogs)
+        self.assertEqual(2, len(filelogs))
+        self.assertEqual(1, len(filelogs[0].revisions[0].integrations))
+        self.assertEqual("copy from", filelogs[0].revisions[0].integrations[0].how)
+        self.assertEqual(2, len(filelogs[1].revisions[0].integrations))
+        self.assertEqual("copy from", filelogs[1].revisions[0].integrations[0].how)
+        self.assertEqual("ignored", filelogs[1].revisions[0].integrations[1].how)
+
     def testIntegCopyAndRename(self):
         """Test for integrating a copy and move into single target."""
         self.setupTransfer()
