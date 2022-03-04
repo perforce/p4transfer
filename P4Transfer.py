@@ -1226,8 +1226,9 @@ class P4Source(P4Base):
         return fileRevs, specialMoveRevs, filelogs
 
     def processSpecialMoveRevs(self, fileRevs, specialMoveRevs, filelogs):
-        """Find any moves where move/from has an add"""
-        for chRev in specialMoveRevs:
+        """Find any moves where move/from has an add - otherwise remove them from the list"""
+        moveDelList = []
+        for moveInd, chRev in enumerate(specialMoveRevs):
             copyInteg = moveInteg = None
             chRev.movePartner = None
             if chRev.numIntegrations() == 2 and chRev.action == "move/add":
@@ -1236,9 +1237,10 @@ class P4Source(P4Base):
                         moveInteg = integ
                     elif integ.how == "copy from":
                         copyInteg = integ
-                if not copyInteg or not moveInteg:
-                    continue
-            self.logger.debug("Found special move: %s" % chRev.depotFile)
+            if not copyInteg or not moveInteg:
+                moveDelList.append(moveInd)
+                continue
+            self.logger.debug("Found potential special move: %s" % chRev.depotFile)
             # Find a matching rev from fileRevs and attach to this move rev
             found = -1
             for n, fRev in enumerate(fileRevs):
@@ -1247,8 +1249,11 @@ class P4Source(P4Base):
                     chRev.movePartner = fRev
                     self.logger.debug("Matched special move to: %s" % fRev.depotFile)
                     break
-            if found >= 0:
-                del fileRevs[found]
+            if found < 0:
+                self.logger.debug("Ignoring potential special move")
+                moveDelList.append(moveInd)
+                continue
+            del fileRevs[found]
             found = -1
             for n, fRev in enumerate(fileRevs):
                 if fRev.depotFile == chRev.depotFile:
@@ -1256,6 +1261,10 @@ class P4Source(P4Base):
                     break
             if found >= 0:
                 del fileRevs[found]
+        if moveDelList:
+            # Iterate in reverse to avoid changing the numbers by deleting!
+            for i in reversed(moveDelList):
+                del specialMoveRevs[i]
 
     def getFirstChange(self):
         """Expects change number as a string, and syncs the first historical change"""
