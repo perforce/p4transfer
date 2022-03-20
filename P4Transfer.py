@@ -1468,7 +1468,7 @@ class P4Target(P4Base):
             if localFile and len(localFile) > 0 and localFile in revDict:
                 chRev = revDict[localFile]
                 if chRev.type != ofile['type']:
-                    self.p4cmd('reopen', '-t', chRev.type, chRev.fixedLocalFile)
+                    self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
 
     def replicateChange(self, fileRevs, specialMoveRevs, srcFileLogs, change, sourcePort):
         """This is the heart of it all. Replicate all changes according to their description"""
