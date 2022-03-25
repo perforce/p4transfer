@@ -1148,7 +1148,6 @@ class P4Source(P4Base):
         fileRevs = []
         specialMoveRevs = []
         filesToLog = {}
-        branchedFiles = {}
         excludedFiles = []
         movetracker = MoveTracker(self.logger)
         for (n, rev) in enumerate(change['rev']):
@@ -1156,8 +1155,6 @@ class P4Source(P4Base):
             if localFile and len(localFile) > 0:
                 chRev = ChangeRevision(rev, change, n)
                 chRev.setLocalFile(localFile)
-                if chRev.action == 'branch':
-                    branchedFiles[chRev.depotFile] = chRev
                 if chRev.action in ('branch', 'integrate', 'add', 'delete', 'move/add'):
                     filesToLog[chRev.depotFile] = chRev
                 elif chRev.action == 'move/delete':
@@ -1763,7 +1760,7 @@ class P4Target(P4Base):
                         edited = True
                     # Only if last integration to be processed for this rev and it is an add
                     if added or (ind == 0 and outputDict and outputDict['action'] == 'branch' and
-                                 self.integrateContentsChanged(file)):
+                                 self.integrateContentsChanged(file)) or (diskFileContentModified(file)):
                         if not edited:
                             self.p4cmd('edit', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
