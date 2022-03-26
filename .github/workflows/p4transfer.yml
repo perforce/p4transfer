@@ -36,7 +36,7 @@ jobs:
         # Normally one would run the following
         # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         # Now get latest tested version of p4d and put in the path
-        curl -L http://ftp.perforce.com/perforce/r20.1/bin.linux26x86_64/p4d -o $GITHUB_WORKSPACE/p4d
+        curl -L http://ftp.perforce.com/perforce/r21.1/bin.linux26x86_64/p4d -o $GITHUB_WORKSPACE/p4d
         chmod +x $GITHUB_WORKSPACE/p4d
         echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
 
