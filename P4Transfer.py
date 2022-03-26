@@ -1740,6 +1740,12 @@ class P4Target(P4Base):
                     # Integrate from same file indicates an undo
                     self.logger.debug('processing:0215 undo')
                     self.p4cmd('undo', "%s#%d" % (file.localFile, file._integrations[ind].erev + 1))
+                    if diskFileContentModified(file):
+                        if file.action == 'add':
+                            self.p4cmd('add', file.localFile)
+                        else:
+                            self.p4cmd('edit', file.localFile)
+                        self.src.p4cmd('sync', '-f', file.localFileRev())
                 else:
                     self.logger.debug('processing:0220 integrate')
                     if dirty or ind > 0:
