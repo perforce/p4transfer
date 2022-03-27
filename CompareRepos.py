@@ -99,6 +99,7 @@ class RepoComparer():
         parser.add_argument('-c', '--config', help="Config file as used by P4Transfer - to read source/target info")
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
         parser.add_argument('-t', '--target', help="Optional: Perforce path for target repo, e.g. //depot/targ/...@123 [or without rev for #head]. If not specified then assumes --source value with no revision specifier")
+        parser.add_argument('-f', '--fix', action='store_true', help="Fix problems by opening files for required action")
         self.options = parser.parse_args()
 
         if not os.path.exists(self.options.config):
@@ -150,15 +151,27 @@ class RepoComparer():
             if 'delete' not in v.action:
                 if k not in targFiles:
                     missing.append(k)
+                    if self.options.fix:
+                        self.srcp4.run_sync('-f', v.depotFile)
+                        self.targp4.run_add('-f', k)
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
+                    if self.options.fix:
+                        self.targp4.run_sync('-k', k)
+                        self.targp4.run_delete(k)
             if 'delete' not in v.action:
                 if k in targFiles and 'delete' not in targFiles[k].action and v.digest != targFiles[k].digest:
                     different.append((k, v, targFiles[k]))
+                    if self.options.fix:
+                        self.srcp4.run_sync('-f', v.depotFile)
+                        self.targp4.run_edit(k)
         for k, v in targFiles.items():
             if 'delete' not in v.action:
                 if k not in srcFiles or (k in srcFiles and 'delete' in srcFiles[k].action):
                     extras.append(k)
+                    if self.options.fix:
+                        self.targp4.run_sync('-k', k)
+                        self.targp4.run_delete(k)
         if missing:
             print("missing: %s" % "\nmissing: ".join(missing))
         else:
