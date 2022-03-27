@@ -173,7 +173,8 @@ class RepoComparer():
                     different.append((k, v, targFiles[k]))
                     if self.options.fix:
                         print(self.srcp4.run_sync('-f', srcLocalFiles[k]))
-                        print(self.targp4.run_sync('-k', targLocalFiles[k]))
+                        with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
+                            print(self.targp4.run_sync('-k', targLocalFiles[k]))
                         print(self.targp4.run_edit(targLocalFiles[k]))
         for k, v in targFiles.items():
             if 'delete' not in v.action:
