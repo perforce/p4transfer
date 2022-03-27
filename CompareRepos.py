@@ -160,21 +160,20 @@ class RepoComparer():
                 if k not in targFiles:
                     missing.append(k)
                     if self.options.fix:
-                        print(self.srcp4.run_sync('-f', srcLocalFiles[k]))
+                        print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
                         print(self.targp4.run_add('-f', srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
                     if self.options.fix:
-                        with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync('-k', srcLocalFiles[k]))
-                        print(self.targp4.run_delete(srcLocalFiles[k]))
+                        print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
+                        print(self.targp4.run_add('-f', srcLocalFiles[k]))
             if 'delete' not in v.action:
                 if k in targFiles and 'delete' not in targFiles[k].action and v.digest != targFiles[k].digest:
                     different.append((k, v, targFiles[k]))
                     if self.options.fix:
-                        print(self.srcp4.run_sync('-f', srcLocalFiles[k]))
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync('-k', targLocalFiles[k]))
+                            print(self.targp4.run_sync(targLocalFiles[k]))
+                        print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
                         print(self.targp4.run_edit(targLocalFiles[k]))
         for k, v in targFiles.items():
             if 'delete' not in v.action:
