@@ -117,10 +117,14 @@ class RepoComparer():
         self.srcp4 = P4.P4()
         self.srcp4.port = self.config['source']['p4port']
         self.srcp4.user = self.config['source']['p4user']
+        if self.options.fix:
+            self.srcp4.client = self.config['source']['p4client']
         self.srcp4.connect()
         self.targp4 = P4.P4()
         self.targp4.port = self.config['target']['p4port']
         self.targp4.user = self.config['target']['p4user']
+        if self.options.fix:
+            self.targp4.client = self.config['target']['p4client']
         self.targp4.connect()
         global caseSensitive
         caseSensitive = self.config['case_sensitive']
