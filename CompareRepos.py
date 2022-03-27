@@ -137,9 +137,9 @@ class RepoComparer():
     def run(self):
         srcFiles = {}
         targFiles = {}
-        print("Collecting source files")
+        print("Collecting source files: %s" % self.options.source)
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
-        print("Collecting target files")
+        print("Collecting target files: %s" % self.options.target)
         targFstat = self.targp4.run_fstat("-Ol", self.options.target)
         srcFiles = self.getFiles(srcFstat)    
         targFiles = self.getFiles(targFstat)
