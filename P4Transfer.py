@@ -64,6 +64,7 @@ import re
 import hashlib
 import stat
 import pprint
+import platform
 from string import Template
 import argparse
 import textwrap
@@ -1140,6 +1141,22 @@ class P4Source(P4Base):
                     ))
             chRev.deleteIntegrations(integsToDelete)
 
+    def adjustLocalFileCase(self, changeNum, fileRevs):
+        """Adjusts case of local files if synced differently"""
+        if self.options.case_sensitive or platform.system() != "Linux":
+            return
+        haveList = self.srcp4.run('have', '//{}/...@={}'.format(self.P4CLIENT, changeNum))
+        localHaveFiles = {}
+        for f in haveList:
+            k = f['depotFile'].lower()
+            localHaveFiles[k] = f['path']
+        for f in fileRevs:
+            d = f.depotFile.lower()
+            if f.localFile and d in localHaveFiles:
+                if localHaveFiles[d] != f.localFile:
+                    self.logger.debug('LocalCaseChange: %s to %s' % (f.localFile, localHaveFiles[d]))
+                    f.setLocalFile(localHaveFiles[d])
+
     def getChange(self, changeNum):
         """Expects change number as a string, and returns list of filerevs and list of filelog output"""
 
@@ -1216,6 +1233,7 @@ class P4Source(P4Base):
                 chRev = filesToLog[flog.depotFile]
                 chRev.updateDigest()
         self.abortIfUnsyncableUTF16FilesExist(syncCallback, changeNum)  # May raise exception
+        self.adjustLocalFileCase(changeNum, fileRevs)
         if self.options.historical_start_change: # Extra processing required on integration records
             self.adjustHistoricalIntegrations(fileRevs)
         if specialMovesSupported():
