@@ -2033,7 +2033,8 @@ class P4Target(P4Base):
                         resolve_result = ""
                         try:
                             output = self.p4cmd('resolve', '-am')
-                            resolve_result = output[-1]
+                            if output:
+                                resolve_result = output[-1]
                         except P4.P4Exception:
                             resolve_result += "\n".join(self.p4.warnings)
                             resolve_result += "\n".join(self.p4.errors)
