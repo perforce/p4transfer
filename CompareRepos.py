@@ -87,9 +87,9 @@ class FileRev:
         )
 
 
-class RepoComparer():
+class CompareRepos():
     
-    def __init__(self):
+    def __init__(self, *args):
         desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
             description=desc,
@@ -101,7 +101,10 @@ class RepoComparer():
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
         parser.add_argument('-t', '--target', help="Optional: Perforce path for target repo, e.g. //depot/targ/...@123 [or without rev for #head]. If not specified then assumes --source value with no revision specifier")
         parser.add_argument('-f', '--fix', action='store_true', help="Fix problems by opening files for required action")
-        self.options = parser.parse_args()
+        if list(args):
+            self.options = parser.parse_args(list(args))
+        else:
+            self.options = parser.parse_args()
 
         if not os.path.exists(self.options.config):
             raise Exception("No config file was specified!")
@@ -147,8 +150,22 @@ class RepoComparer():
         targFiles = {}
         print("Collecting source files: %s" % self.options.source)
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
+        srcLocalHaveFiles = {}
+        if self.options.fix:
+            srcPath = ""
+            if "@" in self.options.source:
+                parts = self.options.source.split("@")
+                if len(parts) > 1:
+                    srcPath = parts[0]
+            haveList = []
+            with self.srcp4.at_exception_level(P4.P4.RAISE_NONE):
+                haveList = self.srcp4.run('have', srcPath)
+            for f in haveList:
+                srcLocalHaveFiles[f['depotFile']] = f['path']
         print("Collecting target files: %s" % self.options.target)
-        targFstat = self.targp4.run_fstat("-Ol", self.options.target)
+        targFstat = []
+        with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
+            targFstat = self.targp4.run_fstat("-Ol", self.options.target)
         srcFiles, srcLocalFiles = self.getFiles(srcFstat)    
         targFiles, targLocalFiles = self.getFiles(targFstat)
         missing = []
@@ -160,7 +177,8 @@ class RepoComparer():
                 if k not in targFiles:
                     missing.append(k)
                     if self.options.fix:
-                        print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
+                        if k not in srcLocalHaveFiles: # Or we assume already manually synced
+                            print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
                         print(self.targp4.run_add('-f', srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
@@ -201,5 +219,5 @@ class RepoComparer():
             print("No-different")
 
 if __name__ == '__main__':
-    obj = RepoComparer()
+    obj = CompareRepos()
     obj.run()
