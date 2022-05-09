@@ -161,7 +161,11 @@ class CompareRepos():
             with self.srcp4.at_exception_level(P4.P4.RAISE_NONE):
                 haveList = self.srcp4.run('have', srcPath)
             for f in haveList:
-                srcLocalHaveFiles[f['depotFile']] = f['path']
+                if caseSensitive:
+                    k = f['depotFile']
+                else:
+                    k = f['depotFile'].lower()
+                srcLocalHaveFiles[k] = f['path']
         print("Collecting target files: %s" % self.options.target)
         targFstat = []
         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
@@ -177,8 +181,12 @@ class CompareRepos():
                 if k not in targFiles:
                     missing.append(k)
                     if self.options.fix:
-                        if k not in srcLocalHaveFiles: # Or we assume already manually synced
-                            print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
+                        if caseSensitive:
+                            dfile = k
+                        else:
+                            dfile = k.lower()
+                        if dfile not in srcLocalHaveFiles: # Otherwise we assume already manually synced
+                            print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
                         print(self.targp4.run_add('-f', srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
