@@ -376,11 +376,14 @@ def isKeyTextFile(ftype):
     return isText(ftype) and "k" in ftype
 
 
+alreadyEscaped = re.compile(r"%25|%23|%40|%2A")
 def escapeWildCards(fname):
-    fname = fname.replace("@", "%40")
-    fname = fname.replace("#", "%23")
-    fname = fname.replace("*", "%2A")
-    fname = fname.replace("%", "%25")
+    m = alreadyEscaped.findall(fname)
+    if not m:
+        fname = fname.replace("%", "%25")
+        fname = fname.replace("#", "%23")
+        fname = fname.replace("@", "%40")
+        fname = fname.replace("*", "%2A")
     return fname
 
 
@@ -715,7 +718,7 @@ class ChangelistComparer(object):
         srcfiles = set([chRev.localFile for chRev in srclist if chRev.localFile not in filesToIgnore])
         targfiles = set([chRev.localFile for chRev in targlist])
         if not self.caseSensitive:
-            srcfiles = set([x.lower() for x in srcfiles])
+            srcfiles = set([escapeWildCards(x.lower()) for x in srcfiles])
             targfiles = set([x.lower() for x in targfiles])
         diffs = srcfiles.difference(targfiles)
         if diffs:
@@ -745,7 +748,7 @@ class ChangelistComparer(object):
                 for chRev in targlist:
                     targlookup[chRev.localFile] = chRev
                 # For case insenstive, focus on digest rather than fileSize
-                new_diffs = [r for r in diffs2 if r != targlookup[r.localFile] and r.digest != targlookup[r.localFile].digest]
+                new_diffs = [r for r in diffs2 if r != targlookup[escapeWildCards(r.localFile)] and r.digest != targlookup[escapeWildCards(r.localFile)].digest]
                 if not new_diffs:
                     return (True, "")
                 return (False, "Replication failure (case insensitive): src/target content differences found\nsrc:%s\ntarg:%s" % (
@@ -898,6 +901,7 @@ class P4Base(object):
         self.root = self.options.workspace_root
         clientspec._root = self.root
         clientspec["Options"] = clientspec["Options"].replace("noclobber", "clobber")
+        clientspec["Options"] = clientspec["Options"].replace("normdir", "rmdir")
         clientspec["LineEnd"] = "unix"
         clientspec._view = []
         # We create/update our special target stream, and also create any required target streams that don't exist
@@ -1151,13 +1155,14 @@ class P4Source(P4Base):
 
     def adjustLocalFileCase(self, fileRevs):
         """Adjusts case of local files if synced differently"""
-        if self.options.case_sensitive or platform.system() != "Linux":
+        if self.options.case_sensitive:
             return
         haveList = self.p4.run('have', '//{}/...'.format(self.P4CLIENT))
         localHaveFiles = {}
         for f in haveList:
             k = f['depotFile'].lower()
             localHaveFiles[k] = escapeWildCards(f['path'])
+            # localHaveFiles[k] = f['path']
         for f in fileRevs:
             d = f.depotFile.lower()
             if f.localFile and d in localHaveFiles:

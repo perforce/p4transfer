@@ -94,7 +94,7 @@ def getP4ConfigFilename():
 
 
 class P4Server:
-    def __init__(self, root, logger):
+    def __init__(self, root, logger, caseInsensitive=False):
         self.root = root
         self.logger = logger
         self.server_root = os.path.join(root, "server")
@@ -104,8 +104,11 @@ class P4Server:
         ensureDirectory(self.server_root)
         ensureDirectory(self.client_root)
 
+        caseFlag = ""
+        if caseInsensitive:
+            caseFlag = "-C1 "
         self.p4d = P4D
-        self.port = "rsh:%s -r \"%s\" -L log -i" % (self.p4d, self.server_root)
+        self.port = "rsh:%s -r \"%s\" -L log %s -i" % (self.p4d, self.server_root, caseFlag)
         self.p4 = P4.P4()
         self.p4.port = self.port
         self.p4.user = P4USER
@@ -183,7 +186,8 @@ class P4Server:
         return output
 
 
-class TestP4Transfer(unittest.TestCase):
+class TestP4TransferBase(unittest.TestCase):
+    """Base class for tests"""
 
     def __init__(self, methodName='runTest'):
         global saved_stdoutput, test_logger
@@ -193,13 +197,13 @@ class TestP4Transfer(unittest.TestCase):
         else:
             logutils.resetLogger(P4Transfer.LOGGER_NAME)
         self.logger = test_logger
-        super(TestP4Transfer, self).__init__(methodName=methodName)
+        super(TestP4TransferBase, self).__init__(methodName=methodName)
 
     def assertRegex(self, *args, **kwargs):
         if python3:
-            return super(TestP4Transfer, self).assertRegex(*args, **kwargs)
+            return super(TestP4TransferBase, self).assertRegex(*args, **kwargs)
         else:
-            return super(TestP4Transfer, self).assertRegexpMatches(*args, **kwargs)
+            return super(TestP4TransferBase, self).assertRegexpMatches(*args, **kwargs)
 
     def assertContentsEqual(self, expected, content):
         if python3:
@@ -215,15 +219,15 @@ class TestP4Transfer(unittest.TestCase):
         time.sleep(0.1)
         # self.cleanupTestTree()
 
-    def setDirectories(self):
+    def setDirectories(self, caseInsensitive=False):
         self.startdir = os.getcwd()
         self.transfer_root = os.path.join(self.startdir, TEST_ROOT)
         self.cleanupTestTree()
 
         ensureDirectory(self.transfer_root)
 
-        self.source = P4Server(os.path.join(self.transfer_root, 'source'), self.logger)
-        self.target = P4Server(os.path.join(self.transfer_root, 'target'), self.logger)
+        self.source = P4Server(os.path.join(self.transfer_root, 'source'), self.logger, caseInsensitive=caseInsensitive)
+        self.target = P4Server(os.path.join(self.transfer_root, 'target'), self.logger, caseInsensitive=caseInsensitive)
 
         self.transfer_client_root = localDirectory(self.transfer_root, 'transfer_client')
         self.writeP4Config()
@@ -342,6 +346,92 @@ class TestP4Transfer(unittest.TestCase):
             all_output.append(output)
         results = [r for r in "\n".join(all_output).split("\n") if re.search("^@pv@", r)]
         return results
+
+
+class TestP4TransferCaseInsensitive(TestP4TransferBase):
+    """Case insensitive version"""
+
+    def __init__(self, methodName='runTest'):
+        global saved_stdoutput, test_logger
+        saved_stdoutput.truncate(0)
+        if test_logger is None:
+            test_logger = logutils.getLogger(P4Transfer.LOGGER_NAME, stream=saved_stdoutput)
+        else:
+            logutils.resetLogger(P4Transfer.LOGGER_NAME)
+        self.logger = test_logger
+        super(TestP4TransferCaseInsensitive, self).__init__(methodName=methodName)
+
+    def setUp(self):
+        self.setDirectories(caseInsensitive=True)
+
+    def testWildcardCharsAndCaseInsensitive(self):
+        "Test filenames containing Perforce wildcards when required to be case insensitive"
+        self.setupTransfer()
+
+        options = self.getDefaultOptions()
+        options["case_sensitive"] = "False"
+        self.createConfigFile(options=options)
+        
+        inside = localDirectory(self.source.client_root, "inside")
+        outside = localDirectory(self.source.client_root, "outside")
+        inside_file1 = os.path.join(inside, "@inside_file1")
+        inside_file2 = os.path.join(inside, "%inside_file2")
+        inside_file3 = os.path.join(inside, "#inside_file3")
+        inside_file4 = os.path.join(inside, "C#", "inside_file4")
+        outside_file1 = os.path.join(outside, "%outside_file")
+
+        inside_file1Fixed = inside_file1.replace("@", "%40")
+        inside_file2Fixed = inside_file2.replace("%", "%25")
+        inside_file3Fixed = inside_file3.replace("#", "%23")
+        inside_file4Fixed = inside_file4.replace("#", "%23")
+        outside_file1Fixed = outside_file1.replace("%", "%25")
+
+        create_file(inside_file1, 'Test content')
+        create_file(inside_file3, 'Test content')
+        create_file(inside_file4, 'Test content')
+        create_file(outside_file1, 'Test content')
+        self.source.p4cmd('add', '-f', inside_file1)
+        self.source.p4cmd('add', '-f', inside_file3)
+        self.source.p4cmd('add', '-f', inside_file4)
+        self.source.p4cmd('add', '-f', outside_file1)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('integrate', outside_file1Fixed, inside_file2Fixed)
+        self.source.p4cmd('submit', '-d', 'files integrated')
+
+        self.source.p4cmd('edit', inside_file1Fixed)
+        self.source.p4cmd('edit', inside_file3Fixed)
+        self.source.p4cmd('edit', inside_file4Fixed)
+        append_to_file(inside_file1, 'Different stuff')
+        append_to_file(inside_file3, 'Different stuff')
+        append_to_file(inside_file4, 'Different stuff')
+        self.source.p4cmd('submit', '-d', 'files modified')
+
+        self.source.p4cmd('integrate', "//depot/inside/*", "//depot/inside/new/*")
+        self.source.p4cmd('submit', '-d', 'files branched')
+
+        self.run_P4Transfer()
+        self.assertCounters(4, 4)
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(len(files), 7)
+        self.assertEqual(files[0]['depotFile'], '//depot/import/%23inside_file3')
+        self.assertEqual(files[1]['depotFile'], '//depot/import/%25inside_file2')
+        self.assertEqual(files[2]['depotFile'], '//depot/import/%40inside_file1')
+        self.assertEqual(files[3]['depotFile'], '//depot/import/C%23/inside_file4')
+
+
+class TestP4Transfer(TestP4TransferBase):
+
+    def __init__(self, methodName='runTest'):
+        global saved_stdoutput, test_logger
+        saved_stdoutput.truncate(0)
+        if test_logger is None:
+            test_logger = logutils.getLogger(P4Transfer.LOGGER_NAME, stream=saved_stdoutput)
+        else:
+            logutils.resetLogger(P4Transfer.LOGGER_NAME)
+        self.logger = test_logger
+        super(TestP4Transfer, self).__init__(methodName=methodName)
 
     def testArgParsing(self):
         "Basic argparsing for the module"
@@ -5079,7 +5169,6 @@ class TestP4Transfer(unittest.TestCase):
         filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
         self.assertEqual(1, len(filelog))
         self.assertEqual("branch", filelog[0].revisions[0].action)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
