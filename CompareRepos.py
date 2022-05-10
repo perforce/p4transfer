@@ -187,20 +187,20 @@ class CompareRepos():
                             dfile = k.lower()
                         if dfile not in srcLocalHaveFiles: # Otherwise we assume already manually synced
                             print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
-                        print(self.targp4.run_add('-f', srcLocalFiles[k]))
+                        print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
                     if self.options.fix:
                         print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
-                        print(self.targp4.run_add('-f', srcLocalFiles[k]))
+                        print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
             if 'delete' not in v.action:
                 if k in targFiles and 'delete' not in targFiles[k].action and v.digest != targFiles[k].digest:
                     different.append((k, v, targFiles[k]))
                     if self.options.fix:
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync(targLocalFiles[k]))
+                            print(self.targp4.run_sync("-k", targLocalFiles[k]))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
-                        print(self.targp4.run_edit(targLocalFiles[k]))
+                        print(self.targp4.run_edit('-t', v.type, targLocalFiles[k]))
         for k, v in targFiles.items():
             if 'delete' not in v.action:
                 if k not in srcFiles or (k in srcFiles and 'delete' in srcFiles[k].action):
