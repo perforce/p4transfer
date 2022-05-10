@@ -376,6 +376,14 @@ def isKeyTextFile(ftype):
     return isText(ftype) and "k" in ftype
 
 
+def escapeWildCards(fname):
+    fname = fname.replace("@", "%40")
+    fname = fname.replace("#", "%23")
+    fname = fname.replace("*", "%2A")
+    fname = fname.replace("%", "%25")
+    return fname
+
+
 def fileContentComparisonPossible(ftype):
     "Decides if it is possible to compare size/digest for text files"
     if not isText(ftype):
@@ -1149,7 +1157,7 @@ class P4Source(P4Base):
         localHaveFiles = {}
         for f in haveList:
             k = f['depotFile'].lower()
-            localHaveFiles[k] = f['path']
+            localHaveFiles[k] = escapeWildCards(f['path'])
         for f in fileRevs:
             d = f.depotFile.lower()
             if f.localFile and d in localHaveFiles:
