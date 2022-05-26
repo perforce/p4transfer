@@ -731,9 +731,10 @@ class ChangelistComparer(object):
         diffs = srcfiles.difference(targfiles)
         if diffs:
             # Check for no filesize or digest present - indicating "p4 verify -qu" should be run
-            new_diffs = [r for r in diffs if r.fileSize and r.digest]
+            # Note special clause which can happen if we are branching a file which was purged - content is "purged file" so size 11!
+            new_diffs = [r for r in diffs if r.fileSize and r.digest and not (r.fileSize == 11 and r.action == 'branch')]
             if not new_diffs:
-                self.logger.debug("Ignoring differences due to lack of fileSize/digest")
+                self.logger.debug("Ignoring differences due to lack of fileSize/digest or purged files")
                 debugDiffs = [r for r in diffs if not r.fileSize or not r.digest]
                 self.logger.debug("Missing deleted elements in target changelist:\n%s" % "\n    ".join([str(r) for r in debugDiffs]))
                 return (True, "")
