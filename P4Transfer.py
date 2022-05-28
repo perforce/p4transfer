@@ -1075,7 +1075,7 @@ class P4Source(P4Base):
 
     def __init__(self, section, options):
         super(P4Source, self).__init__(section, options, 'src')
-        self.re_content_translation_failed = re.compile("Translation of file content failed near line 1 file (.*)")
+        self.re_content_translation_failed = re.compile("Translation of file content failed near line [0-9]+ file (.*)")
         self.srcFileLogCache = {}
 
     def missingChanges(self, counter):
@@ -1560,6 +1560,7 @@ class P4Target(P4Base):
                             mf = re_translation.search(w)
                             if mf:
                                 self.p4cmd("reopen", "-tbinary", mf.group(1))
+                                self.filesToIgnore.append(mf.group(1))
                     result = self.p4cmd("submit", "-c", chgNo) # May cause another exception
 
             # the submit information can be followed by refreshFile lines
