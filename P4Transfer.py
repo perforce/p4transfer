@@ -1548,8 +1548,19 @@ class P4Target(P4Base):
                     self.logger.debug("Resyncing out of date files")
                     self.p4.run(cmd)
                     result = self.p4cmd("submit", "-c", m.group(1))
-                else:
-                    raise e
+                else: # Check for utf16 type problems and change them to binary to see if that works
+                    re_transferProblems = re.compile(".*fix problems then use 'p4 submit -c ([0-9]+)'.\nSome file\(s\) could not be transferred from client")
+                    re_translation = re.compile("Translation of file content failed near line [0-9]+ file (.*)")
+                    m = re_transferProblems.search(self.p4.errors[0])
+                    if not m:
+                        raise e
+                    chgNo = m.group(1)
+                    if self.p4.warnings and re_translation.search(self.p4.warnings[0]):
+                        for w in self.p4.warnings:
+                            mf = re_translation.search(w)
+                            if mf:
+                                self.p4cmd("reopen", "-tbinary", mf.group(1))
+                    result = self.p4cmd("submit", "-c", chgNo) # May cause another exception
 
             # the submit information can be followed by refreshFile lines
             # need to go backwards to find submittedChange
