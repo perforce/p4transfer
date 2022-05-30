@@ -64,6 +64,7 @@ import re
 import hashlib
 import stat
 import pprint
+import errno
 import platform
 from string import Template
 import argparse
@@ -499,8 +500,11 @@ def diskFileContentModified(file):
         try:
             fileSize = os.path.getsize(file.fixedLocalFile)
             digest = getLocalDigest(file.fixedLocalFile)
-        except FileNotFoundError:
-            return False
+        except EnvironmentError as e:
+            if e.errno == errno.ENOENT:
+                return False
+            else:
+                raise
     elif isKeyTextFile(file.type):
         fileSize, digest = getKTextDigest(file.fixedLocalFile)
     return (fileSize, digest.lower()) != (int(file.fileSize), file.digest.lower())
