@@ -371,7 +371,7 @@ class TestP4TransferCaseInsensitive(TestP4TransferBase):
         options = self.getDefaultOptions()
         options["case_sensitive"] = "False"
         self.createConfigFile(options=options)
-        
+
         inside = localDirectory(self.source.client_root, "inside")
         outside = localDirectory(self.source.client_root, "outside")
         inside_file1 = os.path.join(inside, "@inside_file1")
@@ -2475,20 +2475,20 @@ class TestP4Transfer(TestP4TransferBase):
         "Historical integration where target has extra revs so wrong one is picked"
         self.setupTransfer()
 
-        _ = self.source.p4.fetch_change() # Create change no
+        _ = self.source.p4.fetch_change()  # Create change no
         # In HistoricalStart mode we don't start from first change
         config = self.getDefaultOptions()
         config['historical_start_change'] = '2'
         self.createConfigFile(options=config)
         self.setTargetCounter('1')
-        
+
         inside = localDirectory(self.source.client_root, "inside")
         timport = localDirectory(self.target.client_root, "import")
         file1 = os.path.join(inside, "file1")
         file2 = os.path.join(inside, "file2")
         tfile1 = os.path.join(timport, "file1")
         tfile2 = os.path.join(timport, "file2")
-        
+
         create_file(file1, "Test content\n")
         create_file(tfile1, "Test targ content\n")
 
@@ -3653,7 +3653,7 @@ class TestP4Transfer(TestP4TransferBase):
     def testIntegAndRenamePrevious(self):
         """Test for copying while renaming older file."""
         self.setupTransfer()
-        
+
         # $ p4 describe -s 19027676 | grep Square.png
         # ... //UE5/RES/Tut/Square.png#2 branch
         # ... //UE5/RES/GuidedTut/Square.png#1 move/add
@@ -3688,8 +3688,7 @@ class TestP4Transfer(TestP4TransferBase):
         mfile1 = os.path.join(inside, "main", "file1")
         mfile2 = os.path.join(inside, "main", "file2")
         rfile1 = os.path.join(inside, "rel", "file1")
-        rfile2 = os.path.join(inside, "rel", "file2")
-        
+
         create_file(mfile1, "Test content")
         self.source.p4cmd('add', mfile1)
         self.source.p4cmd('submit', '-d', 'mfile1 added')
@@ -3754,7 +3753,7 @@ class TestP4Transfer(TestP4TransferBase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
-        # We can't move onto 
+        # We can't move onto
         recs = self.dumpDBFiles("db.integed")
         self.logger.debug(recs)
         # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
@@ -3818,7 +3817,7 @@ class TestP4Transfer(TestP4TransferBase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
 
-        # We can't move onto 
+        # We can't move onto
         recs = self.dumpDBFiles("db.integed")
         self.logger.debug(recs)
         # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
@@ -3978,8 +3977,8 @@ class TestP4Transfer(TestP4TransferBase):
         recs = self.dumpDBFiles("db.integed")
         self.logger.debug(recs)
 
-        # @pv@ 0 @db.integed@ @//depot/inside/file3@ @//depot/outside/file5@ 1 2 0 1 6 3 
-        # @pv@ 0 @db.integed@ @//depot/outside/file5@ @//depot/inside/file3@ 0 1 1 2 10 3 
+        # @pv@ 0 @db.integed@ @//depot/inside/file3@ @//depot/outside/file5@ 1 2 0 1 6 3
+        # @pv@ 0 @db.integed@ @//depot/outside/file5@ @//depot/inside/file3@ 0 1 1 2 10 3
 
         # Convert copy from -> merged from
         newrecs = []
@@ -5130,11 +5129,11 @@ class TestP4Transfer(TestP4TransferBase):
                                    'targ': '//targ_streams/main',
                                    'type': 'mainline',
                                    'parent': ''},
-                                   {'src': '//src_streams/rel1',
+                                  {'src': '//src_streams/rel1',
                                    'targ': '//targ_streams/rel1',
                                    'type': 'release',
                                    'parent': '//targ_streams/main'},
-                                   {'src': '//src_streams/rel2',
+                                  {'src': '//src_streams/rel2',
                                    'targ': '//targ_streams/rel2',
                                    'type': 'release',
                                    'parent': '//targ_streams/main'}]
@@ -5169,6 +5168,7 @@ class TestP4Transfer(TestP4TransferBase):
         filelog = self.target.p4.run_filelog('//targ_streams/rel2/...')
         self.assertEqual(1, len(filelog))
         self.assertEqual("branch", filelog[0].revisions[0].action)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

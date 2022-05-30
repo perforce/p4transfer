@@ -8,7 +8,6 @@ import time
 import P4
 import subprocess
 import inspect
-from textwrap import dedent
 import unittest
 import os
 import shutil
@@ -335,7 +334,7 @@ class TestCopySnapshot(unittest.TestCase):
 
         self.run_CopySnapshot('-s', '//depot/...')
         self.transferp4.run('submit', '-c1')
-        
+
         changes = self.target.p4cmd('changes')
         self.assertEqual(1, len(changes))
 

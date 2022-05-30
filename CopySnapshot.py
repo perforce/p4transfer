@@ -105,7 +105,7 @@ class FileRev:
 
 
 class CopySnapshot():
-    
+
     def __init__(self, *args):
         desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
@@ -117,7 +117,7 @@ class CopySnapshot():
         parser.add_argument('-c', '--config', help="Config file as used by P4Transfer - to read source/target info")
         parser.add_argument('-w', '--workspace', help="Source workspace to use (otherwise will use the one in the config file)")
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
-        
+
         if list(args):
             self.options = parser.parse_args(list(args))
         else:
@@ -159,12 +159,12 @@ class CopySnapshot():
             if 'delete' not in rev.action:
                 result[fname] = rev
         return result
-    
+
     def run(self):
         srcFiles = {}
         print("Collecting source files")
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
-        srcFiles = self.getFilesToAdd(srcFstat)    
+        srcFiles = self.getFilesToAdd(srcFstat)
         print("Found source files to add: %d" % len(srcFiles))
         print("Checking sync of source files")
         with self.srcp4.at_exception_level(P4.P4.RAISE_ERROR):

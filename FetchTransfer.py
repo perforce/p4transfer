@@ -60,7 +60,6 @@ from os import error
 
 import sys
 import re
-import hashlib
 import stat
 import pprint
 from string import Template
@@ -109,6 +108,25 @@ reFetchMoveError = re.compile("Files are missing as a result of one or more move
 
 # Although this should work with Python 3, it doesn't currently handle Windows Perforce servers
 # with filenames containing charaters such as umlauts etc: åäö
+
+# Old to new typemaps
+canonicalTypes = {
+    "xtext":    "text+x",
+    "ktext":    "text+k",
+    "kxtext":   "text+kx",
+    "xbinary":  "binary+x",
+    "ctext":    "text+C",
+    "cxtext":   "text+Cx",
+    "ltext":    "text+F",
+    "xltext":   "text+Fx",
+    "ubinary":  "binary+F",
+    "uxbinary": "binary+Fx",
+    "tempobj":  "binary+FSw",
+    "ctempobj": "binary+Sw",
+    "xtempobj": "binary+FSwx",
+    "xunicode":  "unicode+x",
+    "xutf16":    "utf16+x"
+    }
 
 
 class P4TException(Exception):
@@ -407,7 +425,6 @@ class ChangeRevision:
                 except IndexError:
                     self.digest = None
 
-
     def depotFileRev(self):
         "Fully specify depot file with rev number"
         return "%s#%s" % (self.depotFile, self.rev)
@@ -427,38 +444,9 @@ class ChangeRevision:
 
     def canonicalType(self):
         "Translate between old style type and new canonical type"
-        if self.type == "xtext":
-            return "text+x"
-        elif self.type == "ktext":
-            return "text+k"
-        elif self.type == "kxtext":
-            return "text+kx"
-        elif self.type == "xbinary":
-            return "binary+x"
-        elif self.type == "ctext":
-            return "text+C"
-        elif self.type == "cxtext":
-            return "text+Cx"
-        elif self.type == "ltext":
-            return "text+F"
-        elif self.type == "xltext":
-            return "text+Fx"
-        elif self.type == "ubinary":
-            return "binary+F"
-        elif self.type == "uxbinary":
-            return "binary+Fx"
-        elif self.type == "tempobj":
-            return "binary+FSw"
-        elif self.type == "ctempobj":
-            return "binary+Sw"
-        elif self.type == "xtempobj":
-            return "binary+FSwx"
-        elif self.type == "xunicode":
-            return "unicode+x"
-        elif self.type == "xutf16":
-            return "utf16+x"
-        else:
-            return self.type
+        if self.type in canonicalTypes:
+            return canonicalTypes[self.type]
+        return self.type
 
     def __repr__(self):
         return 'rev={rev} action={action} type={type} size={size} digest={digest} depotFile={depotfile}' .format(
@@ -633,6 +621,7 @@ class P4Base(object):
         self.localmap = P4.Map.join(self.clientmap, ctr)
         self.depotmap = self.localmap.reverse()
 
+
 class P4Source(P4Base):
     "Functionality for reading from source Perforce repository"
 
@@ -672,6 +661,7 @@ class P4Source(P4Base):
         if excludedFiles:
             self.logger.debug('excluded: %s' % excludedFiles)
         return fileRevs
+
 
 class P4Target(P4Base):
     "Functionality for transferring changes to target Perforce repository"

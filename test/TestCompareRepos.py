@@ -8,7 +8,6 @@ import time
 import P4
 import subprocess
 import inspect
-from textwrap import dedent
 import unittest
 import os
 import shutil
@@ -335,7 +334,7 @@ class TestCompareRepos(unittest.TestCase):
 
         self.run_CompareRepos('-s', '//depot/...@3', '--fix')
         self.transferp4.run('submit', '-d', "Target")
-        
+
         changes = self.target.p4cmd('changes')
         self.assertEqual(1, len(changes))
 
@@ -357,10 +356,10 @@ class TestCompareRepos(unittest.TestCase):
         p4 = self.source.p4
         p4.client = TRANSFER_CLIENT
         p4.run_sync()
-        
+
         self.run_CompareRepos('-s', '//depot/...@3', '--fix')
         self.transferp4.run('submit', '-d', "Target")
-        
+
         changes = self.target.p4cmd('changes')
         self.assertEqual(1, len(changes))
 

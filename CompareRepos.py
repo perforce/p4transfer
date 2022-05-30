@@ -49,7 +49,6 @@ DESCRIPTION:
 
 """
 
-from threading import local
 import P4
 import os
 import argparse
@@ -75,7 +74,7 @@ class FileRev:
         self.rev = f['headRev']
         self.change = f['headChange']
         self.type = f['headType']
-        
+
     def __repr__(self):
         return 'depotFile={depotfile} rev={rev} action={action} type={type} size={size} digest={digest}' .format(
             rev=self.rev,
@@ -88,7 +87,7 @@ class FileRev:
 
 
 class CompareRepos():
-    
+
     def __init__(self, *args):
         desc = textwrap.dedent(__doc__)
         parser = argparse.ArgumentParser(
@@ -99,7 +98,9 @@ class CompareRepos():
 
         parser.add_argument('-c', '--config', help="Config file as used by P4Transfer - to read source/target info")
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
-        parser.add_argument('-t', '--target', help="Optional: Perforce path for target repo, e.g. //depot/targ/...@123 [or without rev for #head]. If not specified then assumes --source value with no revision specifier")
+        parser.add_argument('-t', '--target', help="Optional: Perforce path for target repo, e.g. //depot/targ/...@123 " +
+                            "[or without rev for #head]. " +
+                            "If not specified then assumes --source value with no revision specifier")
         parser.add_argument('-f', '--fix', action='store_true', help="Fix problems by opening files for required action")
         if list(args):
             self.options = parser.parse_args(list(args))
@@ -132,7 +133,7 @@ class CompareRepos():
         self.targp4.connect()
         global caseSensitive
         caseSensitive = self.config['case_sensitive']
-            
+
     def getFiles(self, fstat):
         result = {}
         srcLocalFiles = {}
@@ -144,7 +145,7 @@ class CompareRepos():
             if 'clientFile' in f:
                 srcLocalFiles[fname] = f['clientFile']
         return result, srcLocalFiles
-    
+
     def run(self):
         srcFiles = {}
         targFiles = {}
@@ -170,7 +171,7 @@ class CompareRepos():
         targFstat = []
         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
             targFstat = self.targp4.run_fstat("-Ol", self.options.target)
-        srcFiles, srcLocalFiles = self.getFiles(srcFstat)    
+        srcFiles, srcLocalFiles = self.getFiles(srcFstat)
         targFiles, targLocalFiles = self.getFiles(targFstat)
         missing = []
         deleted = []
@@ -185,7 +186,7 @@ class CompareRepos():
                             dfile = k
                         else:
                             dfile = k.lower()
-                        if dfile not in srcLocalHaveFiles: # Otherwise we assume already manually synced
+                        if dfile not in srcLocalHaveFiles:  # Otherwise we assume already manually synced
                             print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
@@ -225,6 +226,7 @@ class CompareRepos():
             print("different: %s" % "\ndifferent: ".join([x[0] for x in different]))
         else:
             print("No-different")
+
 
 if __name__ == '__main__':
     obj = CompareRepos()

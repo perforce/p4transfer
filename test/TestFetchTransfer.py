@@ -15,7 +15,6 @@ import os
 import shutil
 import stat
 import re
-import glob
 import argparse
 import datetime
 from ruamel.yaml import YAML
@@ -2931,7 +2930,7 @@ class TestFetchTransfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "copy from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
-        # We can't move onto 
+        # We can't move onto
         recs = self.dumpDBFiles("db.integed")
         self.logger.debug(recs)
         # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
@@ -2995,7 +2994,7 @@ class TestFetchTransfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "moved from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "copy from")
 
-        # We can't move onto 
+        # We can't move onto
         recs = self.dumpDBFiles("db.integed")
         self.logger.debug(recs)
         # @pv@ 0 @db.integed@ @//stream/main/file1@ @//stream/main/file3@ 0 1 0 1 10 5
@@ -3115,7 +3114,6 @@ class TestFetchTransfer(unittest.TestCase):
         self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
         self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
-
     def testIntegCopyAndRenameAsAddFromOutside(self):
         """Test for integrating a copy and move into single target - when copy is from outside view."""
         self.setupTransfer()
@@ -3156,8 +3154,8 @@ class TestFetchTransfer(unittest.TestCase):
         recs = self.dumpDBFiles("db.integed")
         self.logger.debug(recs)
 
-        # @pv@ 0 @db.integed@ @//depot/inside/file3@ @//depot/outside/file5@ 1 2 0 1 6 3 
-        # @pv@ 0 @db.integed@ @//depot/outside/file5@ @//depot/inside/file3@ 0 1 1 2 10 3 
+        # @pv@ 0 @db.integed@ @//depot/inside/file3@ @//depot/outside/file5@ 1 2 0 1 6 3
+        # @pv@ 0 @db.integed@ @//depot/outside/file5@ @//depot/inside/file3@ 0 1 1 2 10 3
 
         # Convert copy from -> merged from
         newrecs = []

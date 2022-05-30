@@ -57,7 +57,6 @@ DESCRIPTION:
 """
 
 from __future__ import print_function, division
-from os import error
 
 import sys
 import re
@@ -65,7 +64,6 @@ import hashlib
 import stat
 import pprint
 import errno
-import platform
 from string import Template
 import argparse
 import textwrap
@@ -104,6 +102,24 @@ def logOnce(logger, *args):
 P4.Revision.__repr__ = logrepr
 P4.Integration.__repr__ = logrepr
 P4.DepotFile.__repr__ = logrepr
+# Old to new typemaps
+canonicalTypes = {
+    "xtext":    "text+x",
+    "ktext":    "text+k",
+    "kxtext":   "text+kx",
+    "xbinary":  "binary+x",
+    "ctext":    "text+C",
+    "cxtext":   "text+Cx",
+    "ltext":    "text+F",
+    "xltext":   "text+Fx",
+    "ubinary":  "binary+F",
+    "uxbinary": "binary+Fx",
+    "tempobj":  "binary+FSw",
+    "ctempobj": "binary+Sw",
+    "xtempobj": "binary+FSwx",
+    "xunicode":  "unicode+x",
+    "xutf16":    "utf16+x"
+    }
 
 python3 = sys.version_info[0] >= 3
 if sys.hexversion < 0x02070000 or (0x0300000 <= sys.hexversion < 0x0303000):
@@ -360,6 +376,8 @@ class SourceTargetTextComparison(object):
 
 
 sourceTargetTextComparison = SourceTargetTextComparison()
+
+
 def specialMovesSupported():
     # Minor new functionality in 2021.1 (2021.1/2126753)
     # #2095201 (Job #95658, #101217) **
@@ -378,6 +396,8 @@ def isKeyTextFile(ftype):
 
 
 alreadyEscaped = re.compile(r"%25|%23|%40|%2A")
+
+
 def escapeWildCards(fname):
     m = alreadyEscaped.findall(fname)
     if not m:
@@ -660,38 +680,9 @@ class ChangeRevision:
 
     def canonicalType(self):
         "Translate between old style type and new canonical type"
-        if self.type == "xtext":
-            return "text+x"
-        elif self.type == "ktext":
-            return "text+k"
-        elif self.type == "kxtext":
-            return "text+kx"
-        elif self.type == "xbinary":
-            return "binary+x"
-        elif self.type == "ctext":
-            return "text+C"
-        elif self.type == "cxtext":
-            return "text+Cx"
-        elif self.type == "ltext":
-            return "text+F"
-        elif self.type == "xltext":
-            return "text+Fx"
-        elif self.type == "ubinary":
-            return "binary+F"
-        elif self.type == "uxbinary":
-            return "binary+Fx"
-        elif self.type == "tempobj":
-            return "binary+FSw"
-        elif self.type == "ctempobj":
-            return "binary+Sw"
-        elif self.type == "xtempobj":
-            return "binary+FSwx"
-        elif self.type == "xunicode":
-            return "unicode+x"
-        elif self.type == "xutf16":
-            return "utf16+x"
-        else:
-            return self.type
+        if self.type in canonicalTypes:
+            return canonicalTypes[self.type]
+        return self.type
 
     def __eq__(self, other, caseSensitive=True):
         "For comparisons between source and target after transfer"
@@ -752,7 +743,7 @@ class ChangelistComparer(object):
                     chRev.localFile = chRev.localFile.lower()
                 for chRev in targfiles:
                     chRev.localFile = chRev.localFile.lower()
-                new_diffs = [r for r in diffs if  r.fileSize and r.digest]
+                new_diffs = [r for r in diffs if r.fileSize and r.digest]
                 diffs2 = srcfiles.difference(targfiles)
                 if not diffs2:
                     return (True, "")
@@ -946,12 +937,12 @@ class P4Base(object):
                         targStream['Type'] = v['type']
                         if v['parent']:
                             targStream['Parent'] = v['parent']
-                        if (origTargStream['Type'] != targStream['Type'] and \
+                        if (origTargStream['Type'] != targStream['Type'] and
                            origTargStream['Parent'] != targStream['Parent']) or \
                            ('Update' not in targStream):  # As in this is a new stream
                             self.p4.save_stream(targStream)
                             targStreamsUpdated = True
-                if targStreamsUpdated or (origStream["Type"] != transferStream["Type"] and \
+                if targStreamsUpdated or (origStream["Type"] != transferStream["Type"] and
                    origStream["Paths"] != transferStream["Paths"]):
                     self.p4.save_stream(transferStream)
                 clientspec['Stream'] = self.options.transfer_target_stream
@@ -1258,7 +1249,7 @@ class P4Source(P4Base):
                 chRev.updateDigest()
         self.abortIfUnsyncableUTF16FilesExist(syncCallback, changeNum)  # May raise exception
         self.adjustLocalFileCase(fileRevs)
-        if self.options.historical_start_change: # Extra processing required on integration records
+        if self.options.historical_start_change:  # Extra processing required on integration records
             self.adjustHistoricalIntegrations(fileRevs)
         if specialMovesSupported():
             self.processSpecialMoveRevs(fileRevs, specialMoveRevs, filelogs)
@@ -1307,8 +1298,7 @@ class P4Source(P4Base):
 
     def getFirstChange(self):
         """Expects change number as a string, and syncs the first historical change"""
-
-        if not self.options.historical_start_change: # Extra processing required on integration records
+        if not self.options.historical_start_change:  # Extra processing required on integration records
             return
         self.progress.ReportChangeSync()
         syncCallback = SyncOutput(self.p4id, self.logger, self.progress)
@@ -1465,7 +1455,7 @@ class P4Target(P4Base):
                 self.filesToIgnore.append(f.localFile)
             else:
                 raise P4TLogicException('Unknown action: %s for %s' % (f.action, str(f)))
-        for f in specialMoveRevs: # There won't be any if not supported
+        for f in specialMoveRevs:  # There won't be any if not supported
             self.logger.debug('targ: moves %s' % f)
             # These have to be replayed as something like: p4 copy src/... targ/...
             # So we create/adjust a specific branch spec and use that.
@@ -1492,7 +1482,7 @@ class P4Target(P4Base):
             branchName = '_p4transfer_branch'
             b = self.p4.fetch_branch(branchName)
             b['View'] = ['"%s" "%s"' % (srcFile1, targFile1),
-                          '"%s" "%s"' % (srcFile2, targFile2)]
+                         '"%s" "%s"' % (srcFile2, targFile2)]
             self.logger.debug('Branch view: %s' % b['View'])
             self.p4.save_branch(b)
             self.p4cmd("copy", "-b", branchName)
@@ -1555,7 +1545,7 @@ class P4Target(P4Base):
                     self.logger.debug("Resyncing out of date files")
                     self.p4.run(cmd)
                     result = self.p4cmd("submit", "-c", m.group(1))
-                else: # Check for utf16 type problems and change them to binary to see if that works
+                else:  # Check for utf16 type problems and change them to binary to see if that works
                     re_transferProblems = re.compile(".*fix problems then use 'p4 submit -c ([0-9]+)'.\nSome file\(s\) could not be transferred from client")
                     re_translation = re.compile("Translation of file content failed near line [0-9]+ file (.*)")
                     m = re_transferProblems.search(self.p4.errors[0])
@@ -1765,7 +1755,7 @@ class P4Target(P4Base):
         # An integration where source has been obliterated will not have integrations
         self.logger.debug('replicateBranch')
         if not self.options.ignore_integrations and not file.hasOnlyIgnoreIntegrations() and \
-            file.hasIntegrations() and file.getIntegration().localFile:
+           file.hasIntegrations() and file.getIntegration().localFile:
             afterAdd = False
             if not self.currentFileContent and os.path.exists(file.fixedLocalFile):
                 self.currentFileContent = readContents(file.fixedLocalFile)
@@ -1922,7 +1912,7 @@ class P4Target(P4Base):
                 flags.append('-Dt')
             elif self.re_no_revisions_above_that_revision.search(outputStr):
                 # Happens rarely when deletions have occurred. If there are source revs specified we try with one less rev
-                m = re.search("(.*)#(\d+),(\d+)$", srcname)
+                m = re.search("(.*)#([0-9]+),([0-9]+)$", srcname)
                 if m:
                     r1 = int(m.group(2)) - 1
                     r2 = int(m.group(3)) - 1
@@ -1961,7 +1951,7 @@ class P4Target(P4Base):
                 flags.append("-f")
             elif self.re_no_revisions_above_that_revision.search(outputStr):
                 # Happens rarely when deletions have occurred. If there are source revs specified we try with one less rev
-                m = re.search("(.*)#(\d+),(\d+)$", srcname)
+                m = re.search("(.*)#([0-9]+),([0-9]+)$", srcname)
                 if m:
                     r1 = int(m.group(2)) - 1
                     r2 = int(m.group(3)) - 1
