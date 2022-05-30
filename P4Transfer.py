@@ -700,6 +700,10 @@ class ChangeRevision:
         # Purge means filetype +Sn - so no comparison possible
         if self.action == 'purge' or other.action == 'purge':
             return True
+        # Can't compare branches of purged files - content is "purged file" so size 11 with fixed digest!
+        purgedDigest = "08F48C3930677CB9C7F42E5248D560D4"
+        if (self.fileSize == '11' and self.digest == purgedDigest) or (other.fileSize == '11' and other.digest == purgedDigest):
+            return True
         if fileContentComparisonPossible(self.type):
             if (self.fileSize, self.digest, self.canonicalType()) != (other.fileSize, other.digest, other.canonicalType()):
                 if self.type == 'utf16':
@@ -731,8 +735,7 @@ class ChangelistComparer(object):
         diffs = srcfiles.difference(targfiles)
         if diffs:
             # Check for no filesize or digest present - indicating "p4 verify -qu" should be run
-            # Note special clause which can happen if we are branching a file which was purged - content is "purged file" so size 11!
-            new_diffs = [r for r in diffs if r.fileSize and r.digest and not (r.fileSize == 11 and r.action == 'branch')]
+            new_diffs = [r for r in diffs if r.fileSize and r.digest]
             if not new_diffs:
                 self.logger.debug("Ignoring differences due to lack of fileSize/digest or purged files")
                 debugDiffs = [r for r in diffs if not r.fileSize or not r.digest]
