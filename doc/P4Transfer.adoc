@@ -1,7 +1,7 @@
 = P4Transfer - Helix Core Full History Migration Tool
 Perforce Professional Services <consulting@perforce.com>
-:revnumber: v2021.1
-:revdate: 2021-09-28
+:revnumber: v2022.1
+:revdate: 2022-10-15
 :doctype: book
 :icons: font
 :toc:
@@ -217,6 +217,17 @@ And similarly create a file in the `target` sub-directory.
 This will allow you to quickly and easily `cd` between directories and be able to run commands against respective
 source and target p4d instances.
 
+=== Convenience aliases
+
+The following `bash` aliases may be useful:
+
+    alias glog='export lastlogfile=$(ls -tr log-P4Transfer*.log | tail -1)'
+    alias tlog='tail $lastlogfile | cut -c -400'
+    alias clog='cut -c -400 $lastlogfile | less'
+
+They allow you to quickly update the latest log file and have a look at progress or errors. Note the `cut` command is used to avoid some
+hugely long lines which may be present in the log file.
+
 === Configuration Options
 
 The comments in the file are mostly self-explanatory. It is important to specify the main values for the `[source]` and `[target]` sections.
@@ -298,6 +309,31 @@ P4Transfer can be setup as a service on Windows using `srvinst.exe` and `srvanay
 
 Please contact `consulting@perforce.com` for more details.
 
+=== Comparing Repositories (and fixing any differences)
+
+The helper script `CompareRepos.py` is useful to do occasional comparisons between source and target, and if required to "correct" or "fix" them.
+
+    nohup CompareRepos.py -c config.yaml -s //depot/src/...@1234 > compare.out &
+
+If you want to open all files for the corrective action (e.g. add for missing, delete for extra, edit for modified), then add the `--fix` option:
+
+    nohup CompareRepos.py -c config.yaml -s //depot/src/...@1234 --fix > compare.out &
+
+After that has completed, the files will be opened in the `target` client workspace from the config file, and you can manually submit them, e.g.
+
+    cd target
+    p4 opened | less                <==== review to see if as expected
+    
+    nohup p4 submit -d "Fixup differences with //depot/src/...@1234"  > sub.out &
+
+Make sure the submit has succeeded!
+
+==== CompareRepos.py
+
+[source]
+----
+include::compare_help.txt[]
+----
 
 == Support
 

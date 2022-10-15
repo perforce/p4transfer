@@ -6,7 +6,7 @@ PDF = $(SRC:.adoc=.pdf)
 
 HTML = $(SRC:.adoc=.html)
 
-INCLUDES = help.txt transfer.yaml fetch_help.txt fetch_transfer.yaml
+INCLUDES = help.txt transfer.yaml fetch_help.txt compare_help.txt fetch_transfer.yaml
 
 # Default target 'all' builds PDF and HTML from *.adoc files. For
 # any referenced generated man pages, current files in the 'gen'
@@ -26,6 +26,9 @@ help.txt: ../P4Transfer.py
 
 fetch_help.txt: ../FetchTransfer.py
 	python3 ../FetchTransfer.py -h > $@
+
+compare_help.txt: ../CompareRepos.py
+	python3 ../CompareRepos.py -h > $@
 
 transfer.yaml: ../P4Transfer.py
 	python3 ../P4Transfer.py --sample-config > $@

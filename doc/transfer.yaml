@@ -7,6 +7,21 @@
 #    If not set, or 0 then transfer will start from first change.
 counter_name: p4transfer_counter
 
+# case_sensitive: Set this to True if source/target servers are both case sensitive.
+#    Otherwise case inconsistencies can cause problems when conversion runs on Linux
+case_sensitive: true
+
+# historical_start_change: Set this if you require P4Transfer to start with this changelist.
+#    A historical start is useful if you have 100,000 changelists in source server and want to only
+#    transfer the last 10,000. Set this value to the first change to be transferred.
+#    Once you have set this value and started a transfer DO NOT MODIFY IT or you will potentially
+#    mess up integration history etc!!!!!
+#    IMPORTANT NOTE: setting this value causes extra work to be done for every integration to adjust
+#    revision ranges - thus slowing down transfers.
+#    If not set, or 0 then transfer starts from the value of counter_name above, and assumes that ALL HISTORY
+#    of included files is transferred.
+historical_start_change:
+
 # instance_name: Name of the instance of P4Transfer - for emails etc. Spaces allowed.
 instance_name: Perforce Transfer from XYZ
 
@@ -70,7 +85,7 @@ max_logfile_size: 20 * 1024 * 1024
 # change_description_format: The standard format for transferred changes.
 #    Keywords prefixed with $. Use \\n for newlines. Keywords allowed:
 #     $sourceDescription, $sourceChange, $sourcePort, $sourceUser
-change_description_format: $sourceDescription\n\nTransferred from p4://$sourcePort@$sourceChange
+change_description_format: \"$sourceDescription\\n\\nTransferred from p4://$sourcePort@$sourceChange\"
 
 # change_map_file: Name of an (optional) CSV file listing mappings of source/target changelists.
 #    If this is blank (DEFAULT) then no mapping file is created.

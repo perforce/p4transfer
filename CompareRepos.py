@@ -41,7 +41,8 @@ DESCRIPTION:
         python3 CompareRepos.py -h
 
     The script requires a config file as for P4Transfer.py
-    that provides the Perforce connection information for both servers.
+    The config file provides the Perforce connection information for both servers, 
+    and source/target client workspace names.
 
     For full documentation/usage, see project doc:
 
@@ -93,15 +94,15 @@ class CompareRepos():
         parser = argparse.ArgumentParser(
             description=desc,
             formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="Copyright (C) 2021 Robert Cowham, Perforce Software Ltd"
+            epilog="Copyright (C) 2021-22 Robert Cowham, Perforce Software Ltd"
         )
 
         parser.add_argument('-c', '--config', help="Config file as used by P4Transfer - to read source/target info")
         parser.add_argument('-s', '--source', help="Perforce path for source repo, e.g. //depot/src/...@52342")
         parser.add_argument('-t', '--target', help="Optional: Perforce path for target repo, e.g. //depot/targ/...@123 " +
                             "[or without rev for #head]. " +
-                            "If not specified then assumes --source value with no revision specifier")
-        parser.add_argument('-f', '--fix', action='store_true', help="Fix problems by opening files for required action")
+                            "If not specified then assumes --source value with revision specifier removed")
+        parser.add_argument('-f', '--fix', action='store_true', help="Fix problems by opening files for required action on target to make src/target the same")
         if list(args):
             self.options = parser.parse_args(list(args))
         else:

@@ -1,0 +1,38 @@
+usage: CompareRepos.py [-h] [-c CONFIG] [-s SOURCE] [-t TARGET] [-f]
+
+NAME:
+    CompareRepos.py
+
+DESCRIPTION:
+    This python script (3.6+ compatible) will compare changelists in 2 repos
+    It is a companion script to P4Transfer.py and reads the same source/target config file.
+
+    Usage:
+
+        python3 CompareRepos.py -h
+
+    The script requires a config file as for P4Transfer.py
+    The config file provides the Perforce connection information for both servers, 
+    and source/target client workspace names.
+
+    For full documentation/usage, see project doc:
+
+        https://github.com/perforce/p4transfer/blob/main/doc/P4Transfer.adoc
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CONFIG, --config CONFIG
+                        Config file as used by P4Transfer - to read
+                        source/target info
+  -s SOURCE, --source SOURCE
+                        Perforce path for source repo, e.g.
+                        //depot/src/...@52342
+  -t TARGET, --target TARGET
+                        Optional: Perforce path for target repo, e.g.
+                        //depot/targ/...@123 [or without rev for #head]. If
+                        not specified then assumes --source value with
+                        revision specifier removed
+  -f, --fix             Fix problems by opening files for required action on
+                        target to make src/target the same
+
+Copyright (C) 2021-22 Robert Cowham, Perforce Software Ltd
