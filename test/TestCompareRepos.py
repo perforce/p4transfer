@@ -391,6 +391,7 @@ class TestCompareRepos(unittest.TestCase):
         p4.run_sync()
 
         self.run_CompareRepos('-s', '//depot/...@3', '--fix')
+        self.logger.debug(self.transferp4.run('opened'))
         self.transferp4.run('submit', '-d', "Target")
 
         changes = self.target.p4cmd('changes')

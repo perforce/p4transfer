@@ -52,6 +52,8 @@ DESCRIPTION:
 
 import P4
 import os
+import platform
+import re
 import argparse
 import textwrap
 from ruamel.yaml import YAML
@@ -59,7 +61,18 @@ yaml = YAML()
 
 
 # This is updated based on the value in the config file - used in comparisons below
-caseSensitive = True
+caseSensitive = (platform.system() == "Linux")
+alreadyEscaped = re.compile(r"%25|%23|%40|%2A")
+
+
+def escapeWildcards(fname):
+    m = alreadyEscaped.findall(fname)
+    if not m:
+        fname = fname.replace("%", "%25")
+        fname = fname.replace("#", "%23")
+        fname = fname.replace("@", "%40")
+        fname = fname.replace("*", "%2A")
+    return fname
 
 
 class FileRev:
@@ -132,8 +145,9 @@ class CompareRepos():
         if self.options.fix:
             self.targp4.client = self.config['target']['p4client']
         self.targp4.connect()
-        global caseSensitive
-        caseSensitive = self.config['case_sensitive']
+        if platform.system() != "Linux": # Allow to be overwritten
+            global caseSensitive
+            caseSensitive = self.config['case_sensitive']
 
     def getFiles(self, fstat): # Returns 2 lists: depot files and local files
         result = {}
@@ -146,13 +160,6 @@ class CompareRepos():
             if 'clientFile' in f:
                 srcLocalFiles[fname] = f['clientFile']
         return result, srcLocalFiles
-
-    def escapeName(self, fname):
-        fname = fname.replace("%", "%25")
-        fname = fname.replace("#", "%23")
-        fname = fname.replace("@", "%40")
-        fname = fname.replace("*", "%2A")
-        return fname
 
     def run(self):
         srcFiles = {}
@@ -200,15 +207,15 @@ class CompareRepos():
                             dfile = k.lower()
                         if dfile not in srcLocalHaveFiles:  # Otherwise we assume already manually synced
                             if dfile in srcLocalFiles:
-                                nfile = self.escapeName(srcLocalFiles[k])
+                                nfile = escapeWildcards(srcLocalFiles[k])
                             else:
-                                nfile = self.escapeName(dfile)
+                                nfile = escapeWildcards(dfile)
                             print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (nfile, v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
                     if self.options.fix:
-                        print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
+                        print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
             if 'delete' not in v.action:
                 if k in targFiles and 'delete' not in targFiles[k].action and v.digest != targFiles[k].digest:
@@ -216,16 +223,16 @@ class CompareRepos():
                     if self.options.fix:
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync("-k", targLocalFiles[k]))
-                        print(self.srcp4.run_sync('-f', "%s#%s" % (self.escapeName(srcLocalFiles[k]), v.rev)))
-                        print(self.targp4.run_edit('-t', v.type, self.escapeName(srcLocalFiles[k])))
+                        print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
+                        print(self.targp4.run_edit('-t', v.type, escapeWildcards(srcLocalFiles[k])))
         for k, v in targFiles.items():
             if 'delete' not in v.action:
                 if k not in srcFiles or (k in srcFiles and 'delete' in srcFiles[k].action):
                     extras.append(k)
                     if self.options.fix:
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync('-k', self.escapeName(targLocalFiles[k])))
-                        print(self.targp4.run_delete(self.escapeName(targLocalFiles[k])))
+                            print(self.targp4.run_sync('-k', escapeWildcards(targLocalFiles[k])))
+                        print(self.targp4.run_delete(escapeWildcards(targLocalFiles[k])))
         if missing:
             print("missing: %s" % "\nmissing: ".join(missing))
         else:
