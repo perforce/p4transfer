@@ -135,7 +135,7 @@ class CompareRepos():
         global caseSensitive
         caseSensitive = self.config['case_sensitive']
 
-    def getFiles(self, fstat):
+    def getFiles(self, fstat): # Returns 2 lists: depot files and local files
         result = {}
         srcLocalFiles = {}
         for f in fstat:
@@ -147,11 +147,22 @@ class CompareRepos():
                 srcLocalFiles[fname] = f['clientFile']
         return result, srcLocalFiles
 
+    def escapeName(self, fname):
+        fname = fname.replace("%", "%25")
+        fname = fname.replace("#", "%23")
+        fname = fname.replace("@", "%40")
+        fname = fname.replace("*", "%2A")
+        return fname
+
     def run(self):
         srcFiles = {}
         targFiles = {}
         print("Collecting source files: %s" % self.options.source)
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
+        # Important to record the file names in local syntax for when source server is case-insensitive and
+        # the local OS is case sensitive!
+        # Then the source depotFile and localFile can differ in case. However when synced, p4 will
+        # at least be case consistent with previous files/directories in the tree.
         srcLocalHaveFiles = {}
         if self.options.fix:
             srcPath = ""
@@ -188,7 +199,11 @@ class CompareRepos():
                         else:
                             dfile = k.lower()
                         if dfile not in srcLocalHaveFiles:  # Otherwise we assume already manually synced
-                            print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
+                            if dfile in srcLocalFiles:
+                                nfile = self.escapeName(srcLocalFiles[k])
+                            else:
+                                nfile = self.escapeName(dfile)
+                            print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (nfile, v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
                 if k in targFiles and 'delete' in targFiles[k].action:
                     deleted.append((k, targFiles[k].change))
@@ -201,16 +216,16 @@ class CompareRepos():
                     if self.options.fix:
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync("-k", targLocalFiles[k]))
-                        print(self.srcp4.run_sync('-f', "%s#%s" % (srcLocalFiles[k], v.rev)))
-                        print(self.targp4.run_edit('-t', v.type, targLocalFiles[k]))
+                        print(self.srcp4.run_sync('-f', "%s#%s" % (self.escapeName(srcLocalFiles[k]), v.rev)))
+                        print(self.targp4.run_edit('-t', v.type, self.escapeName(srcLocalFiles[k])))
         for k, v in targFiles.items():
             if 'delete' not in v.action:
                 if k not in srcFiles or (k in srcFiles and 'delete' in srcFiles[k].action):
                     extras.append(k)
                     if self.options.fix:
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync('-k', targLocalFiles[k]))
-                        print(self.targp4.run_delete(targLocalFiles[k]))
+                            print(self.targp4.run_sync('-k', self.escapeName(targLocalFiles[k])))
+                        print(self.targp4.run_delete(self.escapeName(targLocalFiles[k])))
         if missing:
             print("missing: %s" % "\nmissing: ".join(missing))
         else:

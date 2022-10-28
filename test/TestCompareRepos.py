@@ -79,6 +79,14 @@ def append_to_file(file_name, contents):
         f.write(contents)
 
 
+def escapeName(fname):
+    fname = fname.replace("%", "%25")
+    fname = fname.replace("#", "%23")
+    fname = fname.replace("@", "%40")
+    fname = fname.replace("*", "%2A")
+    return fname
+
+
 def getP4ConfigFilename():
     "Returns os specific filename"
     if 'P4CONFIG' in os.environ:
@@ -254,7 +262,7 @@ class TestCompareRepos(unittest.TestCase):
                             'targ': '//depot/...'}]
         return config
 
-    def setupTransfer(self):
+    def setupCompare(self):
         """Creates a config file with default mappings"""
         msg = "Test: %s ======================" % inspect.stack()[1][3]
         self.logger.debug(msg)
@@ -323,7 +331,7 @@ class TestCompareRepos(unittest.TestCase):
 
     def testAddNoHave(self):
         "Basic file add where no files already synced"
-        self.setupTransfer()
+        self.setupCompare()
 
         inside = localDirectory(self.source.client_root, "inside")
         inside_file1 = os.path.join(inside, "inside_file1")
@@ -344,7 +352,7 @@ class TestCompareRepos(unittest.TestCase):
 
     def testAddWithHave(self):
         "Basic file add where source files already synced"
-        self.setupTransfer()
+        self.setupCompare()
 
         inside = localDirectory(self.source.client_root, "inside")
         inside_file1 = os.path.join(inside, "inside_file1")
@@ -366,6 +374,68 @@ class TestCompareRepos(unittest.TestCase):
         files = self.target.p4cmd('files', '//depot/...')
         self.assertEqual(1, len(files))
         self.assertEqual('//depot/inside/inside_file1', files[0]['depotFile'])
+
+    def testAddWithHaveWildcard(self):
+        "Basic file add where source files already synced"
+        self.setupCompare()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1@png")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', '-f', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        p4 = self.source.p4
+        p4.client = TRANSFER_CLIENT
+        p4.run_sync()
+
+        self.run_CompareRepos('-s', '//depot/...@3', '--fix')
+        self.transferp4.run('submit', '-d', "Target")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1%40png', files[0]['depotFile'])
+
+        # Now do edit too
+        p4.client = P4CLIENT
+        self.source.p4cmd('edit', escapeName(inside_file1))
+        create_file(inside_file1, 'Test content2')
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        p4.client = TRANSFER_CLIENT
+        p4.run_sync()
+
+        self.run_CompareRepos('-s', '//depot/...@4', '--fix')
+        self.transferp4.run('submit', '-d', "Target2")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(2, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1%40png', files[0]['depotFile'])
+
+
+        # And delete
+        p4.client = P4CLIENT
+        self.source.p4cmd('delete', escapeName(inside_file1))
+        self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
+
+        p4.client = TRANSFER_CLIENT
+
+        self.run_CompareRepos('-s', '//depot/...@5', '--fix')
+        self.transferp4.run('submit', '-d', "Target3")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(3, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1%40png', files[0]['depotFile'])
 
 
 if __name__ == '__main__':
