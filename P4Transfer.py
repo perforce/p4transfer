@@ -1655,7 +1655,10 @@ class P4Target(P4Base):
         targFileRevs.extend(moveRevs)
         result = cc.listsEqual(srcFileRevs, targFileRevs, self.filesToIgnore)
         if not result[0]:
-            raise P4TLogicException(result[1])
+            if self.options.ignore_errors:
+                self.logger.error(result[1])
+            else:
+                raise P4TLogicException(result[1])
 
     def syncf(self, localFile):
         self.p4cmd('sync', '-f', localFile)
@@ -2218,6 +2221,7 @@ class P4Transfer(object):
         parser.add_argument('-r', '--repeat', action='store_true',
                             help="Repeat transfer in a loop - for continuous transfer as background task")
         parser.add_argument('-s', '--stoponerror', action='store_true', help="Stop on any error even if --repeat has been specified")
+        parser.add_argument('--ignore-errors', action='store_true', help="Ignore changelist comparison errors - just log as Error and carry on")
         parser.add_argument('--sample-config', action='store_true', help="Print an example config file and exit")
         parser.add_argument('-i', '--ignore-integrations', action='store_true', help="Treat integrations as adds and edits")
         parser.add_argument('--end-datetime', type=valid_datetime_type, default=None,
