@@ -420,8 +420,7 @@ class TestCompareRepos(unittest.TestCase):
         self.assertEqual(1, len(files))
         self.assertEqual('//depot/inside/inside_file1%40png', files[0]['depotFile'])
 
-
-        # And delete
+        # And edited
         p4.client = P4CLIENT
         self.source.p4cmd('delete', escapeName(inside_file1))
         self.source.p4cmd('submit', '-d', 'inside_file1 deleted')
@@ -433,6 +432,35 @@ class TestCompareRepos(unittest.TestCase):
 
         changes = self.target.p4cmd('changes')
         self.assertEqual(3, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1%40png', files[0]['depotFile'])
+
+        # And missing
+        p4.client = P4CLIENT
+        with self.source.p4.at_exception_level(P4.P4.RAISE_NONE):
+            self.source.p4cmd('sync', escapeName(inside_file1))
+        append_to_file(inside_file1, "new\n")
+        self.source.p4cmd('add', '-f', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        p4.client = TRANSFER_CLIENT
+        # with self.target.p4.at_exception_level(P4.P4.RAISE_NONE):
+        fstat = self.target.p4cmd('fstat', '//depot/inside/inside_file1%40png')
+        tfile = fstat[0]['clientFile']
+        localDirectory(os.path.split(tfile)[0])
+        append_to_file(tfile, "new2\n")
+        self.target.p4cmd('add', '-f', tfile)
+        self.target.p4cmd('submit', '-d add_target')
+        self.target.p4cmd('delete', '//depot/inside/inside_file1%40png')
+        self.target.p4cmd('submit', '-d del_target')
+
+        self.run_CompareRepos('-s', '//depot/...@6', '--fix')
+        self.transferp4.run('submit', '-d', "Target3")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(6, len(changes))
 
         files = self.target.p4cmd('files', '//depot/...')
         self.assertEqual(1, len(files))

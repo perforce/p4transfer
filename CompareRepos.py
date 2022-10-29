@@ -233,23 +233,34 @@ class CompareRepos():
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync('-k', escapeWildcards(targLocalFiles[k])))
                         print(self.targp4.run_delete(escapeWildcards(targLocalFiles[k])))
+        missingCount = deletedCount = extrasCount = differentCount = 0
         if missing:
             print("missing: %s" % "\nmissing: ".join(missing))
+            missingCount = len(missing)
         else:
             print("No-missing")
         if deleted:
             print("deleted: %s" % "\ndeleted: ".join(["%s:%s" % (x[1], x[0]) for x in deleted]))
+            deletedCount = len(deleted)
         else:
             print("No-deleted")
         if extras:
             print("extra: %s" % "\nextra: ".join(extras))
+            extrasCount = len(extras)
         else:
             print("No-extras")
         if different:
             print("different: %s" % "\ndifferent: ".join([x[0] for x in different]))
+            differentCount = len(different)
         else:
             print("No-different")
-
+        print("""
+Total missing:   %d
+Total deleted:   %d
+Total extras:    %d
+Total different: %d
+Sum Total:       %d
+""" % (missingCount, deletedCount, extrasCount, differentCount, missingCount + deletedCount + extrasCount + differentCount))
 
 if __name__ == '__main__':
     obj = CompareRepos()
