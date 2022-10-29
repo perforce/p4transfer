@@ -61,7 +61,9 @@ yaml = YAML()
 
 
 # This is updated based on the value in the config file - used in comparisons below
-caseSensitive = (platform.system() == "Linux")
+caseSensitiveOS = (platform.system() == "Linux")
+caseSensitiveServer = True # default - adjusted below in config file
+inconsistentCase = False # Combo of the above, eg. true => case insensitive servers, but case sensitive OS!
 alreadyEscaped = re.compile(r"%25|%23|%40|%2A")
 
 
@@ -145,25 +147,29 @@ class CompareRepos():
         if self.options.fix:
             self.targp4.client = self.config['target']['p4client']
         self.targp4.connect()
-        if platform.system() != "Linux": # Allow to be overwritten
-            global caseSensitive
-            caseSensitive = self.config['case_sensitive']
+        global caseSensitiveServer, inconsistentCase
+        caseSensitiveServer = self.config['case_sensitive']
+        # If true we have to adjust things
+        inconsistentCase = caseSensitiveOS and not caseSensitiveServer
 
-    def getFiles(self, fstat): # Returns 2 lists: depot files and local files
-        result = {}
-        srcLocalFiles = {}
+    def getFiles(self, fstat):
+        # Returns 2 lists: depot files and local files
+        # The keys will be lowercase for comparison if we are working with inconsistentCase.
+        # We always retain the case of the client files.
+        depotFiles = {}
+        localFiles = {}
         for f in fstat:
             fname = f['depotFile']
-            if not caseSensitive:
+            if inconsistentCase:
                 fname = fname.lower()
-            result[fname] = FileRev(f)
+            depotFiles[fname] = FileRev(f)
             if 'clientFile' in f:
-                srcLocalFiles[fname] = f['clientFile']
-        return result, srcLocalFiles
+                localFiles[fname] = f['clientFile']
+        return depotFiles, localFiles
 
     def run(self):
-        srcFiles = {}
-        targFiles = {}
+        srcDepotFiles = {}
+        targDepotFiles = {}
         print("Collecting source files: %s" % self.options.source)
         srcFstat = self.srcp4.run_fstat("-Ol", self.options.source)
         # Important to record the file names in local syntax for when source server is case-insensitive and
@@ -181,7 +187,7 @@ class CompareRepos():
             with self.srcp4.at_exception_level(P4.P4.RAISE_NONE):
                 haveList = self.srcp4.run('have', srcPath)
             for f in haveList:
-                if caseSensitive:
+                if inconsistentCase: # Use the case from source server and don't care about target which is also caseinsensitiveß
                     k = f['depotFile']
                 else:
                     k = f['depotFile'].lower()
@@ -190,46 +196,44 @@ class CompareRepos():
         targFstat = []
         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
             targFstat = self.targp4.run_fstat("-Ol", self.options.target)
-        srcFiles, srcLocalFiles = self.getFiles(srcFstat)
-        targFiles, targLocalFiles = self.getFiles(targFstat)
+        # Note that for inconsistentCase operation, keys to these dicts are lowercase
+        srcDepotFiles, srcLocalFiles = self.getFiles(srcFstat)
+        targDepotFiles, targLocalFiles = self.getFiles(targFstat)
         missing = []
         deleted = []
         extras = []
         different = []
-        for k, v in srcFiles.items():
+        for k, v in srcDepotFiles.items():
             if 'delete' not in v.action:
-                if k not in targFiles:
+                if k not in targDepotFiles:
                     missing.append(k)
                     if self.options.fix:
-                        if caseSensitive:
-                            dfile = k
-                        else:
-                            dfile = k.lower()
-                        if dfile not in srcLocalHaveFiles:  # Otherwise we assume already manually synced
-                            if dfile in srcLocalFiles:
-                                nfile = escapeWildcards(srcLocalFiles[k])
-                            else:
-                                nfile = escapeWildcards(dfile)
+                        print("missing: %s; %s" % (k, v.depotFile))
+                        if k not in srcLocalHaveFiles:  # Otherwise we assume already manually synced
+                            nfile = escapeWildcards(srcLocalFiles[k])
                             print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (nfile, v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
-                if k in targFiles and 'delete' in targFiles[k].action:
-                    deleted.append((k, targFiles[k].change))
+                if k in targDepotFiles and 'delete' in targDepotFiles[k].action:
+                    deleted.append((k, targDepotFiles[k].change))
                     if self.options.fix:
+                        print("deleted: %s; %s" % (k, v.depotFile))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
             if 'delete' not in v.action:
-                if k in targFiles and 'delete' not in targFiles[k].action and v.digest != targFiles[k].digest:
-                    different.append((k, v, targFiles[k]))
+                if k in targDepotFiles and 'delete' not in targDepotFiles[k].action and v.digest != targDepotFiles[k].digest:
+                    different.append((k, v, targDepotFiles[k]))
                     if self.options.fix:
+                        print("different: %s; %s" % (k, v.depotFile))
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync("-k", targLocalFiles[k]))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
                         print(self.targp4.run_edit('-t', v.type, escapeWildcards(srcLocalFiles[k])))
-        for k, v in targFiles.items():
+        for k, v in targDepotFiles.items():
             if 'delete' not in v.action:
-                if k not in srcFiles or (k in srcFiles and 'delete' in srcFiles[k].action):
+                if k not in srcDepotFiles or (k in srcDepotFiles and 'delete' in srcDepotFiles[k].action):
                     extras.append(k)
                     if self.options.fix:
+                        print("extra: %s; %s" % (k, v.depotFile))
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync('-k', escapeWildcards(targLocalFiles[k])))
                         print(self.targp4.run_delete(escapeWildcards(targLocalFiles[k])))
