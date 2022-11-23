@@ -34,7 +34,7 @@ else:
 P4D = "p4d"     # This can be overridden via command line stuff
 P4USER = "testuser"
 P4CLIENT = "test_ws"
-TEST_ROOT = '_testrun_transfer'
+TEST_ROOT = '_testrun_compare'
 TRANSFER_CLIENT = "transfer"
 TRANSFER_CONFIG = "transfer.yaml"
 
@@ -345,6 +345,90 @@ class TestCompareRepos(unittest.TestCase):
 
         changes = self.target.p4cmd('changes')
         self.assertEqual(1, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1', files[0]['depotFile'])
+
+    def testPurgedAdd(self):
+        "Basic file add where files has been purged"
+        self.setupCompare()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', '-t' '+S1', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('edit', inside_file1)
+        create_file(inside_file1, 'Test content2')
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.run_CompareRepos('-s', '//depot/...@1', '--fix')
+        opened = self.transferp4.run('opened')
+        self.assertEqual(0, len(opened))
+
+        self.run_CompareRepos('-s', '//depot/...@2', '--fix')
+        self.transferp4.run('submit', '-d', "Target")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1', files[0]['depotFile'])
+
+    def testPurgedEdit(self):
+        "Basic file edit where files has been purged"
+        self.setupCompare()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', '-t' '+S1', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.run_CompareRepos('-s', '//depot/...@1', '--fix')
+        self.transferp4.run('submit', '-d', "Target")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1', files[0]['depotFile'])
+
+        # Submit new version
+        self.source.p4cmd('edit', inside_file1)
+        create_file(inside_file1, 'Test content2')
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited')
+
+        self.source.p4cmd('edit', inside_file1)
+        create_file(inside_file1, 'Test content3')
+        self.source.p4cmd('submit', '-d', 'inside_file1 edited again')
+
+        opened = self.transferp4.run('opened')
+        self.assertEqual(0, len(opened))
+
+        self.run_CompareRepos('-s', '//depot/...@2', '--fix')
+        opened = self.transferp4.run('opened')
+        self.assertEqual(0, len(opened))
+        # self.transferp4.run('submit', '-d', "Target")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes))
+
+        files = self.target.p4cmd('files', '//depot/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual('//depot/inside/inside_file1', files[0]['depotFile'])
+
+        self.run_CompareRepos('-s', '//depot/...@3', '--fix')
+        self.transferp4.run('submit', '-d', "Target")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(2, len(changes))
 
         files = self.target.p4cmd('files', '//depot/...')
         self.assertEqual(1, len(files))

@@ -204,7 +204,7 @@ class CompareRepos():
         extras = []
         different = []
         for k, v in srcDepotFiles.items():
-            if 'delete' not in v.action:
+            if 'delete' not in v.action and v.action != 'purge':
                 if k not in targDepotFiles:
                     missing.append(k)
                     if self.options.fix:
@@ -219,7 +219,7 @@ class CompareRepos():
                         print("deleted: %s; %s" % (k, v.depotFile))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
-            if 'delete' not in v.action:
+            if 'delete' not in v.action and v.action != 'purge':
                 if k in targDepotFiles and 'delete' not in targDepotFiles[k].action and v.digest != targDepotFiles[k].digest:
                     different.append((k, v, targDepotFiles[k]))
                     if self.options.fix:
