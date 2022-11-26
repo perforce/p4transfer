@@ -1397,7 +1397,13 @@ class P4Target(P4Base):
         self.srcFileLogs = {}
         for f in srcFileLogs:
             self.srcFileLogs[f.depotFile] = f
+        numProcessed = 0
         for f in fileRevs:
+            numProcessed += 1
+            if self.options.reset_connection and numProcessed % self.options.reset_connection == 0:
+                self.logger.info("Resetting source connection after %d files processed" % numProcessed)
+                self.src.p4.disconnect()
+                self.src.p4.connect()
             self.logger.debug('targ: %s' % f)
             self.currentFileContent = None
 
@@ -2217,6 +2223,7 @@ class P4Transfer(object):
         parser.add_argument('-n', '--notransfer', action='store_true',
                             help="Validate config file and setup source/target workspaces but don't transfer anything")
         parser.add_argument('-m', '--maximum', default=None, type=int, help="Maximum number of changes to transfer")
+        parser.add_argument('--reset-connection', default=None, type=int, help="No of files after which to reset connection (for large changes)")
         parser.add_argument('-k', '--nokeywords', action='store_true', help="Do not expand keywords and remove +k from filetype")
         parser.add_argument('-r', '--repeat', action='store_true',
                             help="Repeat transfer in a loop - for continuous transfer as background task")

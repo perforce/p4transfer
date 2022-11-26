@@ -4771,6 +4771,28 @@ class TestP4Transfer(TestP4TransferBase):
         files = self.target.p4cmd('files', "//depot/import/file1")
         self.assertEqual(files[0]['type'], "text")
 
+    def testResetConnection(self):
+        "Reset connection - for flaky connections"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+
+        files = []
+        for f in range(1, 5):
+            fname = "file{}".format(f)
+            files.append(os.path.join(inside, fname))
+
+        for fname in files:
+            create_file(fname, 'Test content')
+            self.source.p4cmd('add', fname)
+
+        self.source.p4cmd('submit', '-d', 'File(s) added')
+
+        self.run_P4Transfer("--reset-connection", "2")
+
+        newFiles = self.target.p4cmd('files', "//...")
+        self.assertEqual(len(newFiles), 4)
+
     def testTempobjFiletype(self):
         """Tests for files with no content"""
         self.setupTransfer()
