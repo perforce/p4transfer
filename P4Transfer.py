@@ -2403,6 +2403,8 @@ class P4Transfer(object):
         "Perform a replication loop"
         self.source.connect('source replicate')
         self.target.connect('target replicate')
+        targetTimeFromSource.setup(self.source, self.target)
+        self.logger.info("TargetTimeFromSource offset (mins) %d" % targetTimeFromSource.offsetMins())
         self.source.createClientWorkspace(True)
         self.target.createClientWorkspace(False, self.source.matchingStreams)
         counterVal = self.target.getCounter()
@@ -2623,8 +2625,6 @@ class P4Transfer(object):
                     report_interval=self.options.report_interval)
                 logOnce(self.logger, self.source.options)
                 logOnce(self.logger, self.target.options)
-                targetTimeFromSource.setup(self.source, self.target)
-                self.logger.info("TargetTimeFromSource offset (mins) %d" % targetTimeFromSource.offsetMins())
                 self.source.disconnect()
                 self.target.disconnect()
                 num_changes = self.replicate_changes()
