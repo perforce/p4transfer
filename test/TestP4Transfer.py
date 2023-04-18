@@ -466,18 +466,19 @@ class TestP4Transfer(TestP4TransferBase):
 
     def testTimeOffset(self):
         "Basic timeoffset calculations"
-        obj = P4Transfer.TargetTimeFromSource()
+        obj = P4Transfer.UTCTimeFromSource()
         tests = [
-            # src       targ       result (targ - src)
-            ["0000",    "0000",    0],
-            ["asfd",    "",        0],
-            ["-0100",   "0000",    60],
-            ["+0100",   "0000",   -60],
-            ["-0700",   "+0100",   480],
-            ["+0100",   "-0700",  -480],
+            # src        result (UTC - src)
+            ["0000",     0],
+            ["asfd",     0],
+            ["-0100",    60],
+            ["+0100",   -60],
+            ["-0700",    420],
+            ["+0700",   -420],
         ]
         for t in tests:
-            self.assertEqual(obj._getOffsetValue(t[1]) - obj._getOffsetValue(t[0]), t[2])
+            obj.setup(None, t[0])
+            self.assertEqual(obj.offsetMins(), t[1])
 
     def testMaximum(self):
         "Test  only max number of changes are transferred"

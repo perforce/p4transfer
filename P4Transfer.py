@@ -384,9 +384,9 @@ def specialMovesSupported():
     return sourceTargetTextComparison.sourceP4DVersion > "2021.0"
 
 
-class TargetTimeFromSource(object):
+class UTCTimeFromSource(object):
     """Return offset in minutes to be added to source server timestamp to get valid target server timestamp"""
-    targetOffset = 0
+    utcOffset = 0
     reDate = re.compile(r"([\+\-]*)([0-9]{2})([0-9]{2})")
 
     def _getOffsetString(self, server):
@@ -409,19 +409,21 @@ class TargetTimeFromSource(object):
         except:
             return 0
 
-    def setup(self, src, targ):
-        srcOffset = self._getOffsetString(src)
-        targOffset = self._getOffsetString(targ)
-        self.targetOffset = self._getOffsetValue(targOffset) - self._getOffsetValue(srcOffset)
+    def setup(self, src, offsetString=None):
+        if offsetString:
+            srcOffset = offsetString
+        else:
+            srcOffset = self._getOffsetString(src)
+        self.utcOffset = -self._getOffsetValue(srcOffset)
 
     def offsetMins(self):
-        return self.targetOffset
+        return self.utcOffset
 
     def offsetSeconds(self):
-        return self.targetOffset * 60
+        return self.utcOffset * 60
 
 
-targetTimeFromSource = TargetTimeFromSource()
+utcTimeFromSource = UTCTimeFromSource()
 
 
 def isText(ftype):
@@ -1753,7 +1755,7 @@ class P4Target(P4Base):
         newChange = self.p4.fetch_change(newChangeId)
         newChange._user = change['user']
         # date in change is in epoch time (from -Ztag changes - not from change -o), we translate by adding offset
-        newDate = datetime.utcfromtimestamp(int(change['time']) + targetTimeFromSource.offsetSeconds()).strftime("%Y/%m/%d %H:%M:%S")
+        newDate = datetime.utcfromtimestamp(int(change['time']) + utcTimeFromSource.offsetSeconds()).strftime("%Y/%m/%d %H:%M:%S")
         newChange._date = newDate
         self.p4.save_change(newChange, '-f')
 
@@ -2403,8 +2405,8 @@ class P4Transfer(object):
         "Perform a replication loop"
         self.source.connect('source replicate')
         self.target.connect('target replicate')
-        targetTimeFromSource.setup(self.source, self.target)
-        self.logger.info("TargetTimeFromSource offset (mins) %d" % targetTimeFromSource.offsetMins())
+        utcTimeFromSource.setup(self.source)
+        self.logger.info("UTCTimeFromSource offset (mins) %d" % utcTimeFromSource.offsetMins())
         self.source.createClientWorkspace(True)
         self.target.createClientWorkspace(False, self.source.matchingStreams)
         counterVal = self.target.getCounter()
