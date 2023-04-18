@@ -384,6 +384,46 @@ def specialMovesSupported():
     return sourceTargetTextComparison.sourceP4DVersion > "2021.0"
 
 
+class TargetTimeFromSource(object):
+    """Return offset in minutes to be added to source server timestamp to get valid target server timestamp"""
+    targetOffset = 0
+    reDate = re.compile(r"([\+\-]*)([0-9]{2})([0-9]{2})")
+
+    def _getOffsetString(self, server):
+        # Server date: 2015/07/13 14:52:59 -0700 PDT
+        # Server date: 2015/07/13 14:52:59 +0100 BST
+        try:
+            dt = server.p4cmd("info", "-s")[0]["serverDate"]
+            return dt.split()[2]
+        except:
+            return "0000"
+
+    def _getOffsetValue(self, offsetStr):
+        try:
+            m = self.reDate.match(offsetStr)
+            if m:
+                result = int(m.group(2)) * 60 + int(m.group(3))
+                if m.group(1) and m.group(1) == '-':
+                    result = -result
+            return result
+        except:
+            return 0
+
+    def setup(self, src, targ):
+        srcOffset = self._getOffsetString(src)
+        targOffset = self._getOffsetString(targ)
+        self.targetOffset = self._getOffsetValue(targOffset) - self._getOffsetValue(srcOffset)
+
+    def offsetMins(self):
+        return self.targetOffset
+
+    def offsetSeconds(self):
+        return self.targetOffset * 60
+
+
+targetTimeFromSource = TargetTimeFromSource()
+
+
 def isText(ftype):
     "If filetype is not text - binary or unicode"
     if re.search("text", ftype):
@@ -1712,8 +1752,8 @@ class P4Target(P4Base):
             return
         newChange = self.p4.fetch_change(newChangeId)
         newChange._user = change['user']
-        # date in change is in epoch time, we need it in canonical form
-        newDate = datetime.utcfromtimestamp(int(change['time'])).strftime("%Y/%m/%d %H:%M:%S")
+        # date in change is in epoch time, we translate by adding offset
+        newDate = datetime.fromtimestamp(int(change['time']) + targetTimeFromSource.offsetSeconds()).strftime("%Y/%m/%d %H:%M:%S")
         newChange._date = newDate
         self.p4.save_change(newChange, '-f')
 
@@ -2583,6 +2623,8 @@ class P4Transfer(object):
                     report_interval=self.options.report_interval)
                 logOnce(self.logger, self.source.options)
                 logOnce(self.logger, self.target.options)
+                targetTimeFromSource.setup(self.source, self.target)
+                self.logger.info("TargetTimeFromSource offset (mins) %d" % targetTimeFromSource.offsetMins())
                 self.source.disconnect()
                 self.target.disconnect()
                 num_changes = self.replicate_changes()

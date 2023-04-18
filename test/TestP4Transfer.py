@@ -464,6 +464,21 @@ class TestP4Transfer(TestP4TransferBase):
         self.assertEqual(datetime.datetime(2040, 1, 1, 13, 1), pt.options.end_datetime)
         self.assertFalse(pt.endDatetimeExceeded())
 
+    def testTimeOffset(self):
+        "Basic timeoffset calculations"
+        obj = P4Transfer.TargetTimeFromSource()
+        tests = [
+            # src       targ       result (targ - src)
+            ["0000",    "0000",    0],
+            ["asfd",    "",        0],
+            ["-0100",   "0000",    60],
+            ["+0100",   "0000",   -60],
+            ["-0700",   "+0100",   480],
+            ["+0100",   "-0700",  -480],
+        ]
+        for t in tests:
+            self.assertEqual(obj._getOffsetValue(t[1]) - obj._getOffsetValue(t[0]), t[2])
+
     def testMaximum(self):
         "Test  only max number of changes are transferred"
         self.setupTransfer()
