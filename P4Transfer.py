@@ -1755,7 +1755,7 @@ class P4Target(P4Base):
         newChange = self.p4.fetch_change(newChangeId)
         newChange._user = change['user']
         # date in change is in epoch time (from -Ztag changes - not from change -o), we translate by adding offset
-        newDate = datetime.utcfromtimestamp(int(change['time']) + utcTimeFromSource.offsetSeconds()).strftime("%Y/%m/%d %H:%M:%S")
+        newDate = datetime.utcfromtimestamp(int(change['time']) - utcTimeFromSource.offsetSeconds()).strftime("%Y/%m/%d %H:%M:%S")
         newChange._date = newDate
         self.p4.save_change(newChange, '-f')
 
