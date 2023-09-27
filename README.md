@@ -12,7 +12,7 @@ This requires Python (2.7 or 3.6+) and P4Python (2017.2+). It runs on Linux/Mac/
 
 Also for other modules:
 
-    pip install requirements.txt
+    pip install -r requirements.txt
 
 If you have problems with the above, check the doc below.
 
