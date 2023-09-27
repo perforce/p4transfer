@@ -425,6 +425,10 @@ class UTCTimeFromSource(object):
 
 utcTimeFromSource = UTCTimeFromSource()
 
+def stop_file_exists(filepath):
+    """Checks if a stop file exists at the given filepath."""
+    return os.path.exists(filepath)
+STOP_FILE_PATH = "/tmp/stop.txt"
 
 def isText(ftype):
     "If filetype is not text - binary or unicode"
