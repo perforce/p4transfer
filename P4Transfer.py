@@ -430,6 +430,20 @@ def stop_file_exists(filepath):
     return os.path.exists(filepath)
 STOP_FILE_PATH = "/tmp/stop.txt"
 
+def controlled_sleep(minutes):
+    start_time = time.time()
+    end_time = start_time + (minutes * 60)
+    
+    while time.time() < end_time:
+        if stop_file_exists(STOP_FILE_PATH):
+            # Log or print that we detected the stop file and are breaking out of sleep
+            return True  # Indicates sleep was interrupted by stop file
+        time.sleep(30)  # Sleep for 30 seconds before checking again
+
+    return False  # Indicates full sleep was completed without interruption
+
+
+
 def isText(ftype):
     "If filetype is not text - binary or unicode"
     if re.search("text", ftype):
@@ -2657,8 +2671,15 @@ class P4Transfer(object):
                     if time.time() - time_last_summary_sent > self.options.summary_report_interval * 60:
                         time_last_summary_sent = time.time()
                         self.send_summary_email(time_last_summary_sent, change_last_summary_sent)
-                    time.sleep(self.options.poll_interval * 60)
-                    self.logger.info("Sleeping for %d minutes" % self.options.poll_interval)
+                    # time.sleep(self.options.poll_interval * 60)
+                    # controlled_sleep(self.options.poll_interval)
+                    # self.logger.info("Sleeping for %d minutes" % self.options.poll_interval)
+                    # Check if controlled_sleep was interrupted by stop file
+                    if controlled_sleep(self.options.poll_interval):
+                        self.logger.info("Detected stop file. Exiting...")
+                        finished = True
+                    else:
+                        self.logger.info("Sleeping for %d minutes" % self.options.poll_interval)
             except P4TException as e:
                 self.log_exception(e)
                 self.logger.notify("Error", "Logic Exception encountered - stopping")
@@ -2681,7 +2702,8 @@ class P4Transfer(object):
                             self.logger.info("Logging - Notifying recurring error")
                             self.logger.notify("Recurring error", "Multiple errors seen")
                     self.logger.info("Sleeping on error for %d minutes" % self.options.sleep_on_error_interval)
-                    time.sleep(self.options.sleep_on_error_interval * 60)
+                    # time.sleep(self.options.sleep_on_error_interval * 60)
+                    controlled_sleep(self.options.sleep_on_error_interval)
         self.logger.notify("Changes transferred", "Completed successfully")
         logging.shutdown()
         return 0
