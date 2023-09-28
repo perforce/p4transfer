@@ -428,7 +428,9 @@ utcTimeFromSource = UTCTimeFromSource()
 def stop_file_exists(filepath):
     """Checks if a stop file exists at the given filepath."""
     return os.path.exists(filepath)
-STOP_FILE_PATH = "/tmp/stop.txt"
+#STOP_FILE_PATH = "/tmp/stop.txt"
+STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__stopfile")
+
 
 def controlled_sleep(minutes):
     start_time = time.time()
