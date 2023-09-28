@@ -428,7 +428,6 @@ utcTimeFromSource = UTCTimeFromSource()
 def stop_file_exists(filepath):
     """Checks if a stop file exists at the given filepath."""
     return os.path.exists(filepath)
-#STOP_FILE_PATH = "/tmp/stop.txt"
 STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__stopfile")
 
 
@@ -2673,9 +2672,6 @@ class P4Transfer(object):
                     if time.time() - time_last_summary_sent > self.options.summary_report_interval * 60:
                         time_last_summary_sent = time.time()
                         self.send_summary_email(time_last_summary_sent, change_last_summary_sent)
-                    # time.sleep(self.options.poll_interval * 60)
-                    # controlled_sleep(self.options.poll_interval)
-                    # self.logger.info("Sleeping for %d minutes" % self.options.poll_interval)
                     # Check if controlled_sleep was interrupted by stop file
                     if controlled_sleep(self.options.poll_interval):
                         self.logger.info("Detected stop file. Exiting...")
@@ -2704,7 +2700,6 @@ class P4Transfer(object):
                             self.logger.info("Logging - Notifying recurring error")
                             self.logger.notify("Recurring error", "Multiple errors seen")
                     self.logger.info("Sleeping on error for %d minutes" % self.options.sleep_on_error_interval)
-                    # time.sleep(self.options.sleep_on_error_interval * 60)
                     controlled_sleep(self.options.sleep_on_error_interval)
         self.logger.notify("Changes transferred", "Completed successfully")
         logging.shutdown()
