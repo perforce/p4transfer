@@ -299,7 +299,7 @@ to check the view mapping.
 
 Note that since labeling itself is not versioned no labels or tags are transferred.
 
-=== Integration Recrods
+=== Integration Records
 
 Branching and integrating with is implemented, as long as both source and target are within the workspace view. Otherwise, the integrate action is downgraded to an add or edit.
 
