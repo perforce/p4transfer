@@ -26,20 +26,13 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: add perforce repository
-      uses: myci-actions/add-deb-repo@11
-      with:
-        repo: deb http://package.perforce.com/apt/ubuntu/ jammy release
-        repo-name: perforce
-        keys-asc: https://package.perforce.com/perforce.pubkey
     - name: Install dependencies
       shell: bash
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8
         # Specific version of p4python - for ease of installation with static libs
-        pip install ruamel.yaml requests
-        sudo apt-get install -y perforce-p4python3
+        pip install ruamel.yaml requests p4python
         # Normally one would run the following
         # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         # Now get latest tested version of p4d and put in the path
