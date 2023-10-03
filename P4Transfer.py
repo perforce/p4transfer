@@ -2699,8 +2699,6 @@ class P4Transfer(object):
                             error_notified = True
                             self.logger.info("Logging - Notifying recurring error")
                             self.logger.notify("Recurring error", "Multiple errors seen")
-                    # self.logger.info("Sleeping on error for %d minutes" % self.options.sleep_on_error_interval)
-                    # controlled_sleep(self.options.sleep_on_error_interval)
                     self.logger.info("Sleeping on error for %d minutes" % self.options.sleep_on_error_interval)
                     if controlled_sleep(self.options.sleep_on_error_interval):
                         self.logger.info("Detected stop file during error sleep. Preparing to exit...")
