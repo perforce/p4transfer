@@ -2639,7 +2639,6 @@ class P4Transfer(object):
         num_changes = 0
         global STOP_FILE_PATH
         STOP_FILE_PATH = os.path.join(os.path.dirname(self.options.config), STOP_FILE_NAME) # Adjust to same dir as config file.
-        logOnce("Stopfile: %s" % STOP_FILE_PATH)
         while not finished:
             try:
                 self.readConfig()       # Read every time to allow user to change them
@@ -2650,6 +2649,7 @@ class P4Transfer(object):
                     report_interval=self.options.report_interval)
                 logOnce(self.logger, self.source.options)
                 logOnce(self.logger, self.target.options)
+                logOnce("Stopfile: %s" % STOP_FILE_PATH)
                 self.source.disconnect()
                 self.target.disconnect()
                 num_changes = self.replicate_changes()
