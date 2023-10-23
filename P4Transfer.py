@@ -2649,7 +2649,7 @@ class P4Transfer(object):
                     report_interval=self.options.report_interval)
                 logOnce(self.logger, self.source.options)
                 logOnce(self.logger, self.target.options)
-                logOnce("Stopfile: %s" % STOP_FILE_PATH)
+                logOnce(self.logger, "Stopfile: %s" % STOP_FILE_PATH)
                 self.source.disconnect()
                 self.target.disconnect()
                 num_changes = self.replicate_changes()
