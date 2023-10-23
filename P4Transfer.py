@@ -428,7 +428,8 @@ utcTimeFromSource = UTCTimeFromSource()
 def stop_file_exists(filepath):
     """Checks if a stop file exists at the given filepath."""
     return os.path.exists(filepath)
-STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__stopfile")
+STOP_FILE_NAME = "__stopfile"
+STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), STOP_FILE_NAME)
 
 
 def controlled_sleep(minutes):
@@ -2636,6 +2637,9 @@ class P4Transfer(object):
         error_notified = False
         finished = False
         num_changes = 0
+        global STOP_FILE_PATH
+        STOP_FILE_PATH = os.path.join(os.path.dirname(self.options.config), STOP_FILE_NAME) # Adjust to same dir as config file.
+        logOnce("Stopfile: %s" % STOP_FILE_PATH)
         while not finished:
             try:
                 self.readConfig()       # Read every time to allow user to change them
