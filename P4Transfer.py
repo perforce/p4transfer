@@ -428,7 +428,8 @@ utcTimeFromSource = UTCTimeFromSource()
 def stop_file_exists(filepath):
     """Checks if a stop file exists at the given filepath."""
     return os.path.exists(filepath)
-STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__stopfile")
+STOP_FILE_NAME = "__stopfile"
+STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), STOP_FILE_NAME)
 
 
 def controlled_sleep(minutes):
@@ -2636,6 +2637,8 @@ class P4Transfer(object):
         error_notified = False
         finished = False
         num_changes = 0
+        global STOP_FILE_PATH
+        STOP_FILE_PATH = os.path.join(os.path.dirname(self.options.config), STOP_FILE_NAME) # Adjust to same dir as config file.
         while not finished:
             try:
                 self.readConfig()       # Read every time to allow user to change them
@@ -2646,6 +2649,7 @@ class P4Transfer(object):
                     report_interval=self.options.report_interval)
                 logOnce(self.logger, self.source.options)
                 logOnce(self.logger, self.target.options)
+                logOnce(self.logger, "Stopfile: %s" % STOP_FILE_PATH)
                 self.source.disconnect()
                 self.target.disconnect()
                 num_changes = self.replicate_changes()
@@ -2700,10 +2704,7 @@ class P4Transfer(object):
                             self.logger.info("Logging - Notifying recurring error")
                             self.logger.notify("Recurring error", "Multiple errors seen")
                     self.logger.info("Sleeping on error for %d minutes" % self.options.sleep_on_error_interval)
-                    if controlled_sleep(self.options.sleep_on_error_interval):
-                        self.logger.info("Detected stop file during error sleep. Preparing to exit...")
-                        finished = True
-
+                    controlled_sleep(self.options.sleep_on_error_interval)
         self.logger.notify("Changes transferred", "Completed successfully")
         logging.shutdown()
         return 0
