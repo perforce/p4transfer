@@ -98,6 +98,17 @@ def logOnce(logger, *args):
         alreadyLogged[msg] = 1
         logger.debug(msg)
 
+## COLORS FOR EYE BALLS
+RED = "\033[1;31m"
+GREEN = "\033[1;32m"
+YELLOW = "\033[1;33m"
+BLUE = "\033[1;34m"
+MAGENTA = "\033[1;35m"
+CYAN = "\033[1;36m"
+WHITE = "\033[1;37m"
+# Reset code (in case you need to reset the color back to default)
+RESET = "\033[0;0m"
+
 
 P4.Revision.__repr__ = logrepr
 P4.Integration.__repr__ = logrepr
@@ -435,7 +446,7 @@ STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), STOP_F
 def controlled_sleep(minutes):
     start_time = time.time()
     end_time = start_time + (minutes * 60)
-    
+
     while time.time() < end_time:
         if stop_file_exists(STOP_FILE_PATH):
             # Log or print that we detected the stop file and are breaking out of sleep
@@ -823,6 +834,7 @@ class ChangelistComparer(object):
             return (False, "Replication failure: src/target content differences found\nsrc:%s\ntarg:%s" % (
                 "\n    ".join([str(r) for r in diffs]),
                 "\n    ".join([str(targlookup[r.localFile]) for r in diffs])))
+        self.logger.info(f"{GREEN}Replication success: source and target changelists match!{RESET}")
         return (True, "")
 
 
@@ -1039,12 +1051,19 @@ class P4Base(object):
         self.depotmap = self.localmap.reverse()
 
     def p4cmd(self, *args, **kwargs):
-        "Execute p4 cmd while logging arguments and results"
+        """Execute p4 cmd while logging arguments and results"""
         self.logger.debug(self.p4id, args)
         output = self.p4.run(args, **kwargs)
         self.logger.debug(self.p4id, output)
         self.checkWarnings()
+
+        # If our condition is met, prepend our code to the output
+        if "can't change +l type with reopen" in str(output):
+            return str(output)
+
         return output
+
+
 
     def disconnect(self):
         if self.p4:
@@ -1565,7 +1584,37 @@ class P4Target(P4Base):
             if localFile and len(localFile) > 0 and localFile in revDict:
                 chRev = revDict[localFile]
                 if chRev.type != ofile['type']:
-                    self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
+                    if chRev.type == 'binary+l':
+                        # Handle the special case for binary+l
+                        self.handleBinaryLType(ofile, chRev)
+                    else:
+                        # For other types, just reopen
+                        self.logger.debug(RED + "fixFileTypes attempting file type change for binary+l" + RESET)
+                        self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
+
+    def handleBinaryLType(self, ofile, chRev):
+        self.logger.debug(YELLOW + "handleBinaryLTypes attempting file type change for binary+l" + RESET)
+        result = self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
+
+        # If there's an error specifically suggesting revert -k for the file, then perform the steps
+        if "can't change +l type with reopen; use revert -k and then edit -t to change type." in result:
+            self.logger.warning(f"{RED}Issue identified with file {ofile['depotFile']} suggesting to use 'revert -k' and type change.{RESET}")
+            edit_result = self.p4cmd('revert', '-k', ofile['depotFile'])
+            edit_result = self.p4cmd('add', '-t', chRev.type, ofile['depotFile'])
+            edit_result = self.p4cmd('edit', '-t', chRev.type, ofile['depotFile'])
+
+#            # Handle the situation where file is already opened for add
+#            if "can't edit (already opened for add)" in edit_result:
+#                self.logger.warning(f"{RED}File {ofile['depotFile']} is opened for add. Reverting and adding with correct type.{RESET}")
+#                self.p4cmd('revert', ofile['depotFile'])
+#                self.p4cmd('add', '-t', chRev.type, ofile['depotFile'])
+#            else:
+#                # If the file isn't on the client, sync it first
+#                if "file(s) not on client." in edit_result:
+#                    self.logger.info(f"{RED}Syncing {ofile['depotFile']} before type change{RESET}")
+#                    self.p4cmd('sync', ofile['depotFile'])
+#                    self.p4cmd('edit', '-t', chRev.type, ofile['depotFile'])
+
 
     def replicateChange(self, fileRevs, specialMoveRevs, srcFileLogs, change, sourcePort):
         """This is the heart of it all. Replicate all changes according to their description"""
@@ -1624,6 +1673,7 @@ class P4Target(P4Base):
                         for w in self.p4.warnings:
                             mf = re_translation.search(w)
                             if mf:
+                                self.logger.debug("We're in the MF")
                                 self.p4cmd("reopen", "-tbinary", mf.group(1))
                                 self.filesToIgnore.append(mf.group(1))
                     result = self.p4cmd("submit", "-c", chgNo) # May cause another exception
@@ -1641,6 +1691,10 @@ class P4Target(P4Base):
         self.logger.info("source = {} : target = {}".format(change['change'], newChangeId))
         self.validateSubmittedChange(newChangeId, fileRevs)
         return newChangeId
+
+
+
+
 
     def replicateFirstChange(self, sourcePort):
         """Replicate first change when historical start specified"""
@@ -1789,6 +1843,7 @@ class P4Target(P4Base):
         for openFile in opened:
             if self.hasKeyword(openFile["type"]):
                 fileType = self.removeKeyword(openFile["type"])
+                self.logger.debug("removeKeywords attempt reopen")
                 self.p4cmd('reopen', '-t', fileType, openFile["depotFile"])
                 self.logger.debug("targ: Changed type from {} to {} for {}".
                                   format(openFile["type"], fileType, openFile["depotFile"]))
@@ -2230,6 +2285,7 @@ class P4Target(P4Base):
                 fh.write("sourceP4Port,sourceChangeNo,targetChangeNo\n")
             output = self.p4cmd('reconcile', fpath)[0]
             if output['action'] == 'add':
+                self.logger.debug("initChangeMapFile attempt reopen")
                 self.p4cmd('reopen', '-t', 'text+CS32', fpath)
         chg = self.p4.fetch_change()
         fpath = os.path.join(self.root, self.options.change_map_file)
@@ -2239,6 +2295,7 @@ class P4Target(P4Base):
         if not m:
             raise P4TException("Failed to create changelist")
         chgno = m.group(1)
+        self.logger.debug("2initChangeMapFile attempt reopen")
         self.p4cmd('reopen', '-c', chgno, fpath)[0]
 
     def updateChangeMap(self, sourceP4Port, sourceChangeNo, targetChangeNo):
