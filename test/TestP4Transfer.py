@@ -1294,6 +1294,67 @@ class TestP4Transfer(TestP4TransferBase):
         lines = content.split("\n")
         self.assertEqual(lines[0], '$Id: //depot/import/inside_file2#1 $')
 
+    def testFileTypesPlusL(self):
+        "File types are transferred appropriately even when exclusive locked"
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', '-tbinary', inside_file1)
+        self.source.p4cmd('submit', '-d', "inside_file1 added")
+
+        self.run_P4Transfer()
+        self.assertCounters(1, 1)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertEqual(filelog[0].revisions[0].type, 'binary')
+
+        self.source.p4cmd('edit', '-t+l', inside_file1)
+        append_to_file(inside_file1, "More content")
+        self.source.p4cmd('submit', '-d', "Type changed")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertTrue(filelog[0].revisions[0].type in ['binary+l'])
+
+    def testFileTypesPlusLCommit(self):
+        "File types are transferred appropriately even when exclusive locked on a commit-server"
+        self.setupTransfer()
+
+        # Change target to a commit server
+        self.target.p4cmd('serverid', 'mycommit')
+        svr = self.target.p4.fetch_server('mycommit')
+        svr['Services'] = 'commit-server'
+        self.target.p4.save_server(svr)
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', '-ttext', inside_file1)
+        self.source.p4cmd('submit', '-d', "inside_file1 added")
+
+        self.run_P4Transfer()
+        self.assertCounters(1, 1)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertEqual(filelog[0].revisions[0].type, 'text')
+
+        self.source.p4cmd('edit', inside_file1)
+        self.source.p4cmd('move', inside_file1, inside_file2)
+        self.source.p4cmd('reopen', '-tbinary+l', inside_file2)
+        # append_to_file(inside_file1, "More content")
+        self.source.p4cmd('submit', '-d', "Type changed")
+
+        self.run_P4Transfer()
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file2')
+        self.assertEqual(filelog[0].revisions[0].type, 'binary+l')
+
     def testFileTypeIntegrations(self):
         "File types are integrated appropriately"
         self.setupTransfer()

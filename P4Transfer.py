@@ -1565,7 +1565,16 @@ class P4Target(P4Base):
             if localFile and len(localFile) > 0 and localFile in revDict:
                 chRev = revDict[localFile]
                 if chRev.type != ofile['type']:
-                    self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
+                    # Can't just do a reopen to +l if working with a commit/edge environment
+                    if '+' in chRev.type and 'l' in chRev.type.split('+')[1]:
+                        result = self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
+                        if "can't change +l type with reopen; use revert -k and then edit -t to change type." in str(result):
+                            self.logger.warning(f"Issue identified with file {ofile['depotFile']} suggesting to use 'revert -k' and type change.")
+                            self.p4cmd('revert', '-k', ofile['depotFile'])
+                            self.p4cmd('add', '-t', chRev.type, ofile['depotFile'])
+                            self.p4cmd('edit', '-t', chRev.type, ofile['depotFile'])
+                    else:
+                        self.p4cmd('reopen', '-t', chRev.type, ofile['depotFile'])
 
     def replicateChange(self, fileRevs, specialMoveRevs, srcFileLogs, change, sourcePort):
         """This is the heart of it all. Replicate all changes according to their description"""
