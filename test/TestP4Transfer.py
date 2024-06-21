@@ -1051,6 +1051,7 @@ class TestP4Transfer(TestP4TransferBase):
         self.run_P4Transfer()
         self.assertCounters(1, 1)
 
+    @unittest.skip("P4 now seems able to sync this file!")
     def testUTF16Unsyncable(self):
         "UTF 16 file which can't be synced"
         self.setupTransfer()
