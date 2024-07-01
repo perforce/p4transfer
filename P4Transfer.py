@@ -1767,7 +1767,7 @@ class P4Target(P4Base):
                 self.p4cmd('sync', source)
                 self.p4cmd('resolve', '-ay', source)
             if os.path.exists(file.fixedLocalFile) or os.path.islink(file.fixedLocalFile):
-                self.p4cmd('move', '-k', source, file.localFile)
+                self.p4cmd('move', '-kf', source, file.localFile)
             else:
                 self.p4cmd('move', source, file.localFile)
             if diskFileContentModified(file):

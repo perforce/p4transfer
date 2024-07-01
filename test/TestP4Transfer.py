@@ -4321,6 +4321,67 @@ class TestP4Transfer(TestP4TransferBase):
         self.assertEqual(1, len(filelog.revisions[0].integrations))
         self.assertEqual("copy from", filelog.revisions[0].integrations[0].how)
 
+    def testBranchAndMoveSameTarget(self):
+        """Branch a file and move/rename into same revision."""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        inside_file2 = os.path.join(inside, "inside_file2")
+        inside_file3 = os.path.join(inside, "inside_file3")
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.source.p4cmd('integrate', inside_file1, inside_file2)
+        self.source.p4cmd('submit', '-d', 'branch original')
+
+        self.source.p4cmd('edit', inside_file1)
+        self.source.p4cmd('move', inside_file1, inside_file3)
+        self.source.p4cmd('integ', '-f', inside_file2, inside_file3)
+        self.source.p4cmd('resolve', '-at')
+        self.source.p4cmd('submit', '-d', 'branch and move')
+
+        filelog = self.source.p4.run_filelog(inside_file3)[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations), 2)
+        self.assertEqual("moved from", filelog.revisions[0].integrations[0].how)
+        self.assertEqual("copy from", filelog.revisions[0].integrations[1].how)
+
+        # Convert copy from to branch from
+        recs = self.dumpDBFiles("db.integed")
+        self.logger.debug(recs)
+
+        #  '@pv@ 1 @db.integed@ @//depot/inside/inside_file2@ @//depot/inside/inside_file3@ 0 1 0 1 10 3 ', 
+        #  '@pv@ 1 @db.integed@ @//depot/inside/inside_file3@ @//depot/inside/inside_file2@ 0 1 0 1 4 3 ']
+        newrecs = []
+        for rec in recs:
+            if "@db.integed@ @//depot/inside/inside_file2@ @//depot/inside/inside_file3@" in rec:
+                rec = rec.replace("@ 0 1 0 1 10", "@ 0 1 0 1 3")     # 10->3: edit into->branch into
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+            if "@db.integed@ @//depot/inside/inside_file3@ @//depot/inside/inside_file2@" in rec:
+                rec = rec.replace("@ 0 1 0 1 4", "@ 0 1 0 1 2")     # 4->2: copy from->branch from
+                rec = rec.replace("@pv@", "@rv@")
+                newrecs.append(rec)
+        self.logger.debug("Newrecs:", "\n".join(newrecs))
+        self.applyJournalPatch("\n".join(newrecs))
+
+        filelog = self.source.p4.run_filelog(inside_file3)[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations), 2)
+        self.assertEqual("moved from", filelog.revisions[0].integrations[0].how)
+        self.assertEqual("branch from", filelog.revisions[0].integrations[1].how)
+
+        self.run_P4Transfer()
+        self.assertCounters(3, 3)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file3')[0]
+        self.logger.debug(filelog)
+        self.assertEqual(2, len(filelog.revisions[0].integrations))
+        self.assertEqual("moved from", filelog.revisions[0].integrations[0].how)
+        self.assertEqual("copy from", filelog.revisions[0].integrations[1].how)
+
     def testIntegAddMergeCopy(self):
         """Integrate an add/merge/copy of 3 revisions into single new target."""
         self.setupTransfer()
