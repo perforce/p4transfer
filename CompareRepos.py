@@ -41,7 +41,7 @@ DESCRIPTION:
         python3 CompareRepos.py -h
 
     The script requires a config file as for P4Transfer.py
-    The config file provides the Perforce connection information for both servers, 
+    The config file provides the Perforce connection information for both servers,
     and source/target client workspace names.
 
     For full documentation/usage, see project doc:
@@ -56,14 +56,16 @@ import platform
 import re
 import argparse
 import textwrap
+from pathlib import Path
+import shutil
 from ruamel.yaml import YAML
 yaml = YAML()
 
 
 # This is updated based on the value in the config file - used in comparisons below
 caseSensitiveOS = (platform.system() == "Linux")
-caseSensitiveServer = True # default - adjusted below in config file
-inconsistentCase = False # Combo of the above, eg. true => case insensitive servers, but case sensitive OS!
+caseSensitiveServer = True  # default - adjusted below in config file
+inconsistentCase = False    # Combo of the above, eg. true => case insensitive servers, but case sensitive OS!
 alreadyEscaped = re.compile(r"%25|%23|%40|%2A")
 
 
@@ -167,6 +169,16 @@ class CompareRepos():
                 localFiles[fname] = f['clientFile']
         return depotFiles, localFiles
 
+    def copyLocalFile(self, src, targ):
+        # Copy a file if there is a case path issue - where it might fail an add or edit
+        source_path = Path(src)
+        target_path = Path(targ)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if target_path.exists():
+            target_path.chmod(0o644)
+        shutil.copy(source_path, target_path)
+        print(f"Fixed case issue: copied {src} to {targ}")
+
     def run(self):
         srcDepotFiles = {}
         targDepotFiles = {}
@@ -187,7 +199,7 @@ class CompareRepos():
             with self.srcp4.at_exception_level(P4.P4.RAISE_NONE):
                 haveList = self.srcp4.run('have', srcPath)
             for f in haveList:
-                if inconsistentCase: # Use the case from source server and don't care about target which is also caseinsensitiveß
+                if inconsistentCase:    # Use the case from source server and don't care about target which is also caseinsensitive
                     k = f['depotFile']
                 else:
                     k = f['depotFile'].lower()
@@ -218,6 +230,8 @@ class CompareRepos():
                     if self.options.fix:
                         print("deleted: %s; %s" % (k, v.depotFile))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
+                        if inconsistentCase and srcLocalFiles[k] != targLocalFiles[k]:
+                            self.copyLocalFile(srcLocalFiles[k], targLocalFiles[k])
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
             if 'delete' not in v.action and v.action != 'purge':
                 if k in targDepotFiles and 'delete' not in targDepotFiles[k].action and v.digest != targDepotFiles[k].digest:
@@ -227,6 +241,8 @@ class CompareRepos():
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync("-k", targLocalFiles[k]))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
+                        if inconsistentCase and srcLocalFiles[k] != targLocalFiles[k]:
+                            self.copyLocalFile(srcLocalFiles[k], targLocalFiles[k])
                         print(self.targp4.run_edit('-t', v.type, escapeWildcards(srcLocalFiles[k])))
         for k, v in targDepotFiles.items():
             if 'delete' not in v.action:
@@ -265,6 +281,7 @@ Total extras:    %d
 Total different: %d
 Sum Total:       %d
 """ % (missingCount, deletedCount, extrasCount, differentCount, missingCount + deletedCount + extrasCount + differentCount))
+
 
 if __name__ == '__main__':
     obj = CompareRepos()
