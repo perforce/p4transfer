@@ -1494,7 +1494,10 @@ class P4Target(P4Base):
                     self.replicateBranch(f, dirty=True)
                 else:
                     self.logger.debug('processing:0020 add')
-                    self.p4cmd('add', '-ft', f.type, f.fixedLocalFile)
+                    output = self.p4cmd('add', '-ft', f.type, f.fixedLocalFile)
+                    if len(output) > 0 and self.re_cant_add_existing_file.search(str(output[-1])):
+                        self.p4cmd('sync', '-k', f.fixedLocalFile)
+                        self.p4cmd('edit', '-t', f.type, f.fixedLocalFile)
             elif f.action == 'delete':
                 if f.hasIntegrations() and not f.hasOnlyMovedFromIntegrations():
                     self.replicateIntegration(f)
