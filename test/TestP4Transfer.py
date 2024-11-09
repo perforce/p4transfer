@@ -5001,7 +5001,42 @@ class TestP4Transfer(TestP4TransferBase):
         self.source.p4cmd('submit', '-d', 'version 2')
 
         self.run_P4Transfer()
-        self.assertCounters(5, 5)
+        self.assertCounters(2, 2)
+
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        revisions = filelog[0].revisions
+        self.logger.debug('test:', revisions)
+        self.assertEqual(len(revisions), 2)
+        for rev in revisions:
+            self.logger.debug('test:', rev.rev, rev.action, rev.digest)
+            self.logger.debug(self.target.p4.run_print('//depot/import/inside_file1#%s' % rev.rev))
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
+        self.assertEqual(filelog[0].revisions[0].action, 'edit')
+        self.assertEqual(filelog[0].revisions[1].action, 'add')
+
+    def testBranchUndoAfterPurge(self):
+        """Tests for files branched ontop of purged revs"""
+        self.setupTransfer()
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+
+        create_file(inside_file1, "Test content")
+        self.source.p4cmd('add', '-t', 'text', inside_file1)
+        self.source.p4cmd('submit', '-d', 'files added')
+
+        self.source.p4cmd('edit', inside_file1)
+        append_to_file(inside_file1, 'New text')
+        self.source.p4cmd('submit', '-d', 'version 2')
+
+        self.source.p4cmd('sync', '@0')
+        self.source.p4cmd('obliterate', '-yp', f'{inside_file1}#2')
+
+        self.source.p4cmd('copy', f'{inside_file1}#1', inside_file1)
+        self.source.p4cmd('submit', '-d', 'branch/undo')
+
+        self.run_P4Transfer()
+        self.assertCounters(3, 3)
 
         filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
         revisions = filelog[0].revisions
@@ -5010,9 +5045,9 @@ class TestP4Transfer(TestP4TransferBase):
         for rev in revisions:
             self.logger.debug('test:', rev.rev, rev.action, rev.digest)
             self.logger.debug(self.target.p4.run_print('//depot/import/inside_file1#%s' % rev.rev))
-        filelog = self.target.p4.run_filelog('//depot/import/inside_file4')
+        filelog = self.target.p4.run_filelog('//depot/import/inside_file1')
         self.assertEqual(filelog[0].revisions[0].action, 'integrate')
-        self.assertEqual(filelog[0].revisions[1].action, 'purge')
+        self.assertEqual(filelog[0].revisions[1].action, 'edit')
 
     def testBranchPerformance(self):
         "Branch lots of files and test performance"
