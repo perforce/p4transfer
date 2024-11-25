@@ -435,7 +435,7 @@ STOP_FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), STOP_F
 def controlled_sleep(minutes):
     start_time = time.time()
     end_time = start_time + (minutes * 60)
-    
+
     while time.time() < end_time:
         if stop_file_exists(STOP_FILE_PATH):
             # Log or print that we detected the stop file and are breaking out of sleep
@@ -779,10 +779,10 @@ class ChangelistComparer(object):
 
     def listsEqual(self, srclist, targlist, filesToIgnore):
         "Compare two lists of changes, with an ignore list"
-        srcfiles = set([chRev.localFile for chRev in srclist if chRev.localFile not in filesToIgnore])
-        targfiles = set([chRev.localFile for chRev in targlist])
+        srcfiles = set([chRev.fixedLocalFile for chRev in srclist if chRev.localFile not in filesToIgnore])
+        targfiles = set([chRev.fixedLocalFile for chRev in targlist])
         if not self.caseSensitive:
-            srcfiles = set([escapeWildCards(x.lower()) for x in srcfiles])
+            srcfiles = set([x.lower() for x in srcfiles])
             targfiles = set([x.lower() for x in targfiles])
         diffs = srcfiles.difference(targfiles)
         if diffs:
@@ -802,27 +802,27 @@ class ChangelistComparer(object):
             # Cross check again for case insensitive servers - note that this will update the lists!
             if not self.caseSensitive:
                 for chRev in srcfiles:
-                    chRev.localFile = chRev.localFile.lower()
+                    chRev.fixedLocalFile = chRev.fixedLocalFile.lower()
                 for chRev in targfiles:
-                    chRev.localFile = chRev.localFile.lower()
+                    chRev.fixedLocalFile = chRev.fixedLocalFile.lower()
                 new_diffs = [r for r in diffs if r.fileSize and r.digest]
                 diffs2 = srcfiles.difference(targfiles)
                 if not diffs2:
                     return (True, "")
                 for chRev in targlist:
-                    targlookup[chRev.localFile] = chRev
+                    targlookup[chRev.fixedLocalFile] = chRev
                 # For case insenstive, focus on digest rather than fileSize
-                new_diffs = [r for r in diffs2 if r != targlookup[escapeWildCards(r.localFile)] and r.digest != targlookup[escapeWildCards(r.localFile)].digest]
+                new_diffs = [r for r in diffs2 if r != targlookup[r.fixedLocalFile] and r.digest != targlookup[r.fixedLocalFile].digest]
                 if not new_diffs:
                     return (True, "")
                 return (False, "Replication failure (case insensitive): src/target content differences found\nsrc:%s\ntarg:%s" % (
                     "\n    ".join([str(r) for r in diffs]),
-                    "\n    ".join([str(targlookup[r.localFile]) for r in diffs])))
+                    "\n    ".join([str(targlookup[r.fixedLocalFile]) for r in diffs])))
             for chRev in targlist:
-                targlookup[chRev.localFile] = chRev
+                targlookup[chRev.fixedLocalFile] = chRev
             return (False, "Replication failure: src/target content differences found\nsrc:%s\ntarg:%s" % (
                 "\n    ".join([str(r) for r in diffs]),
-                "\n    ".join([str(targlookup[r.localFile]) for r in diffs])))
+                "\n    ".join([str(targlookup[r.fixedLocalFile]) for r in diffs])))
         return (True, "")
 
 
@@ -1139,7 +1139,7 @@ class P4Source(P4Base):
         self.srcFileLogCache = {}
 
     def missingChanges(self, counter):
-        revRange = '//{client}/...@{rev},#head'.format(client=self.P4CLIENT, rev=counter + 1)
+        revRange = '//{client}/...@{rev},@{rev2}'.format(client=self.P4CLIENT, rev=counter + 1, rev2=counter + 100000 + 1)
         if sourceTargetTextComparison.sourceP4DVersion > "2017.1":
             # We can be more efficient with 2017.2 or greater servers with changes -r -m
             maxChanges = 0
@@ -1626,7 +1626,7 @@ class P4Target(P4Base):
                     self.p4.run(cmd)
                     result = self.p4cmd("submit", "-c", m.group(1))
                 else:  # Check for utf16 type problems and change them to binary to see if that works
-                    re_transferProblems = re.compile(".*fix problems then use 'p4 submit -c ([0-9]+)'.\nSome file\(s\) could not be transferred from client")
+                    re_transferProblems = re.compile(".*fix problems then use 'p4 submit -c ([0-9]+)'.\nSome file\\(s\\) could not be transferred from client")
                     re_translation = re.compile("Translation of file content failed near line [0-9]+ file (.*)")
                     m = re_transferProblems.search(self.p4.errors[0])
                     if not m:
@@ -1901,8 +1901,8 @@ class P4Target(P4Base):
             self.logger.debug('processing:0230 add')
             output = self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
             if len(output) > 0 and self.re_cant_add_existing_file.search(str(output[-1])):
-                self.p4cmd('sync', '-k', file.fixedLocalFile)
-                self.p4cmd('edit', '-t', file.type, file.fixedLocalFile)
+                self.p4cmd('sync', '-k', escapeWildCards(file.localFile))
+                self.p4cmd('edit', '-t', file.type, escapeWildCards(file.fixedLocalFile))
             if diskFileContentModified(file):
                 self.logger.warning('Resyncing add due to file content changes')
                 self.src.p4cmd('sync', '-f', file.localFileRev())

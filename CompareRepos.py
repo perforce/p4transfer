@@ -140,6 +140,7 @@ class CompareRepos():
         self.srcp4 = P4.P4()
         self.srcp4.port = self.config['source']['p4port']
         self.srcp4.user = self.config['source']['p4user']
+        self.srcp4.charset = "none"
         if self.options.fix:
             self.srcp4.client = self.config['source']['p4client']
         self.srcp4.connect()
@@ -208,16 +209,19 @@ class CompareRepos():
         targFstat = []
         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
             targFstat = self.targp4.run_fstat("-Ol", self.options.target)
+
         # Note that for inconsistentCase operation, keys to these dicts are lowercase
         srcDepotFiles, srcLocalFiles = self.getFiles(srcFstat)
         targDepotFiles, targLocalFiles = self.getFiles(targFstat)
+
         missing = []
         deleted = []
         extras = []
         different = []
         for k, v in srcDepotFiles.items():
+            kf = k.replace('//UE5/Main/Engine', '//vendor/unreal/Epic/Engine')
             if 'delete' not in v.action and v.action != 'purge':
-                if k not in targDepotFiles:
+                if kf not in targDepotFiles:
                     missing.append(k)
                     if self.options.fix:
                         print("missing: %s; %s" % (k, v.depotFile))
@@ -225,34 +229,35 @@ class CompareRepos():
                             nfile = escapeWildcards(srcLocalFiles[k])
                             print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (nfile, v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
-                if k in targDepotFiles and 'delete' in targDepotFiles[k].action:
-                    deleted.append((k, targDepotFiles[k].change))
+                if kf in targDepotFiles and 'delete' in targDepotFiles[kf].action:
+                    deleted.append((k, targDepotFiles[kf].change))
                     if self.options.fix:
                         print("deleted: %s; %s" % (k, v.depotFile))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
-                        if inconsistentCase and srcLocalFiles[k] != targLocalFiles[k]:
-                            self.copyLocalFile(srcLocalFiles[k], targLocalFiles[k])
+                        if inconsistentCase and srcLocalFiles[k] != targLocalFiles[kf]:
+                            self.copyLocalFile(srcLocalFiles[k], targLocalFiles[kf])
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
             if 'delete' not in v.action and v.action != 'purge':
-                if k in targDepotFiles and 'delete' not in targDepotFiles[k].action and v.digest != targDepotFiles[k].digest:
-                    different.append((k, v, targDepotFiles[k]))
+                if kf in targDepotFiles and 'delete' not in targDepotFiles[kf].action and v.digest != targDepotFiles[kf].digest:
+                    different.append((k, v, targDepotFiles[kf]))
                     if self.options.fix:
                         print("different: %s; %s" % (k, v.depotFile))
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync("-k", targLocalFiles[k]))
+                            print(self.targp4.run_sync("-k", targLocalFiles[kf]))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
-                        if inconsistentCase and srcLocalFiles[k] != targLocalFiles[k]:
-                            self.copyLocalFile(srcLocalFiles[k], targLocalFiles[k])
+                        if inconsistentCase and srcLocalFiles[k] != targLocalFiles[kf]:
+                            self.copyLocalFile(srcLocalFiles[k], targLocalFiles[kf])
                         print(self.targp4.run_edit('-t', v.type, escapeWildcards(srcLocalFiles[k])))
-        for k, v in targDepotFiles.items():
+        for kf, v in targDepotFiles.items():
+            k = kf.replace('//vendor/unreal/Epic/Engine', '//UE5/Main/Engine')
             if 'delete' not in v.action:
                 if k not in srcDepotFiles or (k in srcDepotFiles and 'delete' in srcDepotFiles[k].action):
                     extras.append(k)
                     if self.options.fix:
                         print("extra: %s; %s" % (k, v.depotFile))
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
-                            print(self.targp4.run_sync('-k', escapeWildcards(targLocalFiles[k])))
-                        print(self.targp4.run_delete(escapeWildcards(targLocalFiles[k])))
+                            print(self.targp4.run_sync('-k', escapeWildcards(targLocalFiles[kf])))
+                        print(self.targp4.run_delete(escapeWildcards(targLocalFiles[kf])))
         missingCount = deletedCount = extrasCount = differentCount = 0
         if missing:
             print("missing: %s" % "\nmissing: ".join(missing))

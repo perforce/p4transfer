@@ -2,6 +2,11 @@
 # p4transfer
 Utility for transferring a subset of files (with complete history of all changelists) from one Helix Core repository to another, only requiring read access to the source repository.
 
+## !! Embark modifications !!
+* Hacks to get over gnarly Epic history with @ in filenames (seem to be a few bugs in the original script around this)
+* Added a transfer.yaml
+* Added fixes to CompareRepos.py, particularly when the client is named differently on src and targ
+
 ## Overview
 
 The script `P4Transfer.py` is for use when transferring changes between two Perforce Servers (one way).
