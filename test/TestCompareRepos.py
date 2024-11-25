@@ -254,32 +254,46 @@ class TestCompareRepos(unittest.TestCase):
         if os.path.isdir(self.transfer_root):
             shutil.rmtree(self.transfer_root, False, onRmTreeError)
 
-    def getDefaultOptions(self):
+    def getDefaultOptions(self, srcDepot="depot", targDepot="depot"):
         config = {}
         config['transfer_client'] = TRANSFER_CLIENT
         config['workspace_root'] = self.transfer_client_root
-        config['views'] = [{'src': '//depot/...',
-                            'targ': '//depot/...'}]
+        config['views'] = [{'src': f'//{srcDepot}/...',
+                            'targ': f'//{targDepot}/...'}]
         return config
 
-    def setupCompare(self):
+    def setupCompare(self, srcDepot="depot", targDepot="depot"):
         """Creates a config file with default mappings"""
         msg = "Test: %s ======================" % inspect.stack()[1][3]
         self.logger.debug(msg)
-        config = self.getDefaultOptions()
+        config = self.getDefaultOptions(srcDepot=srcDepot, targDepot=targDepot)
         self.createConfigFile(options=config)
-        client = self.source.p4.fetch_client(config['transfer_client'])
+        if srcDepot != "depot":
+            clientName = P4CLIENT
+            client = self.source.p4.fetch_client(clientName)
+            client._root = self.source.client_root
+            client._view = [f'//{srcDepot}/... //{clientName}/...']
+            self.source.p4.save_client(client)
+        if targDepot != "depot":
+            clientName = P4CLIENT
+            client = self.target.p4.fetch_client(clientName)
+            client._root = self.target.client_root
+            client._view = [f'//{targDepot}/... //{clientName}/...']
+            self.target.p4.save_client(client)
+
+        clientName = config['transfer_client']
+        client = self.source.p4.fetch_client(clientName)
         client._root = config['workspace_root']
-        client._view = ['//depot/... //%s/depot/...' % (config['transfer_client'])]
+        client._view = [f'//{srcDepot}/... //{clientName}/{srcDepot}/...']
         self.source.p4.save_client(client)
-        client = self.target.p4.fetch_client(config['transfer_client'])
+        client = self.target.p4.fetch_client(clientName)
         client._root = config['workspace_root']
-        client._view = ['//depot/... //%s/depot/...' % (config['transfer_client'])]
+        client._view = [f'//{targDepot}/... //{clientName}/{srcDepot}/...']
         self.target.p4.save_client(client)
         self.transferp4 = P4.P4()
         self.transferp4.port = self.target.p4.port
         self.transferp4.user = self.target.p4.user
-        self.transferp4.client = config['transfer_client']
+        self.transferp4.client = clientName
         self.transferp4.connect()
 
     def createConfigFile(self, srcOptions=None, targOptions=None, options=None):
@@ -458,6 +472,38 @@ class TestCompareRepos(unittest.TestCase):
         files = self.target.p4cmd('files', '//depot/...')
         self.assertEqual(1, len(files))
         self.assertEqual('//depot/inside/inside_file1', files[0]['depotFile'])
+
+    def testAddDifferentDepots(self):
+        "Basic file add with different source/target depot names"
+        # Create new depots
+        srcDepot = 'srcDepot'
+        targDepot = 'targDepot'
+        d = self.source.p4.fetch_depot(srcDepot)
+        self.source.p4.save_depot(d)
+        self.source.p4.disconnect()
+        self.source.p4.connect()
+        d = self.target.p4.fetch_depot(targDepot)
+        self.target.p4.save_depot(d)
+        self.target.p4.disconnect()
+        self.target.p4.connect()
+        self.setupCompare(srcDepot=srcDepot, targDepot=targDepot)
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside_file1 = os.path.join(inside, "inside_file1")
+        create_file(inside_file1, 'Test content')
+
+        self.source.p4cmd('add', inside_file1)
+        self.source.p4cmd('submit', '-d', 'inside_file1 added')
+
+        self.run_CompareRepos('-s', f'//{srcDepot}/...@3', '-t', f'//{targDepot}/...', '--fix')
+        self.transferp4.run('submit', '-d', "Target")
+
+        changes = self.target.p4cmd('changes')
+        self.assertEqual(1, len(changes))
+
+        files = self.target.p4cmd('files', f'//{targDepot}/...')
+        self.assertEqual(1, len(files))
+        self.assertEqual(f'//{targDepot}/inside/inside_file1', files[0]['depotFile'])
 
     def testAddWithHaveWildcard(self):
         "Basic file add where source files already synced"

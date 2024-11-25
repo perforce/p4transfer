@@ -153,6 +153,17 @@ class CompareRepos():
         caseSensitiveServer = self.config['case_sensitive']
         # If true we have to adjust things
         inconsistentCase = caseSensitiveOS and not caseSensitiveServer
+        # Setup for comparing different source/target paths e.g. //srcDepot/... -> //targDepot/...
+        self.srcPath = self.options.source
+        self.targPath = self.options.target
+        if "@" in self.srcPath:
+            parts = self.srcPath.split("@")
+            if len(parts) > 1:
+                self.srcPath = parts[0]
+        if self.srcPath.endswith("/..."):
+            self.srcPath = self.srcPath[0:len(self.srcPath)-3]
+        if self.targPath.endswith("/..."):
+            self.targPath = self.targPath[0:len(self.targPath)-3]
 
     def getFiles(self, fstat):
         # Returns 2 lists: depot files and local files
@@ -211,45 +222,60 @@ class CompareRepos():
         # Note that for inconsistentCase operation, keys to these dicts are lowercase
         srcDepotFiles, srcLocalFiles = self.getFiles(srcFstat)
         targDepotFiles, targLocalFiles = self.getFiles(targFstat)
+        targLookupFiles = {}
+        for k, v in targDepotFiles.items():
+            if self.srcPath == self.targPath:
+                targLookupFiles[k] = v
+            else:
+                targLookupFiles[k.replace(self.targPath, self.srcPath)] = v
         missing = []
         deleted = []
         extras = []
         different = []
         for k, v in srcDepotFiles.items():
             if 'delete' not in v.action and v.action != 'purge':
-                if k not in targDepotFiles:
+                if k not in targLookupFiles:
                     missing.append(k)
                     if self.options.fix:
-                        print("missing: %s; %s" % (k, v.depotFile))
+                        d = v.depotFile
+                        if self.srcPath != self.targPath:
+                            d = d.replace(self.srcPath, self.targPath)
+                        print(f"missing: {k}; {d}")
                         if k not in srcLocalHaveFiles:  # Otherwise we assume already manually synced
                             nfile = escapeWildcards(srcLocalFiles[k])
                             print("src: %s" % self.srcp4.run_sync('-f', "%s#%s" % (nfile, v.rev)))
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
-                if k in targDepotFiles and 'delete' in targDepotFiles[k].action:
-                    deleted.append((k, targDepotFiles[k].change))
+                if k in targLookupFiles and 'delete' in targLookupFiles[k].action:
+                    deleted.append((k, targLookupFiles[k].change))
                     if self.options.fix:
-                        print("deleted: %s; %s" % (k, v.depotFile))
+                        d = v.depotFile
+                        if self.srcPath != self.targPath:
+                            d = d.replace(self.srcPath, self.targPath)
+                        print(f"deleted: {k}; {d}")
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
                         if inconsistentCase and srcLocalFiles[k] != targLocalFiles[k]:
                             self.copyLocalFile(srcLocalFiles[k], targLocalFiles[k])
                         print(self.targp4.run_add('-ft', v.type, srcLocalFiles[k]))
             if 'delete' not in v.action and v.action != 'purge':
-                if k in targDepotFiles and 'delete' not in targDepotFiles[k].action and v.digest != targDepotFiles[k].digest:
-                    different.append((k, v, targDepotFiles[k]))
+                if k in targLookupFiles and 'delete' not in targLookupFiles[k].action and v.digest != targLookupFiles[k].digest:
+                    different.append((k, v, targLookupFiles[k]))
                     if self.options.fix:
-                        print("different: %s; %s" % (k, v.depotFile))
+                        d = v.depotFile
+                        if self.srcPath != self.targPath:
+                            d = d.replace(self.srcPath, self.targPath)
+                        print(f"different: {k}; {d}")
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync("-k", targLocalFiles[k]))
                         print(self.srcp4.run_sync('-f', "%s#%s" % (escapeWildcards(srcLocalFiles[k]), v.rev)))
                         if inconsistentCase and srcLocalFiles[k] != targLocalFiles[k]:
                             self.copyLocalFile(srcLocalFiles[k], targLocalFiles[k])
                         print(self.targp4.run_edit('-t', v.type, escapeWildcards(srcLocalFiles[k])))
-        for k, v in targDepotFiles.items():
+        for k, v in targLookupFiles.items():
             if 'delete' not in v.action:
                 if k not in srcDepotFiles or (k in srcDepotFiles and 'delete' in srcDepotFiles[k].action):
                     extras.append(k)
                     if self.options.fix:
-                        print("extra: %s; %s" % (k, v.depotFile))
+                        print(f"extra: {targDepotFiles[k].depotFile}; {v.depotFile}")
                         with self.targp4.at_exception_level(P4.P4.RAISE_NONE):
                             print(self.targp4.run_sync('-k', escapeWildcards(targLocalFiles[k])))
                         print(self.targp4.run_delete(escapeWildcards(targLocalFiles[k])))
