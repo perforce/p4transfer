@@ -979,6 +979,11 @@ class P4Base(object):
                     srcPath = src.replace('//', '')
                     line = "%s/... //%s/%s/..." % (src, self.p4.client, srcPath)
                     clientspec._view.append(line)
+                if self.options.stream_exclude:
+                    for src in self.options.stream_exclude:
+                        srcPath = src.replace('//', '')
+                        line = "-%s //%s/%s" % (src, self.p4.client, srcPath)
+                        clientspec._view.append(line)
             else:
                 transferStream = self.p4.fetch_stream(self.options.transfer_target_stream)
                 origStream = dict(transferStream)
@@ -2377,6 +2382,7 @@ class P4Transfer(object):
         self.options.views = self.getOption(GENERAL_SECTION, "views")
         self.options.transfer_target_stream = self.getOption(GENERAL_SECTION, "transfer_target_stream")
         self.options.stream_views = self.getOption(GENERAL_SECTION, "stream_views")
+        self.options.stream_exclude = self.getOption(GENERAL_SECTION, "stream_exclude")
         self.options.workspace_root = self.getOption(GENERAL_SECTION, "workspace_root")
         self.options.ignore_files = self.getOption(GENERAL_SECTION, "ignore_files")
         if not self.options.views and not self.options.stream_views:
