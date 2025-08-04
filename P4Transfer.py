@@ -1262,19 +1262,29 @@ class P4Source(P4Base):
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
         filelogs = []
         if fpaths:
-            processedRevs = {}
             # Get 2 filelogs per rev - saves time
             filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
             if len(filelogs) < 1000:
                 self.logger.debug('filelogs: %s' % filelogs)
             else:
                 self.logger.debug('filelogs count: %d' % len(filelogs))
+            # Create a dictionary to track the highest revision per depotFile
+            max_revs = {}
+            # First pass: find the filelog from the maximum revision for each depotFile
             for flog in filelogs:
+                depot_file = flog.depotFile
+                current_rev = flog.revisions[0].rev
+                if depot_file not in max_revs or current_rev > max_revs[depot_file]:
+                    max_revs[depot_file] = current_rev
+            # Second pass: filter the filelogs to keep only those with the max revision per depotFile
+            filtered_logs = [
+                flog for flog in filelogs 
+                if flog.revisions[0].rev == max_revs[flog.depotFile]
+            ]
+
+            for flog in filtered_logs:
                 if flog.depotFile in filesToLog:
                     chRev = filesToLog[flog.depotFile]
-                    if chRev.depotFile in processedRevs:    # Only process once
-                        continue
-                    processedRevs[chRev.depotFile] = 1
                     revision = flog.revisions[0]
                     if len(revision.integrations) > 0:
                         if not self.options.historical_start_change or revision.change >= self.options.historical_start_change:
