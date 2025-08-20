@@ -1276,7 +1276,7 @@ class P4Source(P4Base):
                         continue
                     processedRevs[chRev.depotFile] = 1
                     revision = flog.revisions[0]
-                    if len(revision.integrations) > 0:
+                    if len(revision.integrations) > 0 and str(revision.change) == change['change']:
                         if not self.options.historical_start_change or revision.change >= self.options.historical_start_change:
                             for integ in revision.integrations:
                                 if 'from' in integ.how or integ.how == "ignored":
