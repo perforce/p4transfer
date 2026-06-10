@@ -4,3 +4,6 @@ transfer/
 _testrun_transfer/
 log-*.log
 .vscode/
+_testrun_compare/
+venv/
+utils/report_prog.sh
