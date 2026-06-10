@@ -68,7 +68,7 @@ from string import Template
 import argparse
 import textwrap
 import os.path
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import time
 
@@ -1626,7 +1626,7 @@ class P4Target(P4Base):
                     self.p4.run(cmd)
                     result = self.p4cmd("submit", "-c", m.group(1))
                 else:  # Check for utf16 type problems and change them to binary to see if that works
-                    re_transferProblems = re.compile(".*fix problems then use 'p4 submit -c ([0-9]+)'.\nSome file\(s\) could not be transferred from client")
+                    re_transferProblems = re.compile(".*fix problems then use 'p4 submit -c ([0-9]+)'.\nSome file\\(s\\) could not be transferred from client")
                     re_translation = re.compile("Translation of file content failed near line [0-9]+ file (.*)")
                     m = re_transferProblems.search(self.p4.errors[0])
                     if not m:
@@ -1787,7 +1787,7 @@ class P4Target(P4Base):
         newChange = self.p4.fetch_change(newChangeId)
         newChange._user = change['user']
         # date in change is in epoch time (from -Ztag changes - not from change -o), we are good to go with UTC if target server is in UTC timezone
-        newDate = datetime.utcfromtimestamp(int(change['time'])).strftime("%Y/%m/%d %H:%M:%S")
+        newDate = datetime.fromtimestamp(int(change['time']), tz=timezone.utc).strftime("%Y/%m/%d %H:%M:%S")
         newChange._date = newDate
         self.p4.save_change(newChange, '-f')
 
