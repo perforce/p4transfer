@@ -1260,16 +1260,16 @@ class P4Source(P4Base):
         if excludedFiles:
             self.logger.debug('excluded: %s' % excludedFiles)
         fpaths = ['{}#{}'.format(x.depotFile, x.rev) for x in filesToLog.values()]
-        filelogs = []
+        srcFileLogs = []
         if fpaths:
             processedRevs = {}
             # Get 2 filelogs per rev - saves time
-            filelogs = self.p4.run_filelog('-i', '-m2', *fpaths)
-            if len(filelogs) < 1000:
-                self.logger.debug('filelogs: %s' % filelogs)
+            srcFileLogs = self.p4.run_filelog('-i', '-m2', *fpaths)
+            if len(srcFileLogs) < 1000:
+                self.logger.debug('filelogs: %s' % srcFileLogs)
             else:
-                self.logger.debug('filelogs count: %d' % len(filelogs))
-            for flog in filelogs:
+                self.logger.debug('filelogs count: %d' % len(srcFileLogs))
+            for flog in srcFileLogs:
                 if flog.depotFile in filesToLog:
                     chRev = filesToLog[flog.depotFile]
                     if chRev.depotFile in processedRevs:    # Only process once
@@ -1305,7 +1305,7 @@ class P4Source(P4Base):
         fileRevs.extend(moveRevs)
         syncCallback = SyncOutput(self.p4id, self.logger, self.progress)
         self.p4cmd('sync', '//{}/...@={}'.format(self.P4CLIENT, changeNum), handler=syncCallback)
-        for flog in filelogs:
+        for flog in srcFileLogs:
             if flog.depotFile in filesToLog:
                 chRev = filesToLog[flog.depotFile]
                 chRev.updateDigest()
@@ -1314,8 +1314,8 @@ class P4Source(P4Base):
         if self.options.historical_start_change:  # Extra processing required on integration records
             self.adjustHistoricalIntegrations(fileRevs)
         if specialMovesSupported():
-            self.processSpecialMoveRevs(fileRevs, specialMoveRevs, filelogs)
-        return fileRevs, specialMoveRevs, filelogs
+            self.processSpecialMoveRevs(fileRevs, specialMoveRevs, srcFileLogs)
+        return fileRevs, specialMoveRevs, srcFileLogs
 
     def processSpecialMoveRevs(self, fileRevs, specialMoveRevs, filelogs):
         """Find any moves where move/from has an add - otherwise remove them from the list"""
@@ -1457,6 +1457,7 @@ class P4Target(P4Base):
     def processChangeRevs(self, fileRevs, specialMoveRevs, srcFileLogs):
         "Process all revisions in the change"
         self.srcFileLogs = {}
+        self.targFileLogs = {}
         for f in srcFileLogs:
             self.srcFileLogs[f.depotFile] = f
         numProcessed = 0
@@ -1897,6 +1898,10 @@ class P4Target(P4Base):
                         if not edited:
                             self.p4cmd('edit', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
+                    elif outputDict and outputDict['action'] == 'branch' and self.branchContentsChanged(file, outputDict):
+                        self.logger.debug('processing:0225 branch demoted to add due to content changes')
+                        self.p4cmd('add', file.localFile)
+                        self.src.p4cmd('sync', '-f', file.localFileRev())
         else:
             self.logger.debug('processing:0230 add')
             output = self.p4cmd('add', '-ft', file.type, file.fixedLocalFile)
@@ -1919,6 +1924,31 @@ class P4Target(P4Base):
             if file.integSyncSourceWithoutRev() not in self.srcFileLogs:
                 return False
             filelog = self.srcFileLogs[file.integSyncSourceWithoutRev()]
+            # Find revision which is not a delete
+            if filelog:
+                for rev in filelog.revisions:
+                    if "delete" not in rev.action:
+                        break
+                if rev.digest is not None and rev.fileSize is not None:
+                    return (rev.fileSize, rev.digest) != (file.fileSize, file.digest)
+                else:
+                    return False
+            else:
+                return False
+        return True
+
+    def branchContentsChanged(self, file, integOutputDict):
+        "Is the source of a branched file different to target - indicating that it should be an add not a branch"
+        fileSize, digest = 0, ""
+        if fileContentComparisonPossible(file.type):
+            integSource = f"{integOutputDict['fromFile']}#{integOutputDict['endFromRev']}"
+            if integSource not in self.targFileLogs:
+                filelogs = self.p4.run_filelog('-m1', integSource)
+                if filelogs:
+                    self.targFileLogs[integSource] = filelogs[0]
+            if integSource not in self.targFileLogs:
+                return False
+            filelog = self.targFileLogs[integSource]
             # Find revision which is not a delete
             if filelog:
                 for rev in filelog.revisions:

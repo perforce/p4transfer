@@ -2608,6 +2608,59 @@ class TestP4Transfer(TestP4TransferBase):
         self.assertEqual(1, len(filelog[0].revisions[0].integrations))
         self.assertEqual("branch", filelog[0].revisions[0].action)
 
+    def testHistoricalWrongBranch(self):
+        "Branch for historical transfer where wrong source rev is picked for integrate"
+        self.setupTransfer()
+
+        self.source.p4cmd('counter', '-f', 'change', '5')  # Set change counter to 5 so next change is 6, which is after historical start change
+
+        inside = localDirectory(self.source.client_root, "inside")
+        inside2 = localDirectory(self.target.client_root, "import")
+        file1 = os.path.join(inside, "file1")
+        targfile1 = os.path.join(inside2, "file1")
+        file2 = os.path.join(inside, "file2")
+        contents = ["0"] * 10
+
+        # Create file1 with 2 revisions (changes 1 and 2)
+        create_file(file1, "\n".join(contents) + "\n")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'Pre-start: file1 rev1')  # change 1
+
+        self.source.p4cmd('edit', file1)
+        contents[0] = "pre"
+        append_to_file(file1, "\n".join(contents) + "\n")
+        self.source.p4cmd('submit', '-d', 'Pre-start: file1 rev2')  # change 2
+
+        # Create target file1 same as source file1 rev2 - this simulates the case where the historical sync has created a file with content 
+        # from a later revision than the historical start change, so we need to detect and demote branch to add for the first integrate.
+        create_file(targfile1, "\n".join(contents) + "\n")
+        self.target.p4cmd('add', targfile1)
+        self.target.p4cmd('submit', '-d', 'Pre-start: file1 rev1 from source rev2')  # change 1
+
+        # Branch file1 to file2 - branch will be from file1#1
+        file2 = os.path.join(inside, "file2")
+        self.source.p4cmd('integrate', file1 + "#1", file2)
+        self.source.p4cmd('submit', '-d', '3: file1 -> file2 (from rev1)')
+
+        srcfilelog = self.source.p4.run_filelog('//depot/inside/file2')
+        self.assertEqual("branch from", srcfilelog[0].revisions[0].integrations[0].how)
+        self.assertEqual(1, srcfilelog[0].revisions[0].integrations[0].erev)
+
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '2'
+        self.createConfigFile(options=config)
+
+        self.run_P4Transfer()
+        self.assertCounters(8, 4)  # Changes 6,7,8
+
+        targfilelog = self.target.p4.run_filelog('//depot/import/file2')
+        self.assertEqual(1, len(targfilelog[0].revisions))
+        self.assertEqual(1, len(targfilelog[0].revisions[0].integrations))
+        self.assertEqual("add", targfilelog[0].revisions[0].action)
+        self.assertEqual(srcfilelog[0].revisions[0].digest, targfilelog[0].revisions[0].digest)
+        self.logger.debug('srcfilelog:', srcfilelog)
+        self.logger.debug('targfilelog:', targfilelog)
+
     def testComplexIntegrate(self):
         "More complex integrations with various resolve options"
         self.setupTransfer()
