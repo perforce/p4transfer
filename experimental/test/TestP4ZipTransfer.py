@@ -8,14 +8,12 @@ import time
 import P4
 import subprocess
 import inspect
-import platform
 from textwrap import dedent
 import unittest
 import os
 import shutil
 import stat
 import re
-import glob
 import argparse
 import datetime
 from ruamel.yaml import YAML
@@ -187,7 +185,7 @@ class P4Server:
 class TestP4ZipTransfer(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
-        global saved_stdoutput, test_logger
+        global test_logger
         saved_stdoutput.truncate(0)
         if test_logger is None:
             test_logger = logutils.getLogger(P4ZipTransfer.LOGGER_NAME, stream=saved_stdoutput)

@@ -190,7 +190,7 @@ class TestP4TransferBase(unittest.TestCase):
     """Base class for tests"""
 
     def __init__(self, methodName='runTest'):
-        global saved_stdoutput, test_logger
+        global test_logger
         saved_stdoutput.truncate(0)
         if test_logger is None:
             test_logger = logutils.getLogger(P4Transfer.LOGGER_NAME, stream=saved_stdoutput)

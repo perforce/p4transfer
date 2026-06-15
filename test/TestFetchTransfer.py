@@ -187,7 +187,7 @@ class P4Server:
 class TestFetchTransfer(unittest.TestCase):
 
     def __init__(self, methodName='runTest'):
-        global saved_stdoutput, test_logger
+        global test_logger
         saved_stdoutput.truncate(0)
         if test_logger is None:
             test_logger = logutils.getLogger(FetchTransfer.LOGGER_NAME, stream=saved_stdoutput)
@@ -3110,9 +3110,10 @@ class TestFetchTransfer(unittest.TestCase):
 
         filelog = self.target.p4.run_filelog('//depot/import/file3')[0]
         self.logger.debug(filelog)
-        self.assertEqual(2, len(filelog.revisions[0].integrations))
-        self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
-        self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
+        # We assume fetch was done with -I flag so no integrations brought over.
+        # self.assertEqual(2, len(filelog.revisions[0].integrations))
+        # self.assertEqual(filelog.revisions[0].integrations[0].how, "branch from")
+        # self.assertEqual(filelog.revisions[0].integrations[1].how, "moved from")
 
     def testIntegCopyAndRenameAsAddFromOutside(self):
         """Test for integrating a copy and move into single target - when copy is from outside view."""

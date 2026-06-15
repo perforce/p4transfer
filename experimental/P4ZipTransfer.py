@@ -90,7 +90,6 @@ alreadyLogged = {}
 
 # Log messages just once per run
 def logOnce(logger, *args):
-    global alreadyLogged
     msg = ", ".join([str(x) for x in args])
     if msg not in alreadyLogged:
         alreadyLogged[msg] = 1
