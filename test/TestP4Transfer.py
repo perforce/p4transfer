@@ -352,7 +352,7 @@ class TestP4TransferCaseInsensitive(TestP4TransferBase):
     """Case insensitive version"""
 
     def __init__(self, methodName='runTest'):
-        global saved_stdoutput, test_logger
+        global test_logger
         saved_stdoutput.truncate(0)
         if test_logger is None:
             test_logger = logutils.getLogger(P4Transfer.LOGGER_NAME, stream=saved_stdoutput)
@@ -424,7 +424,7 @@ class TestP4TransferCaseInsensitive(TestP4TransferBase):
 class TestP4Transfer(TestP4TransferBase):
 
     def __init__(self, methodName='runTest'):
-        global saved_stdoutput, test_logger
+        global test_logger
         saved_stdoutput.truncate(0)
         if test_logger is None:
             test_logger = logutils.getLogger(P4Transfer.LOGGER_NAME, stream=saved_stdoutput)
