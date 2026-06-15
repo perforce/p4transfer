@@ -1897,7 +1897,7 @@ class P4Target(P4Base):
                         if not edited:
                             self.p4cmd('edit', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
-                    elif outputDict and outputDict['action'] == 'branch' and self.branchContentsChanged(file, outputDict):
+                    elif not outputDict or (outputDict and outputDict['action'] == 'branch' and self.branchContentsChanged(file, outputDict)):
                         self.logger.debug('processing:0225 branch demoted to add due to content changes')
                         self.p4cmd('add', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())

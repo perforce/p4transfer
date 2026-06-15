@@ -2661,6 +2661,39 @@ class TestP4Transfer(TestP4TransferBase):
         self.logger.debug('srcfilelog:', srcfilelog)
         self.logger.debug('targfilelog:', targfilelog)
 
+    def testHistoricalBranchFromMissing(self):
+        "Branch for historical transfer where branch is done from a missing file in the target"
+        self.setupTransfer()
+
+        self.source.p4cmd('counter', '-f', 'change', '5')  # Set change counter to 5 so next change is 6, which is after historical start change
+
+        inside = localDirectory(self.source.client_root, "inside")
+        file1 = os.path.join(inside, "file1")
+        file2 = os.path.join(inside, "file2")
+        contents = ["0"] * 10
+
+        # Create file1 with 1 revision (change 6)
+        create_file(file1, "\n".join(contents) + "\n")
+        self.source.p4cmd('add', file1)
+        self.source.p4cmd('submit', '-d', 'Pre-start: file1 rev1')  # change 6
+
+        # Branch file1 to file2 - branch will be from file1#1
+        file2 = os.path.join(inside, "file2")
+        self.source.p4cmd('integrate', file1 + "#1", file2)
+        self.source.p4cmd('submit', '-d', '3: file1 -> file2 (from rev1)') # change 7
+
+        config = self.getDefaultOptions()
+        config['historical_start_change'] = '2'
+        self.createConfigFile(options=config)
+        self.setTargetCounter('6')
+
+        self.run_P4Transfer()
+        self.assertCounters(7, 1)  # Changes 6,7,8
+
+        targfilelog = self.target.p4.run_filelog('//depot/import/file2')
+        self.assertEqual(1, len(targfilelog[0].revisions))
+        self.assertEqual("add", targfilelog[0].revisions[0].action)
+
     def testComplexIntegrate(self):
         "More complex integrations with various resolve options"
         self.setupTransfer()
