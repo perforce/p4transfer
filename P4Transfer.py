@@ -1897,7 +1897,8 @@ class P4Target(P4Base):
                         if not edited:
                             self.p4cmd('edit', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
-                    elif not outputDict or (outputDict and outputDict['action'] == 'branch' and self.branchContentsChanged(file, outputDict)):
+                    elif self.options.historical_start_change and self.branchContentsChanged(file, outputDict):
+                        # If the source of a branched file is different to target then it should be an add not a branch
                         self.logger.debug('processing:0225 branch demoted to add due to content changes')
                         self.p4cmd('add', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
@@ -1939,6 +1940,8 @@ class P4Target(P4Base):
     def branchContentsChanged(self, file, integOutputDict):
         "Is the source of a branched file different to target - indicating that it should be an add not a branch"
         fileSize, digest = 0, ""
+        if not integOutputDict:
+            return True # If we don't have any output from the integrate then we can't tell if it is a branch or an add so contents have changed!
         if fileContentComparisonPossible(file.type):
             integSource = f"{integOutputDict['fromFile']}#{integOutputDict['endFromRev']}"
             if integSource not in self.targFileLogs:
