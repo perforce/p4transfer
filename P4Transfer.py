@@ -1897,6 +1897,8 @@ class P4Target(P4Base):
                         if not edited:
                             self.p4cmd('edit', file.localFile)
                         self.src.p4cmd('sync', '-f', file.localFileRev())
+                        if not edited:
+                            self.p4cmd('resolve', '-ay', file.localFile)
                     elif self.options.historical_start_change and self.branchContentsChanged(file, outputDict):
                         # If the source of a branched file is different to target then it should be an add not a branch
                         self.logger.debug('processing:0225 branch demoted to add due to content changes')
@@ -2095,7 +2097,7 @@ class P4Target(P4Base):
                 self.p4cmd('delete', '-v', destname)
             else:
                 self.logger.debug('processing:0280 delete')
-                self.p4cmd('resolve', '-at')
+                self.p4cmd('resolve', '-at', srcFile.localFile)
 
     def replicateIntegration(self, file, afterAdd=False, startInd=None):
         self.logger.debug('replicateIntegration')
@@ -2146,7 +2148,7 @@ class P4Target(P4Base):
                     integResult = self.doIntegrate(file.localIntegSource(ind), file.localFile, flags)
                     if integ.how == 'copy from':
                         self.logger.debug('processing:0320 copy from')
-                        self.p4cmd('resolve', '-at')
+                        self.p4cmd('resolve', '-at', file.localFile)
                         if not editedFrom and diskFileContentModified(file):
                             self.logger.warning('File copied but content changed')
                             self.p4cmd('edit', file.localFile)
