@@ -2148,9 +2148,16 @@ class P4Target(P4Base):
                     integResult = self.doIntegrate(file.localIntegSource(ind), file.localFile, flags)
                     if integ.how == 'copy from':
                         self.logger.debug('processing:0320 copy from')
-                        self.p4cmd('resolve', '-at', file.localFile)
+                        output = self.p4cmd('resolve', '-at', file.localFile)
+                        resolve_result = ""
+                        if output:
+                            resolve_result = output[0]
                         if not editedFrom and diskFileContentModified(file):
                             self.logger.warning('File copied but content changed')
+                            self.p4cmd('edit', file.localFile)
+                            self.src.p4cmd('sync', '-f', file.localFileRev())
+                        elif resolve_result and resolve_result['resolveType'] == 'delete' and 'delete' not in file.action:
+                            self.logger.warning('File copied but came back as delete - forcing edit')
                             self.p4cmd('edit', file.localFile)
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                         # if afterAdd:
