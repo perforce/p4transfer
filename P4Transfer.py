@@ -2158,6 +2158,7 @@ class P4Target(P4Base):
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                         elif resolve_result and resolve_result['resolveType'] == 'delete' and 'delete' not in file.action:
                             self.logger.warning('File copied but came back as delete - forcing edit')
+                            self.p4cmd('revert', file.localFile)
                             self.p4cmd('edit', file.localFile)
                             self.src.p4cmd('sync', '-f', file.localFileRev())
                         # if afterAdd:
