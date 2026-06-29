@@ -1884,10 +1884,14 @@ class P4Target(P4Base):
                     added = False
                     afterAdd = True     # This will fire further integrations
                     if outputDict and 'action' in outputDict and outputDict['action'] == 'delete':
-                        self.p4cmd('resolve', '-at', file.localFile)
-                        self.p4cmd('add', file.localFile)
-                        edited = True
-                        added = True
+                        if self.options.historical_start_change and 'delete' not in file['action']:
+                            self.p4cmd('revert', file.localFile)
+                            self.p4cmd('add', file.localFile)
+                        else:
+                            self.p4cmd('resolve', '-at', file.localFile)
+                            self.p4cmd('add', file.localFile)
+                            edited = True
+                            added = True
                     if dirty and not edited:
                         self.p4cmd('edit', file.localFile)
                         edited = True
