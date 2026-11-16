@@ -60,6 +60,8 @@ from __future__ import print_function, division
 
 import sys
 import re
+import ast
+import operator
 import hashlib
 import stat
 import pprint
@@ -228,6 +230,7 @@ sync_progress_size_interval: "500 * 1000 * 1000"
 
 # max_logfile_size (Integer): Max size of file to (in bytes) after which it should be rotated
 #     Typically some value such as 20MB = 20 * 1024 * 1024. Useful if transfer being run with --repeat option.
+#     Simple arithmetic ("20 * 1024 * 1024") or a size suffix ("20MB", "1G") is accepted - no other expressions.
 max_logfile_size: "20 * 1024 * 1024"
 
 # change_description_format: The standard format for transferred changes.
@@ -2328,6 +2331,59 @@ def valid_datetime_type(arg_datetime_str):
         raise argparse.ArgumentTypeError(msg)
 
 
+# Safe evaluation of simple integer expressions in config values (e.g. "20 * 1024 * 1024" or "20MB")
+# without resorting to eval(). Only numeric literals, parentheses and basic arithmetic are allowed.
+_SAFE_BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+}
+_SAFE_UNARY_OPS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+_SIZE_SUFFIXES = {
+    'K': 1024, 'KB': 1024,
+    'M': 1024 ** 2, 'MB': 1024 ** 2,
+    'G': 1024 ** 3, 'GB': 1024 ** 3,
+}
+_SIZE_SUFFIX_RE = re.compile(r'^\s*(\d+)\s*([KMG]B?)\s*$', re.IGNORECASE)
+
+
+def safe_int_expr(text):
+    """Evaluate a string containing a simple integer arithmetic expression.
+    Supports + - * / // % and parentheses, plus size suffixes such as 20K, 20M, 20MB, 1G.
+    Raises ValueError for anything else (names, calls, attributes, exponentiation, etc)."""
+    m = _SIZE_SUFFIX_RE.match(text)
+    if m:
+        return int(m.group(1)) * _SIZE_SUFFIXES[m.group(2).upper()]
+
+    def _eval(node):
+        if isinstance(node, ast.Expression):
+            return _eval(node.body)
+        # ast.Constant is Python 3.8+, ast.Num is older Python (incl. 2.7)
+        if hasattr(ast, 'Constant') and isinstance(node, ast.Constant):
+            if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+                raise ValueError("Only numeric literals allowed")
+            return node.value
+        if hasattr(ast, 'Num') and isinstance(node, ast.Num):
+            return node.n
+        if isinstance(node, ast.BinOp) and type(node.op) in _SAFE_BIN_OPS:
+            return _SAFE_BIN_OPS[type(node.op)](_eval(node.left), _eval(node.right))
+        if isinstance(node, ast.UnaryOp) and type(node.op) in _SAFE_UNARY_OPS:
+            return _SAFE_UNARY_OPS[type(node.op)](_eval(node.operand))
+        raise ValueError("Unsupported expression element: %s" % type(node).__name__)
+
+    try:
+        tree = ast.parse(text.strip(), mode='eval')
+    except SyntaxError as e:
+        raise ValueError("Invalid integer expression '%s': %s" % (text, e))
+    return int(_eval(tree))
+
+
 class P4Transfer(object):
     "Main transfer class"
 
@@ -2382,9 +2438,10 @@ class P4Transfer(object):
             return val
         if val:
             try:
-                result = int(eval(val))
-            except Exception:
-                pass
+                result = safe_int_expr(str(val))
+            except (ValueError, ZeroDivisionError) as e:
+                self.logger.warning("Ignoring invalid value for option %s (%s), using default %s" %
+                                    (option_name, str(e), str(default)))
         return result
 
     def readConfig(self):
